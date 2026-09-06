@@ -1,0 +1,3 @@
+pnpm -r --if-present typecheck
+pnpm -r --if-present lint
+pnpm exec lint-staged
