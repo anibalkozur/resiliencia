@@ -1,57 +1,42 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
-import { getRepo } from '../../src/repo';
+import { useUser } from '../../src/user/UserProvider';
 
 export default function PerfilScreen() {
-  const [nickname, setNickname] = useState('');
-  const [loaded, setLoaded] = useState(false);
+  const { profile, createUser } = useUser();
+  const [nickname, setNickname] = useState(profile?.nickname ?? '');
   const [saved, setSaved] = useState(false);
-  const repo = getRepo();
-
-  useEffect(() => {
-    repo.getProfile().then((profile) => {
-      if (profile) {
-        setNickname(profile.nickname);
-      }
-      setLoaded(true);
-    });
-  }, [repo]);
 
   const handleSave = useCallback(async () => {
-    const existing = await repo.getProfile();
-    await repo.saveProfile({
-      id: existing?.id ?? 'u1',
-      nickname: nickname.trim() || 'Atleta',
-      createdAt: existing?.createdAt ?? new Date().toISOString(),
-    });
+    await createUser(nickname);
     setSaved(true);
-  }, [nickname, repo]);
+  }, [createUser, nickname]);
 
   return (
     <View style={styles.container}>
       <Text style={styles.eyebrow}>RESILIENCIA</Text>
       <Text style={styles.title}>PERFIL</Text>
       <Text style={styles.caption}>Tu perfil, estadisticas y progreso.</Text>
-      {loaded && (
-        <View style={styles.card}>
-          <Text style={styles.label}>APODO</Text>
-          <TextInput
-            style={styles.input}
-            value={nickname}
-            onChangeText={setNickname}
-            placeholder="Tu apodo"
-            placeholderTextColor={colors.silverDim}
-          />
-          <Pressable
-            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-            onPress={handleSave}
-          >
-            <Text style={styles.buttonText}>GUARDAR</Text>
-          </Pressable>
-          {saved && <Text style={styles.saved}>Guardado en este dispositivo</Text>}
-        </View>
-      )}
+      <View style={styles.card}>
+        <Text style={styles.label}>APODO</Text>
+        <TextInput
+          style={styles.input}
+          value={nickname}
+          onChangeText={setNickname}
+          placeholder="Tu apodo"
+          placeholderTextColor={colors.silverDim}
+          autoCapitalize="none"
+        />
+        <Pressable
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          onPress={handleSave}
+        >
+          <Text style={styles.buttonText}>GUARDAR</Text>
+        </Pressable>
+        <Text style={styles.meta}>Usuario local desde {profile?.createdAt.slice(0, 10)}</Text>
+        {saved && <Text style={styles.saved}>Guardado en este dispositivo</Text>}
+      </View>
     </View>
   );
 }
@@ -119,6 +104,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,
+  },
+  meta: {
+    color: colors.silverDim,
+    fontSize: 12,
+    marginTop: spacing.md,
   },
   saved: {
     color: colors.teal,
