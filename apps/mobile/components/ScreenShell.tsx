@@ -1,13 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, spacing } from '@resiliencia/design-tokens';
 
-export default function ScreenShell({
-  title,
-  caption,
-}: {
-  title: string;
-  caption: string;
-}) {
+export default function ScreenShell({ title, caption }: { title: string; caption: string }) {
   return (
     <View style={styles.container}>
       <Text style={styles.eyebrow}>RESILIENCIA</Text>
