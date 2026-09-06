@@ -16,8 +16,6 @@ export function buildChallenge(date: string): DailyChallenge {
     date,
     exerciseId: exercise.id,
     target: DEFAULT_TARGETS[exercise.id] ?? 10,
-    completedQty: 0,
-    completedAt: null,
   };
 }
 
@@ -34,16 +32,4 @@ export async function getTodayChallenge(repo: IRepo): Promise<DailyChallenge> {
   const challenge = buildChallenge(date);
   await repo.setSetting(storageKey(date), JSON.stringify(challenge));
   return challenge;
-}
-
-export async function completeChallenge(repo: IRepo, qty: number): Promise<DailyChallenge> {
-  const date = todayKey();
-  const challenge = await getTodayChallenge(repo);
-  const updated: DailyChallenge = {
-    ...challenge,
-    completedQty: qty,
-    completedAt: new Date().toISOString(),
-  };
-  await repo.setSetting(storageKey(date), JSON.stringify(updated));
-  return updated;
 }

@@ -1,15 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { getRepo } from '../../src/repo';
 import { EXERCISES } from '../../src/retos/catalog';
-import { completeChallenge, getTodayChallenge } from '../../src/retos/service';
+import { getTodayChallenge } from '../../src/retos/service';
 import type { DailyChallenge } from '../../src/retos/types';
 
 export default function RetosScreen() {
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
-  const [qty, setQty] = useState('');
-  const [saving, setSaving] = useState(false);
   const repo = getRepo();
 
   useEffect(() => {
@@ -17,14 +15,6 @@ export default function RetosScreen() {
   }, [repo]);
 
   const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
-
-  const handleComplete = useCallback(async () => {
-    setSaving(true);
-    const value = Math.max(0, Math.min(Number.parseInt(qty, 10) || 0, 9999));
-    const updated = await completeChallenge(repo, value);
-    setChallenge(updated);
-    setSaving(false);
-  }, [qty, repo]);
 
   return (
     <View style={styles.container}>
@@ -36,30 +26,14 @@ export default function RetosScreen() {
           <Text style={styles.target}>
             Meta: {challenge.target} {exercise.unit === 'reps' ? 'repeticiones' : 'segundos'}
           </Text>
-          {challenge.completedAt ? (
-            <View>
-              <Text style={styles.done}>Completado hoy: {challenge.completedQty}</Text>
-              <Text style={styles.rotation}>Mañana hay otro reto. Vuelve pronto.</Text>
-            </View>
-          ) : (
-            <View>
-              <TextInput
-                style={styles.input}
-                value={qty}
-                onChangeText={setQty}
-                keyboardType="number-pad"
-                placeholder={`Cuanto hiciste (${exercise.unit === 'reps' ? 'repeticiones' : 'segundos'})`}
-                placeholderTextColor={colors.silverDim}
-              />
-              <Pressable
-                style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
-                onPress={handleComplete}
-                disabled={saving}
-              >
-                <Text style={styles.buttonText}>{saving ? 'GUARDANDO...' : 'COMPLETAR'}</Text>
-              </Pressable>
-            </View>
-          )}
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>VERIFICADO CON CÁMARA AL ENTRENAR</Text>
+          </View>
+          <Text style={styles.note}>
+            Nadie completa ejercicios a mano. La detección con cámara llega en la próxima fase del
+            plan.
+          </Text>
+          <Text style={styles.rotation}>Mañana hay otro reto.</Text>
         </View>
       ) : null}
     </View>
@@ -103,37 +77,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: spacing.sm,
   },
-  input: {
-    backgroundColor: colors.bg,
-    borderColor: colors.line,
-    borderRadius: radius.sm,
+  badge: {
+    alignSelf: 'flex-start',
+    borderColor: colors.teal,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    color: colors.silver,
-    fontSize: 16,
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.xs + 2,
   },
-  button: {
-    alignItems: 'center',
-    backgroundColor: colors.teal,
-    borderRadius: radius.sm,
-    marginTop: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  buttonPressed: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: colors.bg,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
-  done: {
+  badgeText: {
     color: colors.teal,
-    fontSize: 17,
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 1,
+  },
+  note: {
+    color: colors.silverDim,
+    fontSize: 13,
+    lineHeight: 19,
     marginTop: spacing.md,
   },
   rotation: {

@@ -8,6 +8,4 @@ export interface DailyChallenge {
   date: string;
   exerciseId: string;
   target: number;
-  completedQty: number;
-  completedAt: string | null;
 }
