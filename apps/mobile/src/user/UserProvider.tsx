@@ -2,12 +2,14 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { getRepo } from '../repo';
 import type { UserProfile } from '../repo';
-import { createUser } from './service';
+import type { ProfileMetrics } from './service';
+import { createUser, updateProfile } from './service';
 
 type UserState = {
   profile: UserProfile | null;
   isLoading: boolean;
   createUser: (nickname: string) => Promise<void>;
+  updateProfile: (patch: Partial<ProfileMetrics>) => Promise<void>;
 };
 
 const UserContext = createContext<UserState | null>(null);
@@ -31,6 +33,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       createUser: async (nickname: string) => {
         const created = await createUser(repo, nickname);
         setProfile(created);
+      },
+      updateProfile: async (patch: Partial<ProfileMetrics>) => {
+        const updated = await updateProfile(repo, patch);
+        if (updated) {
+          setProfile(updated);
+        }
       },
     }),
     [profile, isLoading, repo],

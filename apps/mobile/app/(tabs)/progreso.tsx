@@ -5,6 +5,8 @@ import { getRepo } from '../../src/repo';
 import { getStreak } from '../../src/retos/streak';
 import { getTotalCompleted } from '../../src/retos/completions';
 import { useUser } from '../../src/user/UserProvider';
+import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { translate } from '../../src/i18n/translations';
 
 function daysSince(iso: string): number {
   const created = new Date(iso);
@@ -14,6 +16,8 @@ function daysSince(iso: string): number {
 
 export default function ProgresoScreen() {
   const { profile } = useUser();
+  const { prefs } = usePrefs();
+  const lang = prefs?.language ?? 'es';
   const repo = getRepo();
   const [streak, setStreak] = useState(0);
   const [total, setTotal] = useState(0);
@@ -23,33 +27,30 @@ export default function ProgresoScreen() {
     getTotalCompleted(repo).then(setTotal);
   }, [repo]);
 
-  const dias = profile ? daysSince(profile.createdAt) : 0;
+  const days = profile ? daysSince(profile.createdAt) : 0;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>PROGRESO</Text>
+      <Text style={styles.title}>{translate(lang, 'progress.title')}</Text>
 
       <View style={styles.row}>
         <View style={styles.metric}>
           <Text style={styles.metricValue}>{streak}</Text>
-          <Text style={styles.metricLabel}>RACHA</Text>
+          <Text style={styles.metricLabel}>{translate(lang, 'home.streak')}</Text>
         </View>
         <View style={styles.metric}>
           <Text style={styles.metricValue}>{total}</Text>
-          <Text style={styles.metricLabel}>COMPLETADOS</Text>
+          <Text style={styles.metricLabel}>{translate(lang, 'home.completed')}</Text>
         </View>
         <View style={styles.metric}>
-          <Text style={styles.metricValue}>{dias}</Text>
-          <Text style={styles.metricLabel}>DIAS</Text>
+          <Text style={styles.metricValue}>{days}</Text>
+          <Text style={styles.metricLabel}>{translate(lang, 'home.days')}</Text>
         </View>
       </View>
 
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyTitle}>TU PROGRESO APARECERA AQUI</Text>
-        <Text style={styles.emptyBody}>
-          Cuando completes tu primer reto con la camara, vas a ver tu historial y graficos de
-          evolucion.
-        </Text>
+        <Text style={styles.emptyTitle}>{translate(lang, 'progress.empty_title')}</Text>
+        <Text style={styles.emptyBody}>{translate(lang, 'progress.empty_body')}</Text>
       </View>
     </View>
   );

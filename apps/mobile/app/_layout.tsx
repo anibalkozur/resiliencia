@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors } from '@resiliencia/design-tokens';
 import { UserProvider, useUser } from '../src/user/UserProvider';
+import { PrefsProvider } from '../src/prefs/PrefsProvider';
 
 function RootNavigator() {
   const { profile, isLoading } = useUser();
@@ -24,10 +25,12 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <UserProvider>
-      <StatusBar style="light" />
-      <RootNavigator />
-    </UserProvider>
+    <PrefsProvider>
+      <UserProvider>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </UserProvider>
+    </PrefsProvider>
   );
 }
 

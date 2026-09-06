@@ -2,39 +2,86 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
+import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { translate } from '../../src/i18n/translations';
 
 export default function PerfilScreen() {
-  const { profile, createUser } = useUser();
+  const { profile, createUser, updateProfile } = useUser();
+  const { prefs } = usePrefs();
+  const lang = prefs?.language ?? 'es';
   const [nickname, setNickname] = useState(profile?.nickname ?? '');
+  const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '');
+  const [weight, setWeight] = useState(profile?.weight != null ? String(profile.weight) : '');
+  const [height, setHeight] = useState(profile?.height != null ? String(profile.height) : '');
   const [saved, setSaved] = useState(false);
 
   const handleSave = useCallback(async () => {
     await createUser(nickname);
+    await updateProfile({
+      age: age.trim() === '' ? undefined : Number(age),
+      weight: weight.trim() === '' ? undefined : Number(weight),
+      height: height.trim() === '' ? undefined : Number(height),
+    });
     setSaved(true);
-  }, [createUser, nickname]);
+  }, [age, createUser, height, nickname, updateProfile, weight]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>PERFIL</Text>
-      <Text style={styles.caption}>Tu perfil, estadisticas y progreso.</Text>
+      <Text style={styles.title}>{translate(lang, 'profile.title')}</Text>
+      <Text style={styles.caption}>{translate(lang, 'profile.caption')}</Text>
       <View style={styles.card}>
-        <Text style={styles.label}>APODO</Text>
+        <Text style={styles.label}>{translate(lang, 'profile.nickname')}</Text>
         <TextInput
           style={styles.input}
           value={nickname}
           onChangeText={setNickname}
-          placeholder="Tu apodo"
+          placeholder={translate(lang, 'onboarding.nickname')}
           placeholderTextColor={colors.silverDim}
           autoCapitalize="none"
         />
+
+        <Text style={styles.label}>{translate(lang, 'profile.age')}</Text>
+        <TextInput
+          style={styles.input}
+          value={age}
+          onChangeText={setAge}
+          placeholder={translate(lang, 'profile.age_placeholder')}
+          placeholderTextColor={colors.silverDim}
+          keyboardType="number-pad"
+        />
+
+        <Text style={styles.label}>{translate(lang, 'profile.weight')}</Text>
+        <TextInput
+          style={styles.input}
+          value={weight}
+          onChangeText={setWeight}
+          placeholder={translate(lang, 'profile.weight_placeholder')}
+          placeholderTextColor={colors.silverDim}
+          keyboardType="decimal-pad"
+        />
+
+        <Text style={styles.label}>{translate(lang, 'profile.height')}</Text>
+        <TextInput
+          style={styles.input}
+          value={height}
+          onChangeText={setHeight}
+          placeholder={translate(lang, 'profile.height_placeholder')}
+          placeholderTextColor={colors.silverDim}
+          keyboardType="number-pad"
+        />
+
         <Pressable
           style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
           onPress={handleSave}
         >
-          <Text style={styles.buttonText}>GUARDAR</Text>
+          <Text style={styles.buttonText}>{translate(lang, 'profile.save')}</Text>
         </Pressable>
-        <Text style={styles.meta}>Usuario local desde {profile?.createdAt.slice(0, 10)}</Text>
-        {saved && <Text style={styles.saved}>Guardado en este dispositivo</Text>}
+        <Text style={styles.meta}>
+          {translate(lang, 'profile.member_since', {
+            date: profile?.createdAt.slice(0, 10) ?? '',
+          })}
+        </Text>
+        {saved && <Text style={styles.saved}>{translate(lang, 'profile.saved')}</Text>}
       </View>
     </View>
   );
@@ -71,6 +118,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 2,
     marginBottom: spacing.sm,
+    marginTop: spacing.md,
   },
   input: {
     backgroundColor: colors.bg,
@@ -86,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.teal,
     borderRadius: radius.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
     paddingVertical: spacing.md,
   },
   buttonPressed: {

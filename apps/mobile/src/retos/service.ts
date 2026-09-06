@@ -1,6 +1,8 @@
 import type { IRepo } from '../repo';
+import { getPrefs } from '../prefs/service';
+import type { Goal } from '../prefs/types';
 import type { DailyChallenge } from './types';
-import { EXERCISES, DEFAULT_TARGETS } from './catalog';
+import { DEFAULT_TARGETS, EXERCISES, GOAL_EXERCISE_ORDER, GOAL_TARGET_MULTIPLIER } from './catalog';
 
 export function todayKey(): string {
   const now = new Date();
@@ -9,13 +11,17 @@ export function todayKey(): string {
   return `${now.getFullYear()}-${m}-${d}`;
 }
 
-export function buildChallenge(date: string): DailyChallenge {
-  const day = new Date(date).getDate();
-  const exercise = EXERCISES[day % EXERCISES.length];
+export function buildChallenge(date: string, goal: Goal = 'mantener'): DailyChallenge {
+  const day = parseInt(date.slice(8, 10), 10);
+  const ids = GOAL_EXERCISE_ORDER[goal];
+  const exerciseId = ids[day % ids.length];
+  const exercise = EXERCISES.find((e) => e.id === exerciseId) ?? EXERCISES[0];
+  const base = DEFAULT_TARGETS[exercise.id] ?? 10;
+  const target = Math.round(base * GOAL_TARGET_MULTIPLIER[goal]);
   return {
     date,
     exerciseId: exercise.id,
-    target: DEFAULT_TARGETS[exercise.id] ?? 10,
+    target,
   };
 }
 
@@ -29,7 +35,8 @@ export async function getTodayChallenge(repo: IRepo): Promise<DailyChallenge> {
   if (raw) {
     return JSON.parse(raw) as DailyChallenge;
   }
-  const challenge = buildChallenge(date);
+  const prefs = await getPrefs(repo);
+  const challenge = buildChallenge(date, prefs.goal);
   await repo.setSetting(storageKey(date), JSON.stringify(challenge));
   return challenge;
 }

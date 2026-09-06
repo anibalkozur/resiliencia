@@ -3,9 +3,13 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../src/user/UserProvider';
+import { usePrefs } from '../src/prefs/PrefsProvider';
+import { translate } from '../src/i18n/translations';
 
 export default function OnboardingScreen() {
   const { createUser } = useUser();
+  const { prefs } = usePrefs();
+  const lang = prefs?.language ?? 'es';
   const [nickname, setNickname] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -17,14 +21,13 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>RESILIENCIA</Text>
-      <Text style={styles.title}>Bienvenido</Text>
-      <Text style={styles.caption}>Creamos tu identidad local. Elegí tu apodo y empezá.</Text>
+      <Text style={styles.title}>{translate(lang, 'onboarding.title')}</Text>
+      <Text style={styles.caption}>{translate(lang, 'onboarding.caption')}</Text>
       <TextInput
         style={styles.input}
         value={nickname}
         onChangeText={setNickname}
-        placeholder="Tu apodo"
+        placeholder={translate(lang, 'onboarding.nickname')}
         placeholderTextColor={colors.silverDim}
         autoCapitalize="none"
       />
@@ -33,7 +36,9 @@ export default function OnboardingScreen() {
         onPress={handleStart}
         disabled={saving}
       >
-        <Text style={styles.buttonText}>{saving ? 'CREANDO...' : 'EMPEZÁ AHORA'}</Text>
+        <Text style={styles.buttonText}>
+          {saving ? translate(lang, 'onboarding.creating') : translate(lang, 'onboarding.start')}
+        </Text>
       </Pressable>
     </View>
   );
@@ -45,12 +50,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-  },
-  eyebrow: {
-    color: colors.teal,
-    fontSize: 12,
-    letterSpacing: 4,
-    marginBottom: spacing.sm,
   },
   title: {
     color: colors.silver,

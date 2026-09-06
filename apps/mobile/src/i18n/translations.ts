@@ -1,0 +1,172 @@
+import type { Goal, Language } from '../prefs/types';
+
+const es = {
+  'onboarding.title': 'Bienvenido',
+  'onboarding.caption': 'Creamos tu identidad local. Elegí tu apodo y empezá.',
+  'onboarding.nickname': 'Tu apodo',
+  'onboarding.start': 'EMPEZÁ AHORA',
+  'onboarding.creating': 'CREANDO...',
+
+  'home.greeting': 'Hola, {name}',
+  'home.streak': 'RACHA',
+  'home.completed': 'COMPLETADOS',
+  'home.days': 'DIAS',
+  'home.challenge': 'RETO DE HOY',
+  'home.meta': 'Meta: {target} {unit}',
+
+  'challenge.meta': 'Meta: {target} {unit}',
+  'challenge.note': 'La detección automática del ejercicio llega en la próxima fase del plan.',
+  'challenge.rotation': 'Mañana hay otro reto.',
+  'unit.reps': 'repeticiones',
+  'unit.seconds': 'segundos',
+
+  'progress.title': 'PROGRESO',
+  'progress.empty_title': 'TU PROGRESO APARECERA AQUI',
+  'progress.empty_body':
+    'Cuando completes tu primer reto verás tu historial y los gráficos de evolución.',
+
+  'profile.title': 'PERFIL',
+  'profile.caption': 'Tu perfil, estadísticas y progreso.',
+  'profile.nickname': 'Apodo',
+  'profile.age': 'Edad',
+  'profile.weight': 'Peso (kg)',
+  'profile.height': 'Altura (cm)',
+  'profile.age_placeholder': 'Años',
+  'profile.weight_placeholder': 'kg',
+  'profile.height_placeholder': 'cm',
+  'profile.save': 'GUARDAR',
+  'profile.member_since': 'Usuario local desde {date}',
+  'profile.saved': 'Guardado en este dispositivo',
+
+  'settings.title': 'AJUSTES',
+  'settings.goal': 'OBJETIVO',
+  'settings.days': 'DÍAS POR SEMANA',
+  'settings.language': 'IDIOMA',
+  'settings.saved': 'Preferencias guardadas en este dispositivo',
+
+  'goal.perder_grasa': 'Perder grasa',
+  'goal.ganar_musculo': 'Ganar músculo',
+  'goal.mantener': 'Mantener',
+} as const;
+
+export type TranslationKey = keyof typeof es;
+
+export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
+  es,
+  en: {
+    'onboarding.title': 'Welcome',
+    'onboarding.caption': "We create your local identity. Choose your nickname and let's go.",
+    'onboarding.nickname': 'Your nickname',
+    'onboarding.start': 'START NOW',
+    'onboarding.creating': 'CREATING...',
+
+    'home.greeting': 'Hi, {name}',
+    'home.streak': 'STREAK',
+    'home.completed': 'COMPLETED',
+    'home.days': 'DAYS',
+    'home.challenge': "TODAY'S CHALLENGE",
+    'home.meta': 'Goal: {target} {unit}',
+
+    'challenge.meta': 'Goal: {target} {unit}',
+    'challenge.note': 'Automatic exercise detection arrives in the next phase of the plan.',
+    'challenge.rotation': 'Another challenge comes tomorrow.',
+    'unit.reps': 'reps',
+    'unit.seconds': 'seconds',
+
+    'progress.title': 'PROGRESS',
+    'progress.empty_title': 'YOUR PROGRESS WILL APPEAR HERE',
+    'progress.empty_body':
+      'Once you complete your first challenge you will see your history and progress charts.',
+
+    'profile.title': 'PROFILE',
+    'profile.caption': 'Your profile, stats and progress.',
+    'profile.nickname': 'Nickname',
+    'profile.age': 'Age',
+    'profile.weight': 'Weight (kg)',
+    'profile.height': 'Height (cm)',
+    'profile.age_placeholder': 'Years',
+    'profile.weight_placeholder': 'kg',
+    'profile.height_placeholder': 'cm',
+    'profile.save': 'SAVE',
+    'profile.member_since': 'Local user since {date}',
+    'profile.saved': 'Saved on this device',
+
+    'settings.title': 'SETTINGS',
+    'settings.goal': 'GOAL',
+    'settings.days': 'DAYS PER WEEK',
+    'settings.language': 'LANGUAGE',
+    'settings.saved': 'Preferences saved on this device',
+
+    'goal.perder_grasa': 'Lose fat',
+    'goal.ganar_musculo': 'Gain muscle',
+    'goal.mantener': 'Maintain',
+  },
+  pt: {
+    'onboarding.title': 'Bem-vindo',
+    'onboarding.caption': 'Criamos sua identidade local. Escolha seu apelido e comece.',
+    'onboarding.nickname': 'Seu apelido',
+    'onboarding.start': 'COMEÇAR AGORA',
+    'onboarding.creating': 'CRIANDO...',
+
+    'home.greeting': 'Olá, {name}',
+    'home.streak': 'SEQUÊNCIA',
+    'home.completed': 'CONCLUÍDOS',
+    'home.days': 'DIAS',
+    'home.challenge': 'DESAFIO DE HOJE',
+    'home.meta': 'Meta: {target} {unit}',
+
+    'challenge.meta': 'Meta: {target} {unit}',
+    'challenge.note': 'A detecção automática do exercício chega na próxima fase do plano.',
+    'challenge.rotation': 'Amanhã há outro desafio.',
+    'unit.reps': 'repetições',
+    'unit.seconds': 'segundos',
+
+    'progress.title': 'PROGRESSO',
+    'progress.empty_title': 'SEU PROGRESSO APARECERÁ AQUI',
+    'progress.empty_body':
+      'Quando você concluir seu primeiro desafio verá seu histórico e os gráficos de evolução.',
+
+    'profile.title': 'PERFIL',
+    'profile.caption': 'Seu perfil, estatísticas e progresso.',
+    'profile.nickname': 'Apelido',
+    'profile.age': 'Idade',
+    'profile.weight': 'Peso (kg)',
+    'profile.height': 'Altura (cm)',
+    'profile.age_placeholder': 'Anos',
+    'profile.weight_placeholder': 'kg',
+    'profile.height_placeholder': 'cm',
+    'profile.save': 'SALVAR',
+    'profile.member_since': 'Usuário local desde {date}',
+    'profile.saved': 'Salvo neste dispositivo',
+
+    'settings.title': 'AJUSTES',
+    'settings.goal': 'OBJETIVO',
+    'settings.days': 'DIAS POR SEMANA',
+    'settings.language': 'IDIOMA',
+    'settings.saved': 'Preferências salvas neste dispositivo',
+
+    'goal.perder_grasa': 'Perder gordura',
+    'goal.ganar_musculo': 'Ganhar músculo',
+    'goal.mantener': 'Manter',
+  },
+};
+
+export const GOAL_TRANSLATION_KEYS: Record<Goal, TranslationKey> = {
+  perder_grasa: 'goal.perder_grasa',
+  ganar_musculo: 'goal.ganar_musculo',
+  mantener: 'goal.mantener',
+};
+
+export function translate(
+  lang: Language,
+  key: TranslationKey,
+  vars?: Record<string, string | number>,
+): string {
+  let text = TRANSLATIONS[lang][key];
+  if (vars) {
+    for (const [name, value] of Object.entries(vars)) {
+      text = text.replace(`{${name}}`, String(value));
+    }
+  }
+  return text;
+}

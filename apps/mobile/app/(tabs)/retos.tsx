@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
+import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES } from '../../src/retos/catalog';
 import { getTodayChallenge } from '../../src/retos/service';
+import { translate } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 
 export default function RetosScreen() {
+  const { prefs } = usePrefs();
+  const lang = prefs?.language ?? 'es';
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const repo = getRepo();
 
@@ -15,20 +19,22 @@ export default function RetosScreen() {
   }, [repo]);
 
   const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
+  const unit = exercise?.unit === 'reps' ? 'unit.reps' : 'unit.seconds';
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>RETO DE HOY</Text>
+      <Text style={styles.title}>{translate(lang, 'home.challenge')}</Text>
       {challenge && exercise ? (
         <View style={styles.card}>
           <Text style={styles.exercise}>{exercise.name}</Text>
           <Text style={styles.target}>
-            Meta: {challenge.target} {exercise.unit === 'reps' ? 'repeticiones' : 'segundos'}
+            {translate(lang, 'challenge.meta', {
+              target: challenge.target,
+              unit: translate(lang, unit),
+            })}
           </Text>
-          <Text style={styles.note}>
-            La detección automática del ejercicio llega en la próxima fase del plan.
-          </Text>
-          <Text style={styles.rotation}>Mañana hay otro reto.</Text>
+          <Text style={styles.note}>{translate(lang, 'challenge.note')}</Text>
+          <Text style={styles.rotation}>{translate(lang, 'challenge.rotation')}</Text>
         </View>
       ) : null}
     </View>

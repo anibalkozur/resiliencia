@@ -1,16 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
-import { getRepo } from '../../src/repo';
-import {
-  GOAL_LABELS,
-  LANGUAGE_OPTIONS,
-  MAX_DAYS,
-  MIN_DAYS,
-  getPrefs,
-  savePrefs,
-} from '../../src/prefs/service';
-import type { Goal, Language, UserPrefs } from '../../src/prefs/types';
+import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { LANGUAGE_OPTIONS, MAX_DAYS, MIN_DAYS } from '../../src/prefs/service';
+import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
+import type { Goal, Language } from '../../src/prefs/types';
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
@@ -28,83 +21,68 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 }
 
 export default function AjustesScreen() {
-  const [prefs, setPrefs] = useState<UserPrefs | null>(null);
-  const [saved, setSaved] = useState(false);
-  const repo = getRepo();
+  const { prefs, updatePrefs } = usePrefs();
+  const lang = prefs?.language ?? 'es';
 
-  useEffect(() => {
-    getPrefs(repo).then(setPrefs);
-  }, [repo]);
-
-  const update = useCallback(
-    async (patch: Partial<UserPrefs>) => {
-      if (!prefs) {
-        return;
-      }
-      const next = await savePrefs(repo, { ...prefs, ...patch });
-      setPrefs(next);
-      setSaved(true);
-    },
-    [prefs, repo],
-  );
+  if (!prefs) {
+    return <View style={styles.container} />;
+  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>AJUSTES</Text>
-      {prefs ? (
-        <View style={styles.body}>
-          <Text style={styles.section}>OBJETIVO</Text>
-          <View style={styles.row}>
-            {(Object.keys(GOAL_LABELS) as Goal[]).map((goal) => (
-              <Chip
-                key={goal}
-                label={GOAL_LABELS[goal]}
-                active={prefs.goal === goal}
-                onPress={() => update({ goal })}
-              />
-            ))}
-          </View>
-
-          <Text style={styles.section}>DÍAS POR SEMANA</Text>
-          <View style={styles.row}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.step,
-                (pressed || prefs.daysPerWeek <= MIN_DAYS) && styles.stepDim,
-              ]}
-              onPress={() => update({ daysPerWeek: prefs.daysPerWeek - 1 })}
-              disabled={prefs.daysPerWeek <= MIN_DAYS}
-            >
-              <Text style={styles.stepText}>−</Text>
-            </Pressable>
-            <Text style={styles.stepValue}>{prefs.daysPerWeek}</Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.step,
-                (pressed || prefs.daysPerWeek >= MAX_DAYS) && styles.stepDim,
-              ]}
-              onPress={() => update({ daysPerWeek: prefs.daysPerWeek + 1 })}
-              disabled={prefs.daysPerWeek >= MAX_DAYS}
-            >
-              <Text style={styles.stepText}>+</Text>
-            </Pressable>
-          </View>
-
-          <Text style={styles.section}>IDIOMA</Text>
-          <View style={styles.row}>
-            {LANGUAGE_OPTIONS.map((option) => (
-              <Chip
-                key={option.code}
-                label={option.label}
-                active={prefs.language === option.code}
-                onPress={() => update({ language: option.code as Language })}
-              />
-            ))}
-          </View>
-
-          {saved && <Text style={styles.saved}>Preferencias guardadas en este dispositivo</Text>}
+      <Text style={styles.title}>{translate(lang, 'settings.title')}</Text>
+      <View style={styles.body}>
+        <Text style={styles.section}>{translate(lang, 'settings.goal')}</Text>
+        <View style={styles.row}>
+          {(Object.keys(GOAL_TRANSLATION_KEYS) as Goal[]).map((goal) => (
+            <Chip
+              key={goal}
+              label={translate(lang, GOAL_TRANSLATION_KEYS[goal])}
+              active={prefs.goal === goal}
+              onPress={() => updatePrefs({ goal })}
+            />
+          ))}
         </View>
-      ) : null}
+
+        <Text style={styles.section}>{translate(lang, 'settings.days')}</Text>
+        <View style={styles.row}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.step,
+              (pressed || prefs.daysPerWeek <= MIN_DAYS) && styles.stepDim,
+            ]}
+            onPress={() => updatePrefs({ daysPerWeek: prefs.daysPerWeek - 1 })}
+            disabled={prefs.daysPerWeek <= MIN_DAYS}
+          >
+            <Text style={styles.stepText}>−</Text>
+          </Pressable>
+          <Text style={styles.stepValue}>{prefs.daysPerWeek}</Text>
+          <Pressable
+            style={({ pressed }) => [
+              styles.step,
+              (pressed || prefs.daysPerWeek >= MAX_DAYS) && styles.stepDim,
+            ]}
+            onPress={() => updatePrefs({ daysPerWeek: prefs.daysPerWeek + 1 })}
+            disabled={prefs.daysPerWeek >= MAX_DAYS}
+          >
+            <Text style={styles.stepText}>+</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.section}>{translate(lang, 'settings.language')}</Text>
+        <View style={styles.row}>
+          {LANGUAGE_OPTIONS.map((option) => (
+            <Chip
+              key={option.code}
+              label={option.label}
+              active={prefs.language === option.code}
+              onPress={() => updatePrefs({ language: option.code as Language })}
+            />
+          ))}
+        </View>
+
+        <Text style={styles.saved}>{translate(lang, 'settings.saved')}</Text>
+      </View>
     </View>
   );
 }
