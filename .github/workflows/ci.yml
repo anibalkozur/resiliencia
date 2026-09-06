@@ -34,3 +34,7 @@ jobs:
       - name: Format check
         run: pnpm exec prettier --check .
         shell: bash
+
+      - name: Test
+        run: pnpm -r --if-present test
+        shell: bash
