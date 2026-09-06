@@ -8,9 +8,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.resiliencia"
     },
     "android": {
+      "package": "app.resiliencia",
       "adaptiveIcon": {
         "backgroundColor": "#030405",
         "foregroundImage": "./assets/android-icon-foreground.png",
