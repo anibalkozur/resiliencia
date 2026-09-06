@@ -1,13 +1,10 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
-import { useUser } from '../../src/user/UserProvider';
 import { getRepo } from '../../src/repo';
-import { EXERCISES } from '../../src/retos/catalog';
-import { getTodayChallenge } from '../../src/retos/service';
 import { getStreak } from '../../src/retos/streak';
 import { getTotalCompleted } from '../../src/retos/completions';
-import type { DailyChallenge } from '../../src/retos/types';
+import { useUser } from '../../src/user/UserProvider';
 
 function daysSince(iso: string): number {
   const created = new Date(iso);
@@ -15,25 +12,22 @@ function daysSince(iso: string): number {
   return Math.max(0, Math.floor((now.getTime() - created.getTime()) / 86_400_000));
 }
 
-export default function InicioScreen() {
+export default function ProgresoScreen() {
   const { profile } = useUser();
   const repo = getRepo();
-  const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [streak, setStreak] = useState(0);
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    getTodayChallenge(repo).then(setChallenge);
     getStreak(repo).then(setStreak);
     getTotalCompleted(repo).then(setTotal);
   }, [repo]);
 
-  const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
   const dias = profile ? daysSince(profile.createdAt) : 0;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Hola, {profile?.nickname ?? 'Atleta'}</Text>
+      <Text style={styles.title}>PROGRESO</Text>
 
       <View style={styles.row}>
         <View style={styles.metric}>
@@ -50,15 +44,13 @@ export default function InicioScreen() {
         </View>
       </View>
 
-      {challenge && exercise ? (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>RETO DE HOY</Text>
-          <Text style={styles.cardTitle}>{exercise.name}</Text>
-          <Text style={styles.cardMeta}>
-            Meta: {challenge.target} {exercise.unit === 'reps' ? 'repeticiones' : 'segundos'}
-          </Text>
-        </View>
-      ) : null}
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyTitle}>TU PROGRESO APARECERA AQUI</Text>
+        <Text style={styles.emptyBody}>
+          Cuando completes tu primer reto con la camara, vas a ver tu historial y graficos de
+          evolucion.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -101,7 +93,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: spacing.xs,
   },
-  card: {
+  emptyCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
@@ -109,20 +101,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
     padding: spacing.lg,
   },
-  cardLabel: {
-    color: colors.silverDim,
-    fontSize: 12,
-    letterSpacing: 2,
-  },
-  cardTitle: {
+  emptyTitle: {
     color: colors.silver,
-    fontSize: 24,
+    fontSize: 14,
     fontWeight: '800',
-    marginTop: spacing.sm,
+    letterSpacing: 1,
   },
-  cardMeta: {
+  emptyBody: {
     color: colors.silverDim,
     fontSize: 13,
+    lineHeight: 19,
     marginTop: spacing.sm,
   },
 });

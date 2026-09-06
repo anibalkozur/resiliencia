@@ -50,7 +50,6 @@ export default function AjustesScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>RESILIENCIA</Text>
       <Text style={styles.title}>AJUSTES</Text>
       {prefs ? (
         <View style={styles.body}>
@@ -116,12 +115,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-  },
-  eyebrow: {
-    color: colors.teal,
-    fontSize: 12,
-    letterSpacing: 4,
-    marginBottom: spacing.sm,
   },
   title: {
     color: colors.silver,

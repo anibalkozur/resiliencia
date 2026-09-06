@@ -18,7 +18,6 @@ export default function RetosScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>RESILIENCIA</Text>
       <Text style={styles.title}>RETO DE HOY</Text>
       {challenge && exercise ? (
         <View style={styles.card}>
@@ -26,12 +25,8 @@ export default function RetosScreen() {
           <Text style={styles.target}>
             Meta: {challenge.target} {exercise.unit === 'reps' ? 'repeticiones' : 'segundos'}
           </Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>VERIFICADO CON CÁMARA AL ENTRENAR</Text>
-          </View>
           <Text style={styles.note}>
-            Nadie completa ejercicios a mano. La detección con cámara llega en la próxima fase del
-            plan.
+            La detección automática del ejercicio llega en la próxima fase del plan.
           </Text>
           <Text style={styles.rotation}>Mañana hay otro reto.</Text>
         </View>
@@ -46,12 +41,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-  },
-  eyebrow: {
-    color: colors.teal,
-    fontSize: 12,
-    letterSpacing: 4,
-    marginBottom: spacing.sm,
   },
   title: {
     color: colors.silver,
@@ -76,21 +65,6 @@ const styles = StyleSheet.create({
     color: colors.silverDim,
     fontSize: 15,
     marginTop: spacing.sm,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    borderColor: colors.teal,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-  },
-  badgeText: {
-    color: colors.teal,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
   },
   note: {
     color: colors.silverDim,

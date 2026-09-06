@@ -4,12 +4,15 @@ import HouseIcon from '../../components/icons/HouseIcon';
 import DumbbellIcon from '../../components/icons/DumbbellIcon';
 import UserIcon from '../../components/icons/UserIcon';
 import GearIcon from '../../components/icons/GearIcon';
+import ChartIcon from '../../components/icons/ChartIcon';
+import BrandHeader from '../../components/BrandHeader';
 
 export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        header: () => <BrandHeader />,
+        headerShown: true,
         tabBarActiveTintColor: colors.teal,
         tabBarInactiveTintColor: colors.silverDim,
         tabBarStyle: {
@@ -30,6 +33,13 @@ export default function TabsLayout() {
         options={{
           title: 'Retos',
           tabBarIcon: ({ color, size }) => <DumbbellIcon color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="progreso"
+        options={{
+          title: 'Progreso',
+          tabBarIcon: ({ color, size }) => <ChartIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen

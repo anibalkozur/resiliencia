@@ -15,7 +15,6 @@ export default function PerfilScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>RESILIENCIA</Text>
       <Text style={styles.title}>PERFIL</Text>
       <Text style={styles.caption}>Tu perfil, estadisticas y progreso.</Text>
       <View style={styles.card}>
@@ -47,12 +46,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-  },
-  eyebrow: {
-    color: colors.teal,
-    fontSize: 12,
-    letterSpacing: 4,
-    marginBottom: spacing.sm,
   },
   title: {
     color: colors.silver,
