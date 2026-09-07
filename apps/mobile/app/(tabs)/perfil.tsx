@@ -1,9 +1,26 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { bmiCategory, computeBmi } from '../../src/user/service';
 import { translate } from '../../src/i18n/translations';
+import type { TranslationKey } from '../../src/i18n/translations';
+import type { BmiCategory } from '../../src/user/service';
+
+const BMI_KEYS: Record<BmiCategory, TranslationKey> = {
+  low: 'profile.bmi_low',
+  normal: 'profile.bmi_normal',
+  over: 'profile.bmi_over',
+  obese: 'profile.bmi_obese',
+};
+
+const BMI_COLORS: Record<BmiCategory, string> = {
+  low: colors.cyan,
+  normal: colors.teal,
+  over: colors.ember,
+  obese: colors.ember,
+};
 
 export default function PerfilScreen() {
   const { profile, createUser, updateProfile } = useUser();
@@ -25,10 +42,49 @@ export default function PerfilScreen() {
     setSaved(true);
   }, [age, createUser, height, nickname, updateProfile, weight]);
 
+  const empty = translate(lang, 'profile.empty_value');
+  const bmi = computeBmi(
+    profile?.weight != null ? profile.weight : undefined,
+    profile?.height != null ? profile.height : undefined,
+  );
+  const bmiCategoryValue = bmi != null ? bmiCategory(bmi) : null;
+  const bmiLabel = bmiCategoryValue != null ? translate(lang, BMI_KEYS[bmiCategoryValue]) : null;
+  const bmiColor = bmiCategoryValue != null ? BMI_COLORS[bmiCategoryValue] : colors.teal;
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Text style={styles.title}>{translate(lang, 'profile.title')}</Text>
       <Text style={styles.caption}>{translate(lang, 'profile.caption')}</Text>
+
+      <View style={styles.metricsRow}>
+        <View style={styles.metric}>
+          <Text style={styles.metricValue}>{profile?.age ?? empty}</Text>
+          <Text style={styles.metricLabel}>{translate(lang, 'profile.age')}</Text>
+        </View>
+        <View style={styles.metric}>
+          <Text style={styles.metricValue}>{profile?.weight ?? empty}</Text>
+          <Text style={styles.metricLabel}>{translate(lang, 'profile.weight')}</Text>
+        </View>
+        <View style={styles.metric}>
+          <Text style={styles.metricValue}>{profile?.height ?? empty}</Text>
+          <Text style={styles.metricLabel}>{translate(lang, 'profile.height')}</Text>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.statsLabel}>{translate(lang, 'profile.stats')}</Text>
+        {bmi != null ? (
+          <View style={styles.bmiRow}>
+            <Text style={styles.bmiValue}>{bmi.toFixed(1)}</Text>
+            <Text style={[styles.bmiBadge, { borderColor: bmiColor, color: bmiColor }]}>
+              {bmiLabel}
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.hint}>{translate(lang, 'profile.bmi_hint')}</Text>
+        )}
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.label}>{translate(lang, 'profile.nickname')}</Text>
         <TextInput
@@ -83,16 +139,19 @@ export default function PerfilScreen() {
         </Text>
         {saved && <Text style={styles.saved}>{translate(lang, 'profile.saved')}</Text>}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: colors.bg,
-    justifyContent: 'center',
+  },
+  container: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   title: {
     color: colors.silver,
@@ -105,13 +164,66 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: spacing.sm,
   },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.xl,
+  },
+  metric: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing.lg,
+  },
+  metricValue: {
+    color: colors.silver,
+    fontSize: 28,
+    fontWeight: '800',
+  },
+  metricLabel: {
+    color: colors.silverDim,
+    fontSize: 10,
+    letterSpacing: 1,
+    marginTop: spacing.xs,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.line,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     padding: spacing.lg,
+  },
+  statsLabel: {
+    color: colors.silverDim,
+    fontSize: 12,
+    letterSpacing: 2,
+  },
+  bmiRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  bmiValue: {
+    color: colors.teal,
+    fontSize: 36,
+    fontWeight: '800',
+  },
+  bmiBadge: {
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  hint: {
+    color: colors.silverDim,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
   },
   label: {
     color: colors.silverDim,

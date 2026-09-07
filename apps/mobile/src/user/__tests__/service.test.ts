@@ -3,7 +3,9 @@ import { MemoryRepo } from '../../repo/memoryRepo';
 import {
   AGE_MAX,
   WEIGHT_MAX,
+  bmiCategory,
   buildProfile,
+  computeBmi,
   createUser,
   normalizeMetric,
   updateProfile,
@@ -89,5 +91,28 @@ describe('updateProfile', () => {
   it('returns null when there is no profile', async () => {
     const repo = new MemoryRepo();
     expect(await updateProfile(repo, { age: 30 })).toBeNull();
+  });
+});
+
+describe('computeBmi', () => {
+  it('returns null when weight or height are missing', () => {
+    expect(computeBmi(undefined, 180)).toBeNull();
+    expect(computeBmi(80, undefined)).toBeNull();
+    expect(computeBmi(0, 180)).toBeNull();
+  });
+
+  it('computes the standard BMI from kg and cm', () => {
+    const bmi = computeBmi(80, 180);
+    expect(bmi).not.toBeNull();
+    expect(Number(bmi?.toFixed(1))).toBeCloseTo(24.7, 1);
+  });
+});
+
+describe('bmiCategory', () => {
+  it('classifies underweight, normal, overweight and obese', () => {
+    expect(bmiCategory(18)).toBe('low');
+    expect(bmiCategory(22)).toBe('normal');
+    expect(bmiCategory(27)).toBe('over');
+    expect(bmiCategory(32)).toBe('obese');
   });
 });

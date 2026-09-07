@@ -53,3 +53,27 @@ export async function updateProfile(
   await repo.saveProfile(next);
   return next;
 }
+
+export type BmiCategory = 'low' | 'normal' | 'over' | 'obese';
+
+export function computeBmi(weight: number | undefined, height: number | undefined): number | null {
+  if (
+    weight === undefined ||
+    height === undefined ||
+    !Number.isFinite(weight) ||
+    !Number.isFinite(height) ||
+    weight <= 0 ||
+    height <= 0
+  ) {
+    return null;
+  }
+  const meters = height / 100;
+  return weight / (meters * meters);
+}
+
+export function bmiCategory(bmi: number): BmiCategory {
+  if (bmi < 18.5) return 'low';
+  if (bmi < 25) return 'normal';
+  if (bmi < 30) return 'over';
+  return 'obese';
+}
