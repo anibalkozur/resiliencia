@@ -26,3 +26,24 @@ export async function getStreak(repo: IRepo, now: Date = new Date()): Promise<nu
 
   return streak;
 }
+
+export async function getBestStreak(repo: IRepo, now: Date = new Date()): Promise<number> {
+  let best = 0;
+  let current = 0;
+
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const raw = await repo.getSetting(`completed:${formatDate(d)}`);
+    const completed = raw === '1';
+
+    if (completed) {
+      current += 1;
+      if (current > best) best = current;
+    } else {
+      current = 0;
+    }
+  }
+
+  return best;
+}

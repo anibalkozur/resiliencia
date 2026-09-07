@@ -7,15 +7,8 @@ import { getRepo } from '../../src/repo';
 import { EXERCISES } from '../../src/retos/catalog';
 import { getTodayChallenge } from '../../src/retos/service';
 import { getStreak } from '../../src/retos/streak';
-import { getTotalCompleted } from '../../src/retos/completions';
 import { translate } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
-
-function daysSince(iso: string): number {
-  const created = new Date(iso);
-  const now = new Date();
-  return Math.max(0, Math.floor((now.getTime() - created.getTime()) / 86_400_000));
-}
 
 export default function InicioScreen() {
   const { profile } = useUser();
@@ -24,16 +17,13 @@ export default function InicioScreen() {
   const repo = getRepo();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [streak, setStreak] = useState(0);
-  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     getTodayChallenge(repo).then(setChallenge);
     getStreak(repo).then(setStreak);
-    getTotalCompleted(repo).then(setTotal);
   }, [repo]);
 
   const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
-  const days = profile ? daysSince(profile.createdAt) : 0;
   const unit = exercise?.unit === 'reps' ? 'unit.reps' : 'unit.seconds';
 
   return (
@@ -42,19 +32,9 @@ export default function InicioScreen() {
         {translate(lang, 'home.greeting', { name: profile?.nickname ?? 'Atleta' })}
       </Text>
 
-      <View style={styles.row}>
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{streak}</Text>
-          <Text style={styles.metricLabel}>{translate(lang, 'home.streak')}</Text>
-        </View>
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{total}</Text>
-          <Text style={styles.metricLabel}>{translate(lang, 'home.completed')}</Text>
-        </View>
-        <View style={styles.metric}>
-          <Text style={styles.metricValue}>{days}</Text>
-          <Text style={styles.metricLabel}>{translate(lang, 'home.days')}</Text>
-        </View>
+      <View style={styles.streakBox}>
+        <Text style={styles.streakValue}>{streak}</Text>
+        <Text style={styles.streakLabel}>{translate(lang, 'home.streak')}</Text>
       </View>
 
       {challenge && exercise ? (
@@ -86,30 +66,21 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
-  row: {
+  streakBox: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     gap: spacing.sm,
     marginTop: spacing.xl,
   },
-  metric: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingVertical: spacing.lg,
-  },
-  metricValue: {
-    color: colors.silver,
-    fontSize: 28,
+  streakValue: {
+    color: colors.teal,
+    fontSize: 40,
     fontWeight: '800',
   },
-  metricLabel: {
+  streakLabel: {
     color: colors.silverDim,
-    fontSize: 10,
-    letterSpacing: 1,
-    marginTop: spacing.xs,
+    fontSize: 12,
+    letterSpacing: 2,
   },
   card: {
     backgroundColor: colors.surface,

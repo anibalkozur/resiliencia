@@ -8,9 +8,7 @@ const es = {
   'onboarding.creating': 'CREANDO...',
 
   'home.greeting': 'Hola, {name}',
-  'home.streak': 'RACHA',
-  'home.completed': 'COMPLETADOS',
-  'home.days': 'DIAS',
+  'home.streak': 'RACHA HOY',
   'home.challenge': 'RETO DE HOY',
   'home.meta': 'Meta: {target} {unit}',
 
@@ -21,9 +19,27 @@ const es = {
   'unit.seconds': 'segundos',
 
   'progress.title': 'PROGRESO',
+  'progress.best_streak': 'MEJOR RACHA',
+  'progress.completed': 'COMPLETADOS',
+  'progress.days': 'DIAS',
+  'progress.week': 'ÚLTIMA SEMANA',
   'progress.empty_title': 'TU PROGRESO APARECERA AQUI',
   'progress.empty_body':
     'Cuando completes tu primer reto verás tu historial y los gráficos de evolución.',
+
+  'tabs.home': 'Inicio',
+  'tabs.retos': 'Retos',
+  'tabs.progreso': 'Progreso',
+  'tabs.perfil': 'Perfil',
+  'tabs.ajustes': 'Ajustes',
+
+  'weekday.mon': 'L',
+  'weekday.tue': 'M',
+  'weekday.wed': 'X',
+  'weekday.thu': 'J',
+  'weekday.fri': 'V',
+  'weekday.sat': 'S',
+  'weekday.sun': 'D',
 
   'profile.title': 'PERFIL',
   'profile.caption': 'Tu perfil, estadísticas y progreso.',
@@ -61,9 +77,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'onboarding.creating': 'CREATING...',
 
     'home.greeting': 'Hi, {name}',
-    'home.streak': 'STREAK',
-    'home.completed': 'COMPLETED',
-    'home.days': 'DAYS',
+    'home.streak': 'STREAK TODAY',
     'home.challenge': "TODAY'S CHALLENGE",
     'home.meta': 'Goal: {target} {unit}',
 
@@ -74,9 +88,27 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'unit.seconds': 'seconds',
 
     'progress.title': 'PROGRESS',
+    'progress.best_streak': 'BEST STREAK',
+    'progress.completed': 'COMPLETED',
+    'progress.days': 'DAYS',
+    'progress.week': 'LAST WEEK',
     'progress.empty_title': 'YOUR PROGRESS WILL APPEAR HERE',
     'progress.empty_body':
       'Once you complete your first challenge you will see your history and progress charts.',
+
+    'tabs.home': 'Home',
+    'tabs.retos': 'Challenges',
+    'tabs.progreso': 'Progress',
+    'tabs.perfil': 'Profile',
+    'tabs.ajustes': 'Settings',
+
+    'weekday.mon': 'M',
+    'weekday.tue': 'T',
+    'weekday.wed': 'W',
+    'weekday.thu': 'T',
+    'weekday.fri': 'F',
+    'weekday.sat': 'S',
+    'weekday.sun': 'S',
 
     'profile.title': 'PROFILE',
     'profile.caption': 'Your profile, stats and progress.',
@@ -109,9 +141,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'onboarding.creating': 'CRIANDO...',
 
     'home.greeting': 'Olá, {name}',
-    'home.streak': 'SEQUÊNCIA',
-    'home.completed': 'CONCLUÍDOS',
-    'home.days': 'DIAS',
+    'home.streak': 'SEQUÊNCIA HOJE',
     'home.challenge': 'DESAFIO DE HOJE',
     'home.meta': 'Meta: {target} {unit}',
 
@@ -122,9 +152,27 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'unit.seconds': 'segundos',
 
     'progress.title': 'PROGRESSO',
+    'progress.best_streak': 'MELHOR SEQUÊNCIA',
+    'progress.completed': 'CONCLUÍDOS',
+    'progress.days': 'DIAS',
+    'progress.week': 'ÚLTIMA SEMANA',
     'progress.empty_title': 'SEU PROGRESSO APARECERÁ AQUI',
     'progress.empty_body':
       'Quando você concluir seu primeiro desafio verá seu histórico e os gráficos de evolução.',
+
+    'tabs.home': 'Início',
+    'tabs.retos': 'Desafios',
+    'tabs.progreso': 'Progresso',
+    'tabs.perfil': 'Perfil',
+    'tabs.ajustes': 'Ajustes',
+
+    'weekday.mon': 'S',
+    'weekday.tue': 'T',
+    'weekday.wed': 'Q',
+    'weekday.thu': 'Q',
+    'weekday.fri': 'S',
+    'weekday.sat': 'S',
+    'weekday.sun': 'D',
 
     'profile.title': 'PERFIL',
     'profile.caption': 'Seu perfil, estatísticas e progresso.',

@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { MemoryRepo } from '../../repo/memoryRepo';
 import { markCompleted } from '../completions';
-import { getStreak } from '../streak';
+import { getBestStreak, getStreak } from '../streak';
 
 function date(offset: number): string {
   const now = new Date(2026, 8, 15);
@@ -63,5 +63,39 @@ describe('getStreak', () => {
     await markCompleted(repo, date(0));
     await markCompleted(repo, date(0));
     expect(await getStreak(repo, NOW)).toBe(1);
+  });
+});
+
+describe('getBestStreak', () => {
+  it('returns 0 when nothing is completed', async () => {
+    const repo = new MemoryRepo();
+    expect(await getBestStreak(repo, NOW)).toBe(0);
+  });
+
+  it('returns the longest consecutive run even after a gap', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, date(0));
+    await markCompleted(repo, date(1));
+    await markCompleted(repo, date(2));
+    await markCompleted(repo, date(6));
+    await markCompleted(repo, date(7));
+    await markCompleted(repo, date(8));
+    await markCompleted(repo, date(9));
+    expect(await getBestStreak(repo, NOW)).toBe(4);
+  });
+
+  it('does not count today as part of a run when today is not completed', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, date(1));
+    await markCompleted(repo, date(2));
+    expect(await getBestStreak(repo, NOW)).toBe(2);
+  });
+
+  it('treats non-consecutive single days as best of 1', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, date(0));
+    await markCompleted(repo, date(3));
+    await markCompleted(repo, date(7));
+    expect(await getBestStreak(repo, NOW)).toBe(1);
   });
 });
