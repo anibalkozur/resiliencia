@@ -12,8 +12,8 @@ describe('i18n translations', () => {
   });
 
   it('interpolates variables', () => {
-    expect(translate('es', 'home.greeting', { name: 'Anibal' })).toBe('Hola, Anibal');
-    expect(translate('en', 'home.greeting', { name: 'Ana' })).toBe('Hi, Ana');
+    expect(translate('es', 'home.greeting_morning', { name: 'Anibal' })).toBe('Buen día, Anibal');
+    expect(translate('en', 'home.greeting_afternoon', { name: 'Ana' })).toBe('Good afternoon, Ana');
     expect(translate('pt', 'home.challenge')).toBe('DESAFIO DE HOJE');
   });
 

@@ -11,6 +11,14 @@ export function todayKey(): string {
   return `${now.getFullYear()}-${m}-${d}`;
 }
 
+export function tomorrowKey(): string {
+  const now = new Date();
+  now.setDate(now.getDate() + 1);
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${m}-${d}`;
+}
+
 export function buildChallenge(date: string, goal: Goal = 'mantener'): DailyChallenge {
   const day = parseInt(date.slice(8, 10), 10);
   const ids = GOAL_EXERCISE_ORDER[goal];

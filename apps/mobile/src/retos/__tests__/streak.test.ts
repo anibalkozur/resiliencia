@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { MemoryRepo } from '../../repo/memoryRepo';
 import { markCompleted } from '../completions';
-import { getBestStreak, getStreak } from '../streak';
+import { getBestStreak, getCompletedCount, getStreak } from '../streak';
 
 function date(offset: number): string {
   const now = new Date(2026, 8, 15);
@@ -97,5 +97,27 @@ describe('getBestStreak', () => {
     await markCompleted(repo, date(3));
     await markCompleted(repo, date(7));
     expect(await getBestStreak(repo, NOW)).toBe(1);
+  });
+});
+
+describe('getCompletedCount', () => {
+  it('returns 0 when nothing is completed', async () => {
+    const repo = new MemoryRepo();
+    expect(await getCompletedCount(repo, NOW)).toBe(0);
+  });
+
+  it('counts every completed day, even with gaps', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, date(0));
+    await markCompleted(repo, date(3));
+    await markCompleted(repo, date(7));
+    expect(await getCompletedCount(repo, NOW)).toBe(3);
+  });
+
+  it('is idempotent for the same completed date', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, date(1));
+    await markCompleted(repo, date(1));
+    expect(await getCompletedCount(repo, NOW)).toBe(1);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { MemoryRepo } from '../../repo/memoryRepo';
-import { buildChallenge, getTodayChallenge, todayKey } from '../service';
+import { buildChallenge, getTodayChallenge, todayKey, tomorrowKey } from '../service';
 import { savePrefs } from '../../prefs/service';
 import { GOAL_EXERCISE_ORDER } from '../catalog';
 
@@ -37,6 +37,19 @@ describe('buildChallenge', () => {
 describe('todayKey', () => {
   it('matches the YYYY-MM-DD format', () => {
     expect(todayKey()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('tomorrowKey', () => {
+  it('matches the YYYY-MM-DD format', () => {
+    expect(tomorrowKey()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('is one day after today', () => {
+    const today = new Date(todayKey());
+    const tomorrow = new Date(tomorrowKey());
+    const diff = tomorrow.getTime() - today.getTime();
+    expect(Math.round(diff / 86_400_000)).toBe(1);
   });
 });
 

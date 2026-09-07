@@ -47,3 +47,16 @@ export async function getBestStreak(repo: IRepo, now: Date = new Date()): Promis
 
   return best;
 }
+
+export async function getCompletedCount(repo: IRepo, now: Date = new Date()): Promise<number> {
+  let count = 0;
+
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const raw = await repo.getSetting(`completed:${formatDate(d)}`);
+    if (raw === '1') count += 1;
+  }
+
+  return count;
+}
