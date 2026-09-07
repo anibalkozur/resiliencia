@@ -25,6 +25,12 @@ const es = {
   'unit.reps': 'repeticiones',
   'unit.seconds': 'segundos',
 
+  'retos.title': 'TU SEMANA',
+  'retos.plan_days': 'PLAN: {n} DÍAS / SEMANA',
+  'retos.rest': 'DESCANSO',
+  'retos.rest_note': 'Sin ejercicio. El descanso también es parte del plan.',
+  'retos.today': 'HOY',
+
   'progress.title': 'PROGRESO',
   'progress.best_streak': 'MEJOR RACHA',
   'progress.completed': 'COMPLETADOS',
@@ -101,6 +107,12 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'unit.reps': 'reps',
     'unit.seconds': 'seconds',
 
+    'retos.title': 'YOUR WEEK',
+    'retos.plan_days': 'PLAN: {n} DAYS / WEEK',
+    'retos.rest': 'REST',
+    'retos.rest_note': 'No workout. Rest is part of the plan too.',
+    'retos.today': 'TODAY',
+
     'progress.title': 'PROGRESS',
     'progress.best_streak': 'BEST STREAK',
     'progress.completed': 'COMPLETED',
@@ -171,6 +183,12 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'challenge.rotation': 'Amanhã há outro desafio.',
     'unit.reps': 'repetições',
     'unit.seconds': 'segundos',
+
+    'retos.title': 'SUA SEMANA',
+    'retos.plan_days': 'PLANO: {n} DIAS / SEMANA',
+    'retos.rest': 'DESCANSO',
+    'retos.rest_note': 'Sem exercício. O descanso também faz parte do plano.',
+    'retos.today': 'HOJE',
 
     'progress.title': 'PROGRESSO',
     'progress.best_streak': 'MELHOR SEQUÊNCIA',
