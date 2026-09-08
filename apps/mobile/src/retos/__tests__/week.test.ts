@@ -12,10 +12,13 @@ describe('buildWeek', () => {
     expect(week[6].date).toBe('2026-09-13');
   });
 
-  it('marks the first daysPerWeek days as training days', () => {
+  it('marks the training days evenly spread across the week', () => {
     const week = buildWeek('mantener', 4, MONDAY);
-    expect(week.filter((d) => d.isTraining)).toHaveLength(4);
-    expect(week[4].isTraining).toBe(false);
+    const training = week.filter((d) => d.isTraining).map((d) => d.dayOfWeek);
+    expect(training).toHaveLength(4);
+    expect(training).toEqual([1, 3, 5, 6]);
+    expect(week[4].isTraining).toBe(true);
+    expect(week[1].isTraining).toBe(false);
   });
 
   it('clamps daysPerWeek to the available window', () => {

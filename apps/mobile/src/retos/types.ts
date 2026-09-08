@@ -1,6 +1,5 @@
 export interface Exercise {
   id: string;
-  name: string;
   unit: 'reps' | 'seconds';
 }
 

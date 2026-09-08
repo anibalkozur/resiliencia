@@ -19,10 +19,27 @@ export function tomorrowKey(): string {
   return `${now.getFullYear()}-${m}-${d}`;
 }
 
+function isoWeekday(date: Date): number {
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
+function isoWeekNumber(date: Date): number {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const firstDayNr = (firstThursday.getUTCDay() + 6) % 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNr + 3);
+  return 1 + Math.round((target.getTime() - firstThursday.getTime()) / (7 * 24 * 3600 * 1000));
+}
+
 export function buildChallenge(date: string, goal: Goal = 'mantener'): DailyChallenge {
-  const day = parseInt(date.slice(8, 10), 10);
+  const [y, m, d] = date.split('-').map(Number);
+  const parsed = new Date(y, m - 1, d);
   const ids = GOAL_EXERCISE_ORDER[goal];
-  const exerciseId = ids[day % ids.length];
+  const index = (isoWeekNumber(parsed) + isoWeekday(parsed)) % ids.length;
+  const exerciseId = ids[index];
   const exercise = EXERCISES.find((e) => e.id === exerciseId) ?? EXERCISES[0];
   const base = DEFAULT_TARGETS[exercise.id] ?? 10;
   const target = Math.round(base * GOAL_TARGET_MULTIPLIER[goal]);

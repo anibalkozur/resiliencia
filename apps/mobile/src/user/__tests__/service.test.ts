@@ -7,8 +7,10 @@ import {
   buildProfile,
   computeBmi,
   createUser,
+  healthyWeightRange,
   normalizeMetric,
   updateProfile,
+  weightDeviation,
 } from '../service';
 import type { UserProfile } from '../../repo/types';
 
@@ -105,6 +107,58 @@ describe('computeBmi', () => {
     const bmi = computeBmi(80, 180);
     expect(bmi).not.toBeNull();
     expect(Number(bmi?.toFixed(1))).toBeCloseTo(24.7, 1);
+  });
+});
+
+describe('healthyWeightRange', () => {
+  it('computes the weight range for a typical height', () => {
+    const range = healthyWeightRange(180);
+    expect(range.minKg).toBeCloseTo(59.94, 2);
+    expect(range.maxKg).toBeCloseTo(80.68, 2);
+  });
+
+  it('handles the minimum allowed height', () => {
+    const range = healthyWeightRange(100);
+    expect(range.minKg).toBeCloseTo(18.5, 2);
+    expect(range.maxKg).toBeCloseTo(24.9, 2);
+  });
+
+  it('handles the maximum allowed height', () => {
+    const range = healthyWeightRange(250);
+    expect(range.minKg).toBeCloseTo(115.63, 2);
+    expect(range.maxKg).toBeCloseTo(155.63, 2);
+  });
+
+  it('returns limits consistent with the BMI thresholds', () => {
+    const range = healthyWeightRange(170);
+    expect(computeBmi(range.minKg, 170)).toBeCloseTo(18.5, 1);
+    expect(computeBmi(range.maxKg, 170)).toBeCloseTo(24.9, 1);
+  });
+});
+
+describe('weightDeviation', () => {
+  it('returns null when the weight is inside the healthy range', () => {
+    expect(weightDeviation(70, 170)).toBeNull();
+  });
+
+  it('returns null on the lower and upper boundaries', () => {
+    const range = healthyWeightRange(170);
+    expect(weightDeviation(range.minKg, 170)).toBeNull();
+    expect(weightDeviation(range.maxKg, 170)).toBeNull();
+  });
+
+  it('reports positive deviation above the healthy range', () => {
+    expect(weightDeviation(80, 170)).toBeCloseTo(8.04, 2);
+  });
+
+  it('reports negative deviation below the healthy range', () => {
+    expect(weightDeviation(45, 180)).toBeCloseTo(-14.94, 2);
+  });
+
+  it('stays null at IMC 24.9 and deviates from IMC 25', () => {
+    const boundary = healthyWeightRange(170).maxKg;
+    expect(weightDeviation(boundary, 170)).toBeNull();
+    expect(weightDeviation(boundary + 0.01, 170)).toBeGreaterThan(0);
   });
 });
 

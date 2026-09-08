@@ -1,26 +1,35 @@
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type DimensionValue,
+} from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
-import { bmiCategory, computeBmi } from '../../src/user/service';
+import { computeBmi, healthyWeightRange, weightDeviation } from '../../src/user/service';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
-import type { BmiCategory } from '../../src/user/service';
 
-const BMI_KEYS: Record<BmiCategory, TranslationKey> = {
-  low: 'profile.bmi_low',
-  normal: 'profile.bmi_normal',
-  over: 'profile.bmi_over',
-  obese: 'profile.bmi_obese',
-};
+const SCALE_MIN = 15;
+const SCALE_MAX = 40;
 
-const BMI_COLORS: Record<BmiCategory, string> = {
-  low: colors.cyan,
-  normal: colors.teal,
-  over: colors.ember,
-  obese: colors.ember,
-};
+const SCALE_KEYS: TranslationKey[] = [
+  'profile.bmi_scale_min',
+  'profile.bmi_scale_lower',
+  'profile.bmi_scale_upper',
+  'profile.bmi_scale_max',
+];
+
+function scalePercent(bmi: number): number {
+  const clamped = Math.min(SCALE_MAX, Math.max(SCALE_MIN, bmi));
+  return ((clamped - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100;
+}
 
 export default function PerfilScreen() {
   const { profile, createUser, updateProfile } = useUser();
@@ -31,6 +40,7 @@ export default function PerfilScreen() {
   const [weight, setWeight] = useState(profile?.weight != null ? String(profile.weight) : '');
   const [height, setHeight] = useState(profile?.height != null ? String(profile.height) : '');
   const [saved, setSaved] = useState(false);
+  const [bmiInfoOpen, setBmiInfoOpen] = useState(false);
 
   const handleSave = useCallback(async () => {
     await createUser(nickname);
@@ -43,13 +53,21 @@ export default function PerfilScreen() {
   }, [age, createUser, height, nickname, updateProfile, weight]);
 
   const empty = translate(lang, 'profile.empty_value');
-  const bmi = computeBmi(
-    profile?.weight != null ? profile.weight : undefined,
-    profile?.height != null ? profile.height : undefined,
-  );
-  const bmiCategoryValue = bmi != null ? bmiCategory(bmi) : null;
-  const bmiLabel = bmiCategoryValue != null ? translate(lang, BMI_KEYS[bmiCategoryValue]) : null;
-  const bmiColor = bmiCategoryValue != null ? BMI_COLORS[bmiCategoryValue] : colors.teal;
+  const heightCm =
+    profile?.height != null && Number.isFinite(profile.height) ? profile.height : undefined;
+  const weightKg =
+    profile?.weight != null && Number.isFinite(profile.weight) ? profile.weight : undefined;
+  const bmi = computeBmi(weightKg, heightCm);
+  const healthyRange = heightCm != null ? healthyWeightRange(heightCm) : null;
+  const deviation =
+    weightKg != null && heightCm != null ? weightDeviation(weightKg, heightCm) : null;
+  const deltaLabel =
+    deviation == null
+      ? translate(lang, 'profile.bmi_within')
+      : deviation > 0
+        ? translate(lang, 'profile.bmi_above', { delta: deviation.toFixed(1) })
+        : translate(lang, 'profile.bmi_below', { delta: Math.abs(deviation).toFixed(1) });
+  const markerLeft: DimensionValue = bmi != null ? `${scalePercent(bmi)}%` : '0%';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -72,18 +90,70 @@ export default function PerfilScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.statsLabel}>{translate(lang, 'profile.stats')}</Text>
-        {bmi != null ? (
-          <View style={styles.bmiRow}>
+        <View style={styles.statsHeader}>
+          <Text style={styles.statsLabel}>{translate(lang, 'profile.bmi')}</Text>
+          <Pressable
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={translate(lang, 'profile.bmi_info_label')}
+            onPress={() => setBmiInfoOpen(true)}
+            hitSlop={spacing.sm}
+            style={styles.infoButton}
+          >
+            <Text style={styles.infoButtonText}>?</Text>
+          </Pressable>
+        </View>
+        {bmi != null && healthyRange ? (
+          <>
             <Text style={styles.bmiValue}>{bmi.toFixed(1)}</Text>
-            <Text style={[styles.bmiBadge, { borderColor: bmiColor, color: bmiColor }]}>
-              {bmiLabel}
+            <View style={styles.scaleTrack}>
+              <View style={styles.scaleHealthyZone} />
+              <View style={[styles.scaleMarker, { left: markerLeft }]} />
+            </View>
+            <View style={styles.scaleLabels}>
+              {SCALE_KEYS.map((key) => (
+                <Text key={key} style={styles.scaleLabel}>
+                  {translate(lang, key)}
+                </Text>
+              ))}
+            </View>
+            <Text style={styles.bmiDelta}>{deltaLabel}</Text>
+            <Text style={styles.healthyRange}>
+              {translate(lang, 'profile.healthy_range', {
+                min: healthyRange.minKg.toFixed(1),
+                max: healthyRange.maxKg.toFixed(1),
+              })}
             </Text>
-          </View>
+          </>
         ) : (
-          <Text style={styles.hint}>{translate(lang, 'profile.bmi_hint')}</Text>
+          <>
+            <Text style={styles.bmiValue}>{empty}</Text>
+            <Text style={styles.hint}>{translate(lang, 'profile.bmi_hint')}</Text>
+          </>
         )}
       </View>
+
+      <Modal
+        visible={bmiInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBmiInfoOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View accessible style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{translate(lang, 'profile.bmi_info_title')}</Text>
+            <Text style={styles.modalBody}>{translate(lang, 'profile.bmi_info_body')}</Text>
+            <Pressable
+              accessible
+              accessibilityRole="button"
+              style={styles.modalButton}
+              onPress={() => setBmiInfoOpen(false)}
+            >
+              <Text style={styles.modalButtonText}>{translate(lang, 'profile.bmi_close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.card}>
         <Text style={styles.label}>{translate(lang, 'profile.nickname')}</Text>
@@ -202,22 +272,117 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 2,
   },
-  bmiRow: {
+  statsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  infoButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    width: 20,
+    height: 20,
+  },
+  infoButtonText: {
+    color: colors.silverDim,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
   },
   bmiValue: {
     color: colors.teal,
     fontSize: 36,
     fontWeight: '800',
+    marginTop: spacing.sm,
   },
-  bmiBadge: {
+  scaleTrack: {
+    backgroundColor: colors.line,
     borderRadius: radius.pill,
+    height: 8,
+    marginTop: spacing.md,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  scaleHealthyZone: {
+    position: 'absolute',
+    left: `${scalePercent(18.5)}%`,
+    width: `${scalePercent(24.9) - scalePercent(18.5)}%`,
+    top: 0,
+    bottom: 0,
+    backgroundColor: colors.teal,
+    opacity: 0.35,
+  },
+  scaleMarker: {
+    position: 'absolute',
+    top: -3,
+    width: 4,
+    height: 14,
+    borderRadius: 2,
+    backgroundColor: colors.silver,
+    marginLeft: -2,
+  },
+  scaleLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  scaleLabel: {
+    color: colors.silverDim,
+    fontSize: 10,
+  },
+  bmiDelta: {
+    color: colors.silver,
+    fontSize: 13,
+    marginTop: spacing.md,
+  },
+  healthyRange: {
+    color: colors.teal,
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: spacing.xs,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(3,4,5,0.8)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    borderColor: colors.line,
+    maxWidth: 420,
+    padding: spacing.lg,
+  },
+  modalTitle: {
+    color: colors.silver,
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  modalBody: {
+    color: colors.silver,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.md,
+  },
+  modalButton: {
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderRadius: radius.sm,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  modalButtonText: {
+    color: colors.bg,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   hint: {
     color: colors.silverDim,

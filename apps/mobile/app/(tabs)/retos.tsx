@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, ScrollView, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
-import { EXERCISES } from '../../src/retos/catalog';
+import { EXERCISES, exerciseDescKey, exerciseNameKey } from '../../src/retos/catalog';
 import { isCompleted } from '../../src/retos/completions';
 import { buildWeek } from '../../src/retos/week';
 import { translate } from '../../src/i18n/translations';
@@ -91,7 +91,14 @@ export default function RetosScreen() {
               {selectedDay.isToday ? (
                 <Text style={styles.cardToday}>{translate(lang, 'retos.today')}</Text>
               ) : null}
-              <Text style={styles.cardTitle}>{selectedExercise?.name ?? '—'}</Text>
+              <Text style={styles.cardTitle}>
+                {selectedExercise ? translate(lang, exerciseNameKey(selectedExercise.id)) : '—'}
+              </Text>
+              {selectedExercise ? (
+                <Text style={styles.cardDesc}>
+                  {translate(lang, exerciseDescKey(selectedExercise.id))}
+                </Text>
+              ) : null}
               <Text style={styles.cardTarget}>
                 {translate(lang, 'challenge.meta', {
                   target: selectedDay.target ?? 0,
@@ -223,6 +230,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     marginTop: spacing.sm,
+  },
+  cardDesc: {
+    color: colors.silverDim,
+    fontSize: 13,
+    marginTop: spacing.xs,
   },
   cardTarget: {
     color: colors.teal,

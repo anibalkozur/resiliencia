@@ -25,16 +25,25 @@ function mondayOf(d: Date): Date {
   return copy;
 }
 
+const TRAINING_SLOTS: Record<number, number[]> = {
+  2: [0, 3],
+  3: [0, 2, 4],
+  4: [0, 2, 4, 5],
+  5: [0, 1, 2, 4, 5],
+  6: [0, 1, 2, 3, 4, 5],
+};
+
 export function buildWeek(goal: Goal, daysPerWeek: number, today: Date = new Date()): WeekDay[] {
   const monday = mondayOf(today);
   const todayIso = iso(today);
+  const slots = TRAINING_SLOTS[daysPerWeek] ?? TRAINING_SLOTS[4];
   const days: WeekDay[] = [];
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const date = iso(d);
-    const isTraining = i < daysPerWeek;
+    const isTraining = slots.includes(i);
 
     if (isTraining) {
       const challenge = buildChallenge(date, goal);

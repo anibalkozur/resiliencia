@@ -5,7 +5,7 @@ import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
-import { EXERCISES } from '../../src/retos/catalog';
+import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
 import { buildChallenge, getTodayChallenge, tomorrowKey } from '../../src/retos/service';
 import { getCompletedCount, getStreak } from '../../src/retos/streak';
 import { GOAL_TRANSLATION_KEYS, translate, type TranslationKey } from '../../src/i18n/translations';
@@ -52,7 +52,7 @@ export default function InicioScreen() {
       {challenge && exercise ? (
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{translate(lang, 'home.challenge')}</Text>
-          <Text style={styles.cardTitle}>{exercise.name}</Text>
+          <Text style={styles.cardTitle}>{translate(lang, exerciseNameKey(exercise.id))}</Text>
           <Text style={styles.cardTarget}>
             {translate(lang, 'home.meta', {
               target: challenge.target,
@@ -94,7 +94,9 @@ export default function InicioScreen() {
 
       {tomorrowExercise ? (
         <Text style={styles.tomorrowText}>
-          {translate(lang, 'home.tomorrow', { exercise: tomorrowExercise.name })}
+          {translate(lang, 'home.tomorrow', {
+            exercise: translate(lang, exerciseNameKey(tomorrowExercise.id)),
+          })}
         </Text>
       ) : null}
     </View>

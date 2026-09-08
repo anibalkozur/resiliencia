@@ -20,11 +20,27 @@ describe('buildChallenge', () => {
     expect(a.target).toBeGreaterThan(0);
   });
 
-  it('follows the goal-specific exercise order', () => {
+  it('picks an exercise within the goal-specific pool', () => {
     const goal = 'perder_grasa';
     const day = 6;
-    const expected = GOAL_EXERCISE_ORDER[goal][day % GOAL_EXERCISE_ORDER[goal].length];
-    expect(buildChallenge(localDate(day), goal).exerciseId).toBe(expected);
+    const order = GOAL_EXERCISE_ORDER[goal];
+    expect(order).toHaveLength(7);
+    expect(order).toContain(buildChallenge(localDate(day), goal).exerciseId);
+  });
+
+  it('does not repeat an exercise within the same week', () => {
+    const goal = 'mantener';
+    const ids = Array.from(
+      { length: 7 },
+      (_, i) => buildChallenge(localDate(7 + i), goal).exerciseId,
+    );
+    expect(new Set(ids).size).toBe(7);
+  });
+
+  it('keeps the challenge deterministic across calls', () => {
+    expect(buildChallenge(localDate(6), 'mantener')).toEqual(
+      buildChallenge(localDate(6), 'mantener'),
+    );
   });
 
   it('applies a bigger target multiplier for fat loss', () => {

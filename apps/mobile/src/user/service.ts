@@ -56,6 +56,9 @@ export async function updateProfile(
 
 export type BmiCategory = 'low' | 'normal' | 'over' | 'obese';
 
+export const BMI_LOWER = 18.5;
+export const BMI_UPPER = 24.9;
+
 export function computeBmi(weight: number | undefined, height: number | undefined): number | null {
   if (
     weight === undefined ||
@@ -72,8 +75,27 @@ export function computeBmi(weight: number | undefined, height: number | undefine
 }
 
 export function bmiCategory(bmi: number): BmiCategory {
-  if (bmi < 18.5) return 'low';
+  if (bmi < BMI_LOWER) return 'low';
   if (bmi < 25) return 'normal';
   if (bmi < 30) return 'over';
   return 'obese';
+}
+
+export interface HealthyWeightRange {
+  minKg: number;
+  maxKg: number;
+}
+
+export function healthyWeightRange(heightCm: number): HealthyWeightRange {
+  const meters = heightCm / 100;
+  return {
+    minKg: BMI_LOWER * meters * meters,
+    maxKg: BMI_UPPER * meters * meters,
+  };
+}
+
+export function weightDeviation(weightKg: number, heightCm: number): number | null {
+  const { minKg, maxKg } = healthyWeightRange(heightCm);
+  if (weightKg >= minKg && weightKg <= maxKg) return null;
+  return weightKg < minKg ? weightKg - minKg : weightKg - maxKg;
 }
