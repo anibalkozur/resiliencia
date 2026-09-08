@@ -9,7 +9,7 @@ type UserState = {
   profile: UserProfile | null;
   isLoading: boolean;
   createUser: (nickname: string) => Promise<void>;
-  updateProfile: (patch: ProfilePatch) => Promise<void>;
+  updateProfile: (patch: ProfilePatch) => Promise<UserProfile | null>;
 };
 
 const UserContext = createContext<UserState | null>(null);
@@ -39,6 +39,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         if (updated) {
           setProfile(updated);
         }
+        return updated;
       },
     }),
     [profile, isLoading, repo],
