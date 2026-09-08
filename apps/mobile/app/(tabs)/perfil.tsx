@@ -24,6 +24,7 @@ import {
   habitScore,
   healthyWeightRange,
   muscleTargetWeight,
+  normalizeWaistCm,
   weightDeviation,
   whtrZone,
 } from '../../src/user/service';
@@ -117,7 +118,6 @@ export default function PerfilScreen() {
   const [sports, setSports] = useState<UserSport[]>(profile?.sports ?? []);
   const [saved, setSaved] = useState(false);
   const [bmiInfoOpen, setBmiInfoOpen] = useState(false);
-  const [measuresOpen, setMeasuresOpen] = useState(false);
 
   const handleSave = useCallback(async () => {
     await createUser(nickname);
@@ -148,8 +148,6 @@ export default function PerfilScreen() {
     profile?.height != null && Number.isFinite(profile.height) ? profile.height : undefined;
   const weightKg =
     profile?.weight != null && Number.isFinite(profile.weight) ? profile.weight : undefined;
-  const waistCm =
-    profile?.waistCm != null && Number.isFinite(profile.waistCm) ? profile.waistCm : undefined;
   const bmi = computeBmi(weightKg, heightCm);
   const healthyRange = heightCm != null ? healthyWeightRange(heightCm) : null;
   const deviation =
@@ -163,7 +161,8 @@ export default function PerfilScreen() {
   const markerLeft: DimensionValue = bmi != null ? `${scalePercent(bmi)}%` : '0%';
   const context = bmiContext(bmi, goal, sports);
   const muscleTarget = muscleTargetWeight(bmi, goal, sports, heightCm);
-  const whtr = computeWhtr(waistCm, heightCm);
+  const waistNum = waist.trim() === '' ? undefined : Number(waist);
+  const whtr = computeWhtr(normalizeWaistCm(waistNum), heightCm);
   const whtrZoneKey: TranslationKey | null = whtr == null ? null : `profile.whtr_${whtrZone(whtr)}`;
   const score = habitScore(sports);
 
@@ -393,44 +392,28 @@ export default function PerfilScreen() {
       </View>
 
       <View style={styles.card}>
-        <Pressable
-          accessible
-          accessibilityRole="button"
-          style={styles.measureToggle}
-          onPress={() => setMeasuresOpen((open) => !open)}
-        >
-          <Text style={styles.sectionLabel}>{translate(lang, 'profile.waist')}</Text>
-          <Text style={styles.measureToggleLabel}>
-            {translate(
-              lang,
-              measuresOpen ? 'profile.optional_toggle_close' : 'profile.optional_toggle_open',
-            )}
-          </Text>
-        </Pressable>
-        {measuresOpen && (
-          <>
-            <TextInput
-              style={styles.input}
-              value={waist}
-              onChangeText={setWaist}
-              placeholder={translate(lang, 'profile.waist_placeholder')}
-              placeholderTextColor={colors.silverDim}
-              keyboardType="decimal-pad"
-            />
-            <Text style={styles.hint}>{translate(lang, 'profile.waist_hint')}</Text>
-            {whtr != null && whtrZoneKey != null ? (
-              <View style={styles.whtrBox}>
-                <Text style={styles.whtrValue}>{translate(lang, 'profile.whtr')}</Text>
-                <Text style={styles.whtrNumber}>{whtr.toFixed(2)}</Text>
-                <Text style={styles.whtrState}>{translate(lang, whtrZoneKey)}</Text>
-                <Text style={styles.targetNote}>{translate(lang, 'profile.whtr_note')}</Text>
-              </View>
-            ) : (
-              heightCm != null && (
-                <Text style={styles.hint}>{translate(lang, 'profile.whtr_hint')}</Text>
-              )
-            )}
-          </>
+        <Text style={styles.sectionLabel}>{translate(lang, 'profile.measures_title')}</Text>
+        <Text style={styles.label}>{translate(lang, 'profile.waist')}</Text>
+        <TextInput
+          style={styles.input}
+          value={waist}
+          onChangeText={setWaist}
+          placeholder={translate(lang, 'profile.waist_placeholder')}
+          placeholderTextColor={colors.silverDim}
+          keyboardType="decimal-pad"
+        />
+        <Text style={styles.hint}>{translate(lang, 'profile.waist_hint')}</Text>
+        {whtr != null && whtrZoneKey != null ? (
+          <View style={styles.whtrBox}>
+            <Text style={styles.whtrValue}>{translate(lang, 'profile.whtr')}</Text>
+            <Text style={styles.whtrNumber}>{whtr.toFixed(2)}</Text>
+            <Text style={styles.whtrState}>{translate(lang, whtrZoneKey)}</Text>
+            <Text style={styles.targetNote}>{translate(lang, 'profile.whtr_note')}</Text>
+          </View>
+        ) : (
+          heightCm != null && (
+            <Text style={styles.hint}>{translate(lang, 'profile.whtr_hint')}</Text>
+          )
         )}
       </View>
     </ScrollView>
@@ -791,17 +774,6 @@ const styles = StyleSheet.create({
     color: colors.teal,
     fontSize: 13,
     marginTop: spacing.sm,
-  },
-  measureToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  measureToggleLabel: {
-    color: colors.teal,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1,
   },
   whtrBox: {
     backgroundColor: colors.bg,
