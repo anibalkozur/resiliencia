@@ -2,17 +2,28 @@ import { describe, expect, it } from '@jest/globals';
 import { MemoryRepo } from '../../repo/memoryRepo';
 import {
   AGE_MAX,
+  SPORT_CATALOG,
+  SPORT_DAYS_MAX,
+  SPORT_DAYS_MIN,
   WEIGHT_MAX,
+  YEARS_MAX,
   bmiCategory,
+  bmiContext,
   buildProfile,
   computeBmi,
+  computeWhtr,
   createUser,
+  habitScore,
   healthyWeightRange,
+  muscleTargetWeight,
   normalizeMetric,
+  normalizeSports,
+  normalizeWaistCm,
   updateProfile,
   weightDeviation,
+  whtrZone,
 } from '../service';
-import type { UserProfile } from '../../repo/types';
+import type { UserProfile, UserSport } from '../../repo/types';
 
 const existing: UserProfile = {
   id: 'u1',
@@ -168,5 +179,140 @@ describe('bmiCategory', () => {
     expect(bmiCategory(22)).toBe('normal');
     expect(bmiCategory(27)).toBe('over');
     expect(bmiCategory(32)).toBe('obese');
+  });
+});
+
+describe('normalizeSports', () => {
+  it('returns an empty list for non-array input', () => {
+    expect(normalizeSports(undefined)).toEqual([]);
+    expect(normalizeSports('natacion')).toEqual([]);
+  });
+
+  it('keeps only catalog sports and drops duplicates', () => {
+    const sports = normalizeSports([
+      { sport: 'natacion', years: 5, daysPerWeek: 3 },
+      { sport: 'natacion', years: 9, daysPerWeek: 7 },
+      { sport: 'skydiving', years: 2, daysPerWeek: 4 },
+      'bogus',
+      null,
+    ]);
+    expect(sports).toEqual([{ sport: 'natacion', years: 5, daysPerWeek: 3 }]);
+  });
+
+  it('clamps years and days per week', () => {
+    const [sport] = normalizeSports([{ sport: 'correr', years: 999, daysPerWeek: 99 }]);
+    expect(sport?.years).toBe(YEARS_MAX);
+    expect(sport?.daysPerWeek).toBe(SPORT_DAYS_MAX);
+  });
+
+  it('defaults missing years and days to their minimums', () => {
+    const [sport] = normalizeSports([{ sport: 'bici' }]);
+    expect(sport?.years).toBe(0);
+    expect(sport?.daysPerWeek).toBe(SPORT_DAYS_MIN);
+  });
+
+  it('accepts every catalog sport', () => {
+    const sports = normalizeSports(
+      SPORT_CATALOG.map((sport) => ({ sport, years: 1, daysPerWeek: 2 })),
+    );
+    expect(sports.map((s) => s.sport).sort()).toEqual([...SPORT_CATALOG].sort());
+  });
+});
+
+describe('normalizeWaistCm', () => {
+  it('returns undefined for empty or non-finite values', () => {
+    expect(normalizeWaistCm(undefined)).toBeUndefined();
+    expect(normalizeWaistCm(Number.NaN)).toBeUndefined();
+  });
+
+  it('rounds and clamps to the valid range', () => {
+    expect(normalizeWaistCm(84.4)).toBe(84);
+    expect(normalizeWaistCm(10)).toBe(40);
+    expect(normalizeWaistCm(999)).toBe(250);
+  });
+});
+
+describe('computeWhtr', () => {
+  it('returns null when waist or height are missing', () => {
+    expect(computeWhtr(undefined, 180)).toBeNull();
+    expect(computeWhtr(80, undefined)).toBeNull();
+  });
+
+  it('computes the waist-to-height ratio from cm', () => {
+    expect(computeWhtr(80, 180)).toBeCloseTo(0.4444, 4);
+    expect(computeWhtr(95, 180)).toBeCloseTo(0.5278, 4);
+  });
+});
+
+describe('whtrZone', () => {
+  it('flags values around the 0.5 cutoff with no verdict in the border', () => {
+    expect(whtrZone(0.44)).toBe('ok');
+    expect(whtrZone(0.47)).toBe('ok');
+    expect(whtrZone(0.49)).toBe('border');
+    expect(whtrZone(0.5)).toBe('border');
+    expect(whtrZone(0.51)).toBe('border');
+    expect(whtrZone(0.53)).toBe('elevated');
+    expect(whtrZone(0.6)).toBe('elevated');
+  });
+});
+
+describe('habitScore', () => {
+  it('returns 0 without sports', () => {
+    expect(habitScore([])).toBe(0);
+  });
+
+  it('scores around the dominant sport', () => {
+    const low: UserSport[] = [{ sport: 'yoga', years: 1, daysPerWeek: 2 }];
+    const high: UserSport[] = [{ sport: 'remo', years: 10, daysPerWeek: 7 }];
+    expect(habitScore(low)).toBeLessThan(habitScore(high));
+  });
+
+  it('caps at 100 and floors at a positive value', () => {
+    expect(habitScore([{ sport: 'remo', years: 40, daysPerWeek: 7 }])).toBe(100);
+    expect(habitScore([{ sport: 'yoga', years: 0, daysPerWeek: 1 }])).toBeGreaterThan(0);
+  });
+});
+
+describe('bmiContext', () => {
+  const sports: UserSport[] = [{ sport: 'natacion', years: 3, daysPerWeek: 3 }];
+
+  it('enables the muscle context for trained users on muscle gain', () => {
+    expect(bmiContext(26.5, 'ganar_musculo', sports)).toBe('muscle');
+  });
+
+  it('stays silent out of the 24-30 band', () => {
+    expect(bmiContext(22, 'ganar_musculo', sports)).toBe('none');
+    expect(bmiContext(31, 'ganar_musculo', sports)).toBe('none');
+  });
+
+  it('never legitimizes IMC 30 or above', () => {
+    expect(bmiContext(30, 'ganar_musculo', sports)).toBe('none');
+    expect(bmiContext(35, 'ganar_musculo', sports)).toBe('none');
+  });
+
+  it('requires both the muscle goal and declared sports', () => {
+    expect(bmiContext(26, 'mantener', sports)).toBe('none');
+    expect(bmiContext(26, 'ganar_musculo', [])).toBe('none');
+    expect(bmiContext(null, 'ganar_musculo', sports)).toBe('none');
+  });
+});
+
+describe('muscleTargetWeight', () => {
+  const sports: UserSport[] = [{ sport: 'gimnasio', years: 2, daysPerWeek: 4 }];
+
+  it('returns the upper healthy limit for trained muscle gainers', () => {
+    const range = healthyWeightRange(183);
+    expect(muscleTargetWeight(26.5, 'ganar_musculo', sports, 183)).toBeCloseTo(range.maxKg, 2);
+  });
+
+  it('returns null below 30 BMI but also at 30 or above', () => {
+    expect(muscleTargetWeight(30, 'ganar_musculo', sports, 183)).toBeNull();
+    expect(muscleTargetWeight(24.9, 'ganar_musculo', sports, 183)).not.toBeNull();
+  });
+
+  it('requires the muscle goal, sports and a height', () => {
+    expect(muscleTargetWeight(26, 'mantener', sports, 183)).toBeNull();
+    expect(muscleTargetWeight(26, 'ganar_musculo', [], 183)).toBeNull();
+    expect(muscleTargetWeight(26, 'ganar_musculo', sports, undefined)).toBeNull();
   });
 });

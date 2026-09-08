@@ -2,8 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { LANGUAGE_OPTIONS, MAX_DAYS, MIN_DAYS } from '../../src/prefs/service';
-import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
-import type { Goal, Language } from '../../src/prefs/types';
+import { translate } from '../../src/i18n/translations';
+import type { Language } from '../../src/prefs/types';
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
@@ -32,18 +32,6 @@ export default function AjustesScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>{translate(lang, 'settings.title')}</Text>
       <View style={styles.body}>
-        <Text style={styles.section}>{translate(lang, 'settings.goal')}</Text>
-        <View style={styles.row}>
-          {(Object.keys(GOAL_TRANSLATION_KEYS) as Goal[]).map((goal) => (
-            <Chip
-              key={goal}
-              label={translate(lang, GOAL_TRANSLATION_KEYS[goal])}
-              active={prefs.goal === goal}
-              onPress={() => updatePrefs({ goal })}
-            />
-          ))}
-        </View>
-
         <Text style={styles.section}>{translate(lang, 'settings.days')}</Text>
         <View style={styles.row}>
           <Pressable

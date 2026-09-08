@@ -12,9 +12,25 @@ import {
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
-import { computeBmi, healthyWeightRange, weightDeviation } from '../../src/user/service';
-import { translate } from '../../src/i18n/translations';
+import {
+  SPORT_CATALOG,
+  SPORT_DAYS_MAX,
+  SPORT_DAYS_MIN,
+  YEARS_MAX,
+  YEARS_MIN,
+  bmiContext,
+  computeBmi,
+  computeWhtr,
+  habitScore,
+  healthyWeightRange,
+  muscleTargetWeight,
+  weightDeviation,
+  whtrZone,
+} from '../../src/user/service';
+import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
+import type { Goal } from '../../src/prefs/types';
+import type { UserSport } from '../../src/repo';
 
 const SCALE_MIN = 15;
 const SCALE_MAX = 40;
@@ -31,16 +47,77 @@ function scalePercent(bmi: number): number {
   return ((clamped - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100;
 }
 
+function sportKey(sport: string): TranslationKey {
+  return `sport.${sport}` as TranslationKey;
+}
+
+function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessible
+      accessibilityRole="button"
+      style={({ pressed }) => [
+        styles.chip,
+        active && styles.chipActive,
+        pressed && styles.chipPressed,
+      ]}
+      onPress={onPress}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Stepper({
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <View style={styles.stepperRow}>
+      <Pressable
+        accessible
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.step, (pressed || value <= min) && styles.stepDim]}
+        onPress={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+      >
+        <Text style={styles.stepText}>−</Text>
+      </Pressable>
+      <Text style={styles.stepValue}>{value}</Text>
+      <Pressable
+        accessible
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.step, (pressed || value >= max) && styles.stepDim]}
+        onPress={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+      >
+        <Text style={styles.stepText}>+</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function PerfilScreen() {
   const { profile, createUser, updateProfile } = useUser();
-  const { prefs } = usePrefs();
+  const { prefs, updatePrefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
+  const goal: Goal | undefined = prefs?.goal;
   const [nickname, setNickname] = useState(profile?.nickname ?? '');
   const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '');
   const [weight, setWeight] = useState(profile?.weight != null ? String(profile.weight) : '');
   const [height, setHeight] = useState(profile?.height != null ? String(profile.height) : '');
+  const [waist, setWaist] = useState(profile?.waistCm != null ? String(profile.waistCm) : '');
+  const [sports, setSports] = useState<UserSport[]>(profile?.sports ?? []);
   const [saved, setSaved] = useState(false);
   const [bmiInfoOpen, setBmiInfoOpen] = useState(false);
+  const [measuresOpen, setMeasuresOpen] = useState(false);
 
   const handleSave = useCallback(async () => {
     await createUser(nickname);
@@ -48,15 +125,31 @@ export default function PerfilScreen() {
       age: age.trim() === '' ? undefined : Number(age),
       weight: weight.trim() === '' ? undefined : Number(weight),
       height: height.trim() === '' ? undefined : Number(height),
+      waistCm: waist.trim() === '' ? undefined : Number(waist),
+      sports,
     });
     setSaved(true);
-  }, [age, createUser, height, nickname, updateProfile, weight]);
+  }, [age, createUser, height, nickname, sports, updateProfile, waist, weight]);
+
+  const toggleSport = useCallback((sport: string) => {
+    setSports((prev) =>
+      prev.some((s) => s.sport === sport)
+        ? prev.filter((s) => s.sport !== sport)
+        : [...prev, { sport, years: 0, daysPerWeek: 3 }],
+    );
+  }, []);
+
+  const adjustSport = useCallback((sport: string, patch: Partial<UserSport>) => {
+    setSports((prev) => prev.map((s) => (s.sport === sport ? { ...s, ...patch } : s)));
+  }, []);
 
   const empty = translate(lang, 'profile.empty_value');
   const heightCm =
     profile?.height != null && Number.isFinite(profile.height) ? profile.height : undefined;
   const weightKg =
     profile?.weight != null && Number.isFinite(profile.weight) ? profile.weight : undefined;
+  const waistCm =
+    profile?.waistCm != null && Number.isFinite(profile.waistCm) ? profile.waistCm : undefined;
   const bmi = computeBmi(weightKg, heightCm);
   const healthyRange = heightCm != null ? healthyWeightRange(heightCm) : null;
   const deviation =
@@ -68,6 +161,11 @@ export default function PerfilScreen() {
         ? translate(lang, 'profile.bmi_above', { delta: deviation.toFixed(1) })
         : translate(lang, 'profile.bmi_below', { delta: Math.abs(deviation).toFixed(1) });
   const markerLeft: DimensionValue = bmi != null ? `${scalePercent(bmi)}%` : '0%';
+  const context = bmiContext(bmi, goal, sports);
+  const muscleTarget = muscleTargetWeight(bmi, goal, sports, heightCm);
+  const whtr = computeWhtr(waistCm, heightCm);
+  const whtrZoneKey: TranslationKey | null = whtr == null ? null : `profile.whtr_${whtrZone(whtr)}`;
+  const score = habitScore(sports);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -131,6 +229,19 @@ export default function PerfilScreen() {
             <Text style={styles.hint}>{translate(lang, 'profile.bmi_hint')}</Text>
           </>
         )}
+        {context === 'muscle' && (
+          <View style={styles.contextBox}>
+            <Text style={styles.contextText}>{translate(lang, 'profile.muscle_context')}</Text>
+          </View>
+        )}
+        {muscleTarget != null && (
+          <View style={styles.targetBox}>
+            <Text style={styles.targetText}>
+              {translate(lang, 'profile.muscle_target', { target: muscleTarget.toFixed(1) })}
+            </Text>
+            <Text style={styles.targetNote}>{translate(lang, 'profile.muscle_target_note')}</Text>
+          </View>
+        )}
       </View>
 
       <Modal
@@ -154,6 +265,77 @@ export default function PerfilScreen() {
           </View>
         </View>
       </Modal>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>{translate(lang, 'profile.goal')}</Text>
+        <View style={styles.row}>
+          {(Object.keys(GOAL_TRANSLATION_KEYS) as Goal[]).map((option) => (
+            <Chip
+              key={option}
+              label={translate(lang, GOAL_TRANSLATION_KEYS[option])}
+              active={goal === option}
+              onPress={() => updatePrefs({ goal: option })}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>{translate(lang, 'profile.sports')}</Text>
+        <Text style={styles.hint}>{translate(lang, 'profile.sports_hint')}</Text>
+        <View style={styles.row}>
+          {SPORT_CATALOG.map((sport) => (
+            <Chip
+              key={sport}
+              label={translate(lang, sportKey(sport))}
+              active={sports.some((s) => s.sport === sport)}
+              onPress={() => toggleSport(sport)}
+            />
+          ))}
+        </View>
+        {sports.map((sport) => (
+          <View key={sport.sport} style={styles.sportRow}>
+            <Text style={styles.sportName}>{translate(lang, sportKey(sport.sport))}</Text>
+            <View style={styles.sportControls}>
+              <View style={styles.sportControl}>
+                <Text style={styles.sportControlLabel}>
+                  {translate(lang, 'profile.sports_years')}
+                </Text>
+                <Stepper
+                  value={sport.years}
+                  min={YEARS_MIN}
+                  max={YEARS_MAX}
+                  onChange={(years) => adjustSport(sport.sport, { years })}
+                />
+              </View>
+              <View style={styles.sportControl}>
+                <Text style={styles.sportControlLabel}>
+                  {translate(lang, 'profile.sports_days')}
+                </Text>
+                <Stepper
+                  value={sport.daysPerWeek}
+                  min={SPORT_DAYS_MIN}
+                  max={SPORT_DAYS_MAX}
+                  onChange={(daysPerWeek) => adjustSport(sport.sport, { daysPerWeek })}
+                />
+              </View>
+            </View>
+          </View>
+        ))}
+        <View style={styles.habitBox}>
+          <Text style={styles.habitTitle}>{translate(lang, 'profile.habit_title')}</Text>
+          {sports.length > 0 ? (
+            <>
+              <Text style={styles.habitScore}>
+                {translate(lang, 'profile.habit_score', { score })}
+              </Text>
+              <Text style={styles.targetNote}>{translate(lang, 'profile.habit_disclaimer')}</Text>
+            </>
+          ) : (
+            <Text style={styles.hint}>{translate(lang, 'profile.habit_empty')}</Text>
+          )}
+        </View>
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.label}>{translate(lang, 'profile.nickname')}</Text>
@@ -208,6 +390,48 @@ export default function PerfilScreen() {
           })}
         </Text>
         {saved && <Text style={styles.saved}>{translate(lang, 'profile.saved')}</Text>}
+      </View>
+
+      <View style={styles.card}>
+        <Pressable
+          accessible
+          accessibilityRole="button"
+          style={styles.measureToggle}
+          onPress={() => setMeasuresOpen((open) => !open)}
+        >
+          <Text style={styles.sectionLabel}>{translate(lang, 'profile.waist')}</Text>
+          <Text style={styles.measureToggleLabel}>
+            {translate(
+              lang,
+              measuresOpen ? 'profile.optional_toggle_close' : 'profile.optional_toggle_open',
+            )}
+          </Text>
+        </Pressable>
+        {measuresOpen && (
+          <>
+            <TextInput
+              style={styles.input}
+              value={waist}
+              onChangeText={setWaist}
+              placeholder={translate(lang, 'profile.waist_placeholder')}
+              placeholderTextColor={colors.silverDim}
+              keyboardType="decimal-pad"
+            />
+            <Text style={styles.hint}>{translate(lang, 'profile.waist_hint')}</Text>
+            {whtr != null && whtrZoneKey != null ? (
+              <View style={styles.whtrBox}>
+                <Text style={styles.whtrValue}>{translate(lang, 'profile.whtr')}</Text>
+                <Text style={styles.whtrNumber}>{whtr.toFixed(2)}</Text>
+                <Text style={styles.whtrState}>{translate(lang, whtrZoneKey)}</Text>
+                <Text style={styles.targetNote}>{translate(lang, 'profile.whtr_note')}</Text>
+              </View>
+            ) : (
+              heightCm != null && (
+                <Text style={styles.hint}>{translate(lang, 'profile.whtr_hint')}</Text>
+              )
+            )}
+          </>
+        )}
       </View>
     </ScrollView>
   );
@@ -344,6 +568,37 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: spacing.xs,
   },
+  contextBox: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.teal,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  contextText: {
+    color: colors.silver,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  targetBox: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  targetText: {
+    color: colors.cyan,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  targetNote: {
+    color: colors.silverDim,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: spacing.xs,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(3,4,5,0.8)',
@@ -407,6 +662,110 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
   },
+  sectionLabel: {
+    color: colors.silverDim,
+    fontSize: 12,
+    letterSpacing: 2,
+  },
+  row: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  chip: {
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  chipActive: {
+    borderColor: colors.teal,
+    backgroundColor: colors.surface,
+  },
+  chipPressed: {
+    opacity: 0.7,
+  },
+  chipText: {
+    color: colors.silverDim,
+    fontSize: 14,
+  },
+  chipTextActive: {
+    color: colors.teal,
+    fontWeight: '700',
+  },
+  sportRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+  },
+  sportName: {
+    color: colors.silver,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  sportControls: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginTop: spacing.sm,
+  },
+  sportControl: {
+    flex: 1,
+  },
+  sportControlLabel: {
+    color: colors.silverDim,
+    fontSize: 10,
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  step: {
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    minWidth: 40,
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+  },
+  stepDim: {
+    opacity: 0.4,
+  },
+  stepText: {
+    color: colors.silver,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  stepValue: {
+    color: colors.silver,
+    fontSize: 18,
+    fontWeight: '800',
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  habitBox: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+  },
+  habitTitle: {
+    color: colors.silverDim,
+    fontSize: 11,
+    letterSpacing: 2,
+  },
+  habitScore: {
+    color: colors.cyan,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
   button: {
     alignItems: 'center',
     backgroundColor: colors.teal,
@@ -432,5 +791,41 @@ const styles = StyleSheet.create({
     color: colors.teal,
     fontSize: 13,
     marginTop: spacing.sm,
+  },
+  measureToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  measureToggleLabel: {
+    color: colors.teal,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  whtrBox: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginTop: spacing.md,
+    padding: spacing.md,
+  },
+  whtrValue: {
+    color: colors.silverDim,
+    fontSize: 11,
+    letterSpacing: 2,
+  },
+  whtrNumber: {
+    color: colors.cyan,
+    fontSize: 28,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
+  whtrState: {
+    color: colors.silver,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: spacing.xs,
   },
 });
