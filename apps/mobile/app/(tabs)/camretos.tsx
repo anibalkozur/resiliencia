@@ -15,6 +15,7 @@ import { translate } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 
 const VERIFY_URL = 'https://anibalkozur.github.io/resiliencia/camera-verification.html';
+const VERIFY_VERSION = 2;
 
 type Mode = 'challenge' | 'free';
 
@@ -79,11 +80,14 @@ export default function CamretoScreen() {
     router.back();
   }
 
+  const query = `v=${VERIFY_VERSION}&exercise=${freeExerciseId}&target=${freeTarget}&unit=${freeUnit}`;
   const freeSource = {
-    uri: `${VERIFY_URL}?exercise=${freeExerciseId}&target=${freeTarget}&unit=${freeUnit}`,
+    uri: `${VERIFY_URL}?${query}`,
   };
   const challengeSource = challengeReady
-    ? { uri: `${VERIFY_URL}?exercise=${exercise!.id}&target=${target}&unit=${unit}` }
+    ? {
+        uri: `${VERIFY_URL}?v=${VERIFY_VERSION}&exercise=${exercise!.id}&target=${target}&unit=${unit}`,
+      }
     : undefined;
 
   return (
@@ -175,6 +179,7 @@ export default function CamretoScreen() {
             ref={webViewRef}
             originWhitelist={['*']}
             source={freeSource}
+            cacheEnabled={false}
             javaScriptEnabled={true}
             domStorageEnabled={true}
             allowsInlineMediaPlayback={true}
@@ -187,6 +192,7 @@ export default function CamretoScreen() {
             ref={webViewRef}
             originWhitelist={['*']}
             source={challengeSource}
+            cacheEnabled={false}
             javaScriptEnabled={true}
             domStorageEnabled={true}
             allowsInlineMediaPlayback={true}
