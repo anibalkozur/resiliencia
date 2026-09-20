@@ -1,0 +1,147 @@
+# Bitácora de ResiliencIA
+
+Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medida que se planifica y desarrolla cada fase.
+
+## Historial
+
+### 2026-09-17 — Fase 1: sesión, logout y login persistente
+
+**Peticiones del PO (vía app/chat):**
+
+1. Agregar botón de **logout** en la app (manifestó que no lo encontraba).
+2. La sesión debe **persistir entre reinicios**: al volver a abrir la app, entrar directamente (sin repetir "Continuar con Google"), como cualquier app de Play Store.
+3. Registrar los pasos y peticiones que se van aplicando (esta bitácora).
+
+**Análisis y hallazgos:**
+
+- El logout **ya existía** en el tab Ajustes (`settings.logout` → `signOut()`), poco visible.
+- La sesión ya se persistía en SQLite (storage adapter de supabase-js sobre `app_settings`) y se recuperaba con `getSession()` en el montaje de `AuthProvider`.
+- **Causa de la "no persistencia" percibida (review equipo DER #1):** `authLoading` se inicializaba en `false`, así que en cada arranque se montaba brevemente `onboarding` (flash de "Continuar con Google") hasta que resolvía `getSession()`. El usuario interpretaba ese flash como "perdí la sesión".
+
+**Cambios aplicados:**
+
+- `apps/mobile/app/(tabs)/perfil.tsx`: botón "CERRAR SESIÓN" agregado (reutiliza `settings.logout`/`settings.account`, paridad es/en/pt intacta).
+- `apps/mobile/src/auth/AuthProvider.tsx`:
+  - `authLoading` inicial en `true` → desaparece el flash de onboarding al reabrir; entra directo si hay sesión persistida.
+  - `getSession()` con manejador de error (`.catch`/segundo handler) para no quedar en spinner infinito si falla el storage.
+  - `signOut`: limpia `session` **antes** del llamado al servidor (UI responde al instante, el cierre real sigue de fondo) y loguea fallos con `console.warn`.
+- `apps/mobile/src/auth/webcryptoPolyfill.ts`: `defineProperty('subtle')` envuelto en try/catch (host object no-configurable en Hermes no debe romper el arranque).
+
+**Fix post-test (2026-09-17): logout no cerraba sesión (2 intentos)**
+
+- Síntoma: al tocar "CERRAR SESIÓN" la app seguía abierta con los datos; no redirigía a la pantalla de bienvenida/login.
+- Causa raíz (tras revisar GoTrueClient.js instalado): el login entraba a `(tabs)` con un `router.replace('/(tabs)')` explícito (onboarding.tsx), pero el logout dependía solo del `<Stack>` condicional de expo-router, que **no fuerza la navegación** al quitar `(tabs)` → la pantalla no cambiaba.
+- Fix definitivo:
+  - `app/_layout.tsx`: navegación simétrica vía `useEffect` + `router.replace` — con sesión → `/(tabs)`; sin sesión → `/onboarding` (solo navega cuando cambia el estado, con ref para evitar loops por refresco de token). Se mantiene el remonte con `key`.
+  - `src/auth/authService.ts`: `signOut()` limpia las claves de sesión locales (`sb-<ref>-auth-token`, `-user`, verifiers PKCE) **inmediatamente**, sin esperar la red (que podía colgar en `admin.signOut` antes de limpiar storage). La revocación remota sigue en background.
+- Tests actualizados + 118 en verde.
+
+**Pendientes / decisiones:**
+
+- Sesión _stale_ sin red con token expirado (recomendación DER #2): diferido — la app es online-estricto en Fase 1; no se abre sin conexión.
+- Flush de autosave al hacer logout (recomendación DER #4b): riesgo bajo (ventana de 400 ms); se evalúa si aparece como bug.
+
+### 2026-09-18 — Fix definitivo logout: rediseño a `Stack.Protected` (auditoría de equipo)
+
+**Síntoma:** cerrar sesión desde Perfil hacía que la app saliera por completo o blank (3er reporte de logout).
+
+**Auditoría del equipo (DER #2, revisión de expo-router 57.0.19 instalado):**
+
+- Causa raíz: combo en `app/_layout.tsx` de `key={...}` (desmontaba el Stack vivo) + `useEffect` con `router.replace` simultáneo + pantallas `(auth)/login|signup` registradas siempre y grupo `(auth)` sin `_layout` → la acción `REPLACE` se emitía sobre un navigator recién remontado y fallaba → pantalla en blanco/cierre.
+- Recomendación: patrón canónico **`Stack.Protected`** con grupos `(tabs)`/`(auth)`, mover `onboarding` al grupo `(auth)`, eliminar workarounds (key + effect + `router.replace` manuales).
+
+**Cambios aplicados:**
+
+- `app/(auth)/onboarding.tsx` (movido desde `app/onboarding.tsx`): sin `router.replace('/(tabs)')` tras el login (los guards navegan solos); rutas `/(auth)/signup` y `/(auth)/login`.
+- `app/(auth)/_layout.tsx` (nuevo): `<Stack initialRouteName="onboarding">`.
+- `app/_layout.tsx` (reescrito): `Stack.Protected guard={session != null}` → `(tabs)`; `guard={session == null}` → `(auth)`. Eliminados `key` y el effect con `router.replace`. Mismo spinner de `authLoading`.
+- `login.tsx`/`signup.tsx`: quitados `router.replace('/(tabs)')` post-éxito; botón "volver" con `router.canGoBack() ? back() : replace('/onboarding')` (sin navegación ciega).
+- `ajustes.tsx`: eliminada rama anónima inalcanzable (con guards, dentro de tabs siempre hay sesión); quitado import de `router`.
+- `index.tsx`: `router.push('/(tabs)/retos')` (ruta explícita del grupo).
+- Limpieza robusta de sesión: `IRepo.listKeys()` (+ `MemoryRepo`, `SqliteRepo`) y `authService.clearLocalSession()` ahora borra **todas** las claves `sb-*` por prefijo, sin depender del ref del proyecto.
+- Tests: `repo.test.ts` +test `listKeys`; `authService.test.ts` actualizado a signOut async. **119 mobile en verde** (10 suites), typecheck y lint OK.
+
+**Verificación pendiente (PO, en Expo Go — recargar la app completa):**
+
+1. Cerrar sesión desde Perfil → volver a la pantalla "Continuar con Google" (sin crash ni blank).
+2. Re-login con Google → entrar a tabs.
+3. Cerrar y reabrir la app → seguir con la sesión.
+
+### 2026-09-18 — Auditoría de librerías instaladas: logout/relogin "Algo salió mal" (reporte 4 del PO)
+
+**Síntoma reportado:** al cerrar sesión desde Perfil **o** Ajustes la app sale a la pantalla de bienvenida; al querer reingresar muestra "Algo salió mal. Reintentá."; reintentando 2-3 veces entra.
+
+**Investigación (equipo, sobre los paquetes instalados, no docs):**
+
+- `@supabase/auth-js@2.116.0` (GoTrueClient.js/helpers.js): el flujo PKCE guarda el code verifier en **storage** (una clave por flujo `-flow-<id>-code-verifier` + una clave compartida `-flows-code-verifier`/`-code-verifier` limitada a 5). `exchangeCodeForSession(code)` sin `flowId` lee la clave compartida, frágil ante cualquier `removeAllPKCEVerifiers`.
+- **Anti-patrón aplicado antes:** `clearLocalSession()` borraba TODAS las `sb-*` **antes** de `client.auth.signOut()`. Al no haber sesión en storage, el signOut **omite la revocación del servidor** y deja mecanismos que pueden borrar el verifier PKCE recién creado del re-login → `AuthPKCECodeVerifierMissingError` → mapeado a `'unknown'` ("Algo salió mal"). Reintentos crean flujos nuevos → entran.
+- expo-router 57.0.19: `Stack.Protected` con grupos `(tabs)`/`(auth)` es el mecanismo oficial (uso verificado en `Protected.js`/`useScreens.js`/`StackRouter.js`); sin rutas ciegas tras logout; errores JS muestran red box, no cierran la app. Fix del crash `#47968` ya incluido en este build.
+
+**Cambios aplicados:**
+
+- `authService.signOut()`: ahora usa el cierre canónico **`await client.auth.signOut({ scope: 'local' })`** (revoca + hace teardown local de sesión y de TODOS los verifiers PKCE incluso offline — verificado en `_signOut` de GoTrueClient 2.116) y **después** barre claves `sb-*` residuales como red de seguridad. Se elimina el borrado manual previo que rompía el re-login.
+- `googleSignIn.ts`: `exchangeCodeForSession(code, { flowId: data.flowId })` (verifier por flujo, inmune a la clave compartida); logs `[auth]` con `code`+`message` en cada fallo para diagnóstico real.
+- `AuthProvider.tsx`: `restoreServerProfile` envuelto en try/catch (evita rejection no manejado que podía colgar/caer en Hermes) y `signOut` con `void` + catch.
+- Tests: 119 mobile en verde; typecheck y lint OK.
+
+### 2026-09-18 — Bug raíz del SHA-256: polyfill `subtle.digest` devolvía bytes incorrectos (reporte 7)
+
+**Causa raíz real (verificada con log `bad_code_verifier`):** `expo-crypto`'s `digest()` retornaba un `ArrayBuffer` con bytes incorrectos en Android/Expo Go (Path B: `ExpoCrypto.digest(algorithm, output, data)` escribía en `output` pero el resultado era inconsistente). El polyfill `webcryptoPolyfill.ts` usaba `digest()` directamente. El `code_challenge` enviado al servidor Supabase era SHA-256 del verifier con bytes WRONG. El servidor recomputaba SHA-256 con Node.js y comparaba → no coincidía → `bad_code_verifier`.
+
+**Fix aplicado (`webcryptoPolyfill.ts`):** cambié el polyfill para usar `digestStringAsync()` que retorna un string hex verificado, y lo convierto a `ArrayBuffer` con `hexToArrayBuffer()`. Esto elimina la dependencia del `ArrayBuffer` directo de `expo-crypto` y usa la ruta documentada (`digestStringAsync`) que funciona correctamente en Android.
+
+Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin error.
+
+**Acción si reaparece "Algo salió mal":** los logs `[auth] ...` del cierre/reingreso ahora quedan en Metro (`apps/mobile/metro.log`) y en Expo Go; pedir captura para ver el code exacto (p. ej. `flow_state_not_found` vs red).
+
+### 2026-09-18 — Race logout→re-login rápidos (reporte 5 del PO)
+
+**Síntoma:** cerrar sesión y tocar "Continuar con Google" enseguida (muy rápido) → "Algo salió mal. Reintentá."; esperando/intentando de nuevo entra.
+
+**Confirmado por el equipo:** es exactamente una condición de carrera. La UI sale al instante (`setSession(null)` + guards), pero el teardown real de `signOut()` (POST de revocación + `removeAllPKCEVerifiers` + barrido `sb-*`) seguía en segundo plano ~200-500 ms. Si el re-login arranca en esa ventana, el teardown borra el verifier PKCE recién creado por el nuevo `signInWithOAuth` → `pkce_code_verifier_not_found` → "unknown".
+
+**Fix aplicado (`AuthProvider.tsx`):** candado `logoutPromise` — el `signOut` deja un promise pendiente y `signUp`/`signIn`/`googleSignIn` lo **hacen await antes de arrancar** (`drainLogout()`). Así el teardown (local + servidor) termina siempre antes de un nuevo login; imposible la carrera. Tests 119 verde; typecheck y lint OK.
+
+### 2026-09-18 — Fix definitivo: `_recoverAndRefresh` borraba verifiers PKCE (reporte 6)
+
+**Causa raíz real (verificada en `metro.log`):** el error era `bad_code_verifier code challenge does not match previously saved code verifier`. Cuando el usuario toca "Continuar con Google", el cliente Supabase internamente ejecuta `_handleVisibilityChange()` → `_recoverAndRefresh()` → `_removeSession()` → `removeAllPKCEVerifiers()`, que borra **todos** los verifiers PKCE — incluyendo el que acabamos de crear en el paso `signInWithOAuth`. La exchange lee un verifier vacío → el servidor compara SHA-256('') ≠ challenge → `bad_code_verifier`.
+
+**Confirmado por el PO (metro.log):** el flag `pkceFlowActive` funciona — los verifiers se protegen (`removeItem BLOCKED`), `exchangeCodeForSession` lee el verifier correctamente (`getItem: FOUND`). El error persiste como `bad_code_verifier code challenge does not match previously saved code verifier`.
+
+**Causa raíz del `bad_code_verifier` (verificada):** el polyfill `webcryptoPolyfill.ts` usaba `expo-crypto`'s `digest()` que retorna un `ArrayBuffer` con bytes incorrectos en Android Expo Go. El `code_challenge` (SHA-256 del verifier) enviado al servidor Supabase no coincidía con lo que el servidor recomputa con Node.js → `bad_code_verifier`.
+
+**Fix aplicado (`webcryptoPolyfill.ts`):** cambiado `subtle.digest` para usar `digestStringAsync()` (retorna hex verificado) + conversión a `ArrayBuffer` con `hexToArrayBuffer()`. Los logs posteriores confirman que `exchangeCodeForSession` ya no lanza `bad_code_verifier` — login exitoso.
+
+### 2026-09-18 — Fix: `WebBrowser.openAuthSessionAsync` polyfill de Android no intercepta deep link después de `signOut` (reporte 8)
+
+**Causa raíz:** En Android, `expo-web-browser`'s `openAuthSessionAsync` usa un polyfill (`_openAuthSessionPolyfillAsync`) que hace `Promise.race` entre `_openBrowserAndWaitAndroidAsync` (espera `AppState` → `active`) y `_waitForRedirectAsync` (`Linking.addEventListener('url', ...)`). Si `Linking` no detecta el redirect a `exp://...` (puede fallar por el timing después de `signOut`), `AppState` cambia a `active` primero → `Promise.race` resuelve con `{ type: 'dismiss' }` → "Cancelaste el inicio de sesión". El primer login funciona porque `Linking` sí intercepta; después de `signOut`, el polyfill falla.
+
+**Fix aplicado (`googleSignIn.ts`):** reemplacé `WebBrowser.openAuthSessionAsync` por `Linking.openURL` + `Linking.addEventListener('url', ...)` + `AppState.addEventListener('change', ...)` directamente, con `Promise.race` manual. Esto evita el polyfill de `expo-web-browser` y da control total sobre la interceptación del deep link. `Linking.openURL(data.url)` abre el navegador; `Linking` catcha el redirect a `exp://...` y resuelve con `success`. `AppState` catcha el dismiss (usuario presiona atrás) y resuelve con `dismiss`.
+
+- Tests 119 verde; typecheck y lint OK.
+- Logs de depuración eliminados de `googleSignIn.ts`, `supabase.ts` y `webcryptoPolyfill.ts`.
+
+### 2026-09-20 — Feature: verificación de retos por cámara con `expo-camera`
+
+**Problema:** El botón "Completar reto" en `app/(tabs)/index.tsx` solo marcaba como completado con `markCompleted()` sin verificación visual. El reto se completaba con un simple toque.
+
+**Fix aplicado:**
+
+- `app/(tabs)/camretos.tsx` — nueva pantalla con `CameraView` de `expo-camera`. Para retos de **reps**: overlay con contador + botón "+" sobre la cámara. Para retos de **seconds**: timer cuenta regresivo sobre la cámara. Cuando se alcanza el objetivo, `markCompleted` + `syncAfterLogin` automáticamente.
+- `app/(tabs)/_layout.tsx` — agregada `Tabs.Screen name="camretos"` con `tabBarButton: () => null` (no aparece en la barra de tabs).
+- `app/(tabs)/index.tsx` — `handleComplete` navega a `/(tabs)/camretos` en vez de marcar directamente.
+- `src/i18n/translations.ts` — agregadas claves `tabs.camretos` en español, inglés y portugués.
+- `package.json` + `pnpm add expo-camera` — `expo-camera@~15.0.16` instalado.
+
+- Tests 119 verde; typecheck y lint OK (1 warning sin errores).
+
+### 2026-09-16/17 — Fase 1: gate online, ranking, sync y Google login (resumen previo)
+
+- Gate online-estricto: sin cuenta no se usa la app (se eliminó modo invitado, claves `home.greeting_*_guest`, `home.account_prompt`, `home.sign_in`).
+- Migraciones Supabase aplicadas: `0001`–`0005`; creada `0006_oauth_nickname.sql` (nickname desde `full_name` de OAuth, pendiente de aplicar por el PO).
+- Sync: `apps/mobile/src/sync/syncService.ts` (`uploadCompletions`, `fetchRanking`, `syncAfterLogin`) + `getCompletedDates`.
+- Ranking: función `security definer get_ranking` (streak calculado desde `daily_challenges`); sección RANKING en `progreso.tsx`.
+- Login con Google: `flowType: 'pkce'` + fallback `extractImplicitSession` + `setSession`; funcionando en Expo Go.
+- WebCrypto: `apps/mobile/src/auth/webcryptoPolyfill.ts` con SHA-256 nativo de `expo-crypto` (elimina el warning "Code Challenge method will default to use plain").
+- Tests: 119 mobile + 69 domain.
+- Cámara para verificación de retos: `expo-camera` + `CameraView` con overlay de contador/timer.
