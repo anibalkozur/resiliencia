@@ -1517,6 +1517,10 @@
       startBtn.onclick = startCamera;
       stopBtn.onclick = stopCamera;
       refreshHud();
+
+      setTimeout(() => {
+        if (!startBtn.disabled) startCamera();
+      }, 700);
     </script>
   </body>
 </html>
