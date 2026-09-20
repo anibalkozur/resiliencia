@@ -154,6 +154,16 @@ const es = {
   'settings.logout': 'CERRAR SESIÓN',
   'settings.login': 'INICIAR SESIÓN',
   'settings.create_account': 'CREAR CUENTA',
+  'settings.reset': 'REINICIAR RETOS Y RANKING',
+  'settings.reset_desc':
+    'Borra el progreso de retos de este dispositivo y, si hay sesión, de la nube y del ranking.',
+  'settings.reset_confirm_title': '¿Reiniciar retos?',
+  'settings.reset_confirm':
+    'Se borrarán tus retos completados, rachas y tu lugar en el ranking. No se puede deshacer. ¿Continuar?',
+  'settings.reset_ok': 'REINICIAR',
+  'settings.reset_cancel': 'CANCELAR',
+  'settings.reset_done': 'Retos y ranking reiniciados.',
+  'settings.reset_local_only': 'Sin sesión iniciada: solo se reinició este dispositivo.',
 
   'onboarding.email': 'Email',
   'onboarding.password': 'Contraseña',
@@ -359,6 +369,16 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'settings.logout': 'SIGN OUT',
     'settings.login': 'SIGN IN',
     'settings.create_account': 'CREATE ACCOUNT',
+    'settings.reset': 'RESET CHALLENGES & RANKING',
+    'settings.reset_desc':
+      'Clears challenge progress from this device and, if signed in, from the cloud and the ranking.',
+    'settings.reset_confirm_title': 'Reset challenges?',
+    'settings.reset_confirm':
+      'Your completed challenges, streaks and ranking spot will be deleted. This cannot be undone. Continue?',
+    'settings.reset_ok': 'RESET',
+    'settings.reset_cancel': 'CANCEL',
+    'settings.reset_done': 'Challenges and ranking reset.',
+    'settings.reset_local_only': 'No active session: only this device was reset.',
 
     'onboarding.email': 'Email',
     'onboarding.password': 'Password',
@@ -557,6 +577,16 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'settings.logout': 'SAIR',
     'settings.login': 'ENTRAR',
     'settings.create_account': 'CRIAR CONTA',
+    'settings.reset': 'REINICIAR DESAFIOS E RANKING',
+    'settings.reset_desc':
+      'Apaga o progresso de desafios deste dispositivo e, se estiver conectado, da nuvem e do ranking.',
+    'settings.reset_confirm_title': 'Reiniciar desafios?',
+    'settings.reset_confirm':
+      'Seus desafios concluídos, sequências e seu lugar no ranking serão apagados. Isso não pode ser desfeito. Continuar?',
+    'settings.reset_ok': 'REINICIAR',
+    'settings.reset_cancel': 'CANCELAR',
+    'settings.reset_done': 'Desafios e ranking reiniciados.',
+    'settings.reset_local_only': 'Sem sessão ativa: apenas este dispositivo foi reiniciado.',
 
     'onboarding.email': 'Email',
     'onboarding.password': 'Senha',

@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { getSupabase } from '../../src/auth/supabase';
+import { getRepo } from '../../src/repo';
+import { resetCloudProgress, resetLocalProgress } from '../../src/retos/reset';
 import { LANGUAGE_OPTIONS, MAX_DAYS, MIN_DAYS } from '../../src/prefs/service';
 import { translate } from '../../src/i18n/translations';
 import type { Language } from '../../src/prefs/types';
@@ -31,6 +34,43 @@ export default function AjustesScreen() {
   }
 
   const email = session?.user?.email ?? null;
+
+  function confirmReset() {
+    Alert.alert(
+      translate(lang, 'settings.reset_confirm_title'),
+      translate(lang, 'settings.reset_confirm'),
+      [
+        { text: translate(lang, 'settings.reset_cancel'), style: 'cancel' },
+        {
+          text: translate(lang, 'settings.reset_ok'),
+          style: 'destructive',
+          onPress: () => {
+            const client = getSupabase();
+            void (async () => {
+              try {
+                await resetLocalProgress(getRepo());
+                if (client && session) {
+                  await resetCloudProgress(client, session.user.id);
+                }
+                Alert.alert(
+                  translate(lang, 'settings.reset_confirm_title'),
+                  client && session
+                    ? translate(lang, 'settings.reset_done')
+                    : translate(lang, 'settings.reset_local_only'),
+                );
+              } catch (err) {
+                console.warn('[ajustes] reset:', err);
+                Alert.alert(
+                  translate(lang, 'settings.reset_confirm_title'),
+                  translate(lang, 'settings.reset_local_only'),
+                );
+              }
+            })();
+          },
+        },
+      ],
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -84,6 +124,14 @@ export default function AjustesScreen() {
           onPress={() => signOut()}
         >
           <Text style={styles.actionText}>{translate(lang, 'settings.logout')}</Text>
+        </Pressable>
+        <Text style={styles.section}>{translate(lang, 'settings.reset')}</Text>
+        <Text style={styles.accountLine}>{translate(lang, 'settings.reset_desc')}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.actionDanger, pressed && styles.chipPressed]}
+          onPress={confirmReset}
+        >
+          <Text style={styles.actionDangerText}>{translate(lang, 'settings.reset')}</Text>
         </Pressable>
       </View>
     </View>
@@ -185,6 +233,21 @@ const styles = StyleSheet.create({
   },
   actionText: {
     color: colors.silver,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  actionDanger: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  actionDangerText: {
+    color: '#ff6b6b',
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
