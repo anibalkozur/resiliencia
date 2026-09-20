@@ -29,8 +29,6 @@ export default function CamretoScreen() {
   const webViewRef = useRef<any>(null);
   const [mode, setMode] = useState<Mode>('challenge');
   const [freeExerciseId, setFreeExerciseId] = useState<string>('sentadillas');
-  const [freeTarget, setFreeTarget] = useState<number>(DEFAULT_TARGETS.sentadillas);
-  const [freeActive, setFreeActive] = useState(false);
   const [freeResult, setFreeResult] = useState<string | null>(null);
 
   const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
@@ -40,6 +38,7 @@ export default function CamretoScreen() {
 
   const freeExercise = EXERCISES.find((e) => e.id === freeExerciseId);
   const freeUnit = freeExercise?.unit ?? 'reps';
+  const freeTarget = DEFAULT_TARGETS[freeExerciseId] ?? 10;
   const freeUnitLabel = translate(lang, freeUnit === 'reps' ? 'unit.reps' : 'unit.seconds');
   const challengeReady = !!challenge && !!exercise;
 
@@ -80,26 +79,12 @@ export default function CamretoScreen() {
     router.back();
   }
 
-  function pickExercise(id: string) {
-    setFreeExerciseId(id);
-    setFreeTarget(DEFAULT_TARGETS[id] ?? 10);
-    setFreeResult(null);
-    setFreeActive(false);
-  }
-
-  function stepTarget(delta: number) {
-    const step = freeUnit === 'reps' ? 1 : 5;
-    setFreeTarget((t) => Math.max(1, t + delta * step));
-  }
-
-  const showWebView = mode === 'free' ? freeActive : !completed && challengeReady;
-
-  const verificationSource =
-    mode === 'free'
-      ? { uri: `${VERIFY_URL}?exercise=${freeExerciseId}&target=${freeTarget}&unit=${freeUnit}` }
-      : challengeReady
-        ? { uri: `${VERIFY_URL}?exercise=${exercise!.id}&target=${target}&unit=${unit}` }
-        : undefined;
+  const freeSource = {
+    uri: `${VERIFY_URL}?exercise=${freeExerciseId}&target=${freeTarget}&unit=${freeUnit}`,
+  };
+  const challengeSource = challengeReady
+    ? { uri: `${VERIFY_URL}?exercise=${exercise!.id}&target=${target}&unit=${unit}` }
+    : undefined;
 
   return (
     <View style={styles.container}>
@@ -131,10 +116,11 @@ export default function CamretoScreen() {
             <Text style={styles.target}>
               {target} {exercise!.unit === 'reps' ? 'reps' : 'seg'}
             </Text>
+            <Text style={styles.freeHint}>{translate(lang, 'challenge.note')}</Text>
           </View>
         ) : null}
 
-        {mode === 'free' && !freeActive ? (
+        {mode === 'free' ? (
           <View style={styles.card}>
             <Text style={styles.freeHint}>{translate(lang, 'cam.free_hint')}</Text>
             <ScrollView
@@ -148,7 +134,10 @@ export default function CamretoScreen() {
                   <Pressable
                     key={e.id}
                     style={[styles.chip, selected && styles.chipSelected]}
-                    onPress={() => pickExercise(e.id)}
+                    onPress={() => {
+                      setFreeExerciseId(e.id);
+                      setFreeResult(null);
+                    }}
                   >
                     <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                       {translate(lang, exerciseNameKey(e.id))}
@@ -157,47 +146,12 @@ export default function CamretoScreen() {
                 );
               })}
             </ScrollView>
-            <View style={styles.targetRow}>
-              <Pressable style={styles.stepBtn} onPress={() => stepTarget(-1)}>
-                <Text style={styles.stepBtnText}>−</Text>
-              </Pressable>
-              <Text style={styles.targetValue}>
-                {freeTarget} {freeUnitLabel}
-              </Text>
-              <Pressable style={styles.stepBtn} onPress={() => stepTarget(1)}>
-                <Text style={styles.stepBtnText}>+</Text>
-              </Pressable>
-            </View>
-            <Pressable
-              style={[styles.cta, styles.ctaBlock]}
-              onPress={() => {
-                setFreeResult(null);
-                setFreeActive(true);
-              }}
-            >
-              <Text style={styles.ctaText}>{translate(lang, 'cam.free_open')}</Text>
-            </Pressable>
-          </View>
-        ) : null}
-
-        {mode === 'free' && freeActive ? (
-          <View style={styles.freeHeader}>
-            <Text style={styles.freeHeaderTitle}>
+            <Text style={styles.freeMeta}>
               {translate(lang, exerciseNameKey(freeExerciseId))} · {freeTarget} {freeUnitLabel}
             </Text>
-            <Pressable
-              style={styles.changeBtn}
-              onPress={() => {
-                setFreeActive(false);
-                setFreeResult(null);
-              }}
-            >
-              <Text style={styles.changeBtnText}>{translate(lang, 'cam.free_change')}</Text>
-            </Pressable>
+            {freeResult ? <Text style={styles.freeResult}>{freeResult}</Text> : null}
           </View>
         ) : null}
-
-        {freeResult ? <Text style={styles.freeResult}>{freeResult}</Text> : null}
       </View>
 
       <View style={styles.cameraContainer}>
@@ -210,19 +164,29 @@ export default function CamretoScreen() {
             </Pressable>
             <Pressable
               style={[styles.cta, styles.ctaGhost, { marginTop: spacing.md }]}
-              onPress={() => {
-                setMode('free');
-                setFreeActive(true);
-              }}
+              onPress={() => setMode('free')}
             >
               <Text style={styles.ctaGhostText}>{translate(lang, 'cam.free_after_done')}</Text>
             </Pressable>
           </View>
-        ) : showWebView ? (
+        ) : mode === 'free' ? (
+          <WebView
+            key={freeExerciseId}
+            ref={webViewRef}
+            originWhitelist={['*']}
+            source={freeSource}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            onMessage={handleMessage}
+            style={styles.webView}
+          />
+        ) : !completed && challengeReady ? (
           <WebView
             ref={webViewRef}
             originWhitelist={['*']}
-            source={verificationSource}
+            source={challengeSource}
             javaScriptEnabled={true}
             domStorageEnabled={true}
             allowsInlineMediaPlayback={true}
@@ -274,67 +238,16 @@ const styles = StyleSheet.create({
   chipSelected: { borderColor: colors.teal, backgroundColor: '#0D1E18' },
   chipText: { color: colors.silverDim, fontSize: 13, fontWeight: '600' },
   chipTextSelected: { color: colors.teal, fontWeight: '800' },
-  targetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
+  freeMeta: {
+    color: colors.silver,
+    fontSize: 14,
+    fontWeight: '800',
     marginTop: spacing.sm,
   },
-  stepBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepBtnText: { color: colors.teal, fontSize: 24, fontWeight: '800' },
-  targetValue: {
-    color: colors.silver,
-    fontSize: 20,
-    fontWeight: '800',
-    minWidth: 120,
-    textAlign: 'center',
-  },
-  cta: {
-    backgroundColor: colors.teal,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-  },
-  ctaBlock: { marginTop: spacing.sm },
-  ctaText: { color: colors.bg, fontSize: 15, fontWeight: '800', letterSpacing: 2 },
-  ctaGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.teal },
-  ctaGhostText: { color: colors.teal, fontSize: 15, fontWeight: '800', letterSpacing: 2 },
-  freeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.line,
-    padding: spacing.md,
-    marginTop: spacing.md,
-  },
-  freeHeaderTitle: { color: colors.silver, fontSize: 15, fontWeight: '800', flex: 1 },
-  changeBtn: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.pill,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-  },
-  changeBtnText: { color: colors.teal, fontSize: 12, fontWeight: '700' },
   freeResult: {
     color: colors.teal,
     fontSize: 13,
-    marginTop: spacing.sm,
-    textAlign: 'center',
+    marginTop: spacing.xs,
   },
   cameraContainer: { flex: 1 },
   resultContainer: {
@@ -345,5 +258,15 @@ const styles = StyleSheet.create({
   },
   completeText: { color: colors.teal, fontSize: 28, fontWeight: '800', letterSpacing: 2 },
   resultCount: { color: colors.silver, fontSize: 16, marginTop: spacing.md },
+  cta: {
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  ctaText: { color: colors.bg, fontSize: 15, fontWeight: '800', letterSpacing: 2 },
+  ctaGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.teal },
+  ctaGhostText: { color: colors.teal, fontSize: 15, fontWeight: '800', letterSpacing: 2 },
   webView: { flex: 1 },
 });
