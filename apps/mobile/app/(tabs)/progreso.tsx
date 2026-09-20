@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { getRepo } from '../../src/repo';
 import { getBestStreak } from '../../src/retos/streak';
@@ -52,37 +53,49 @@ export default function ProgresoScreen() {
   const [week, setWeek] = useState<WeekCell[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
 
-  useEffect(() => {
-    getBestStreak(repo).then(setBest);
-    getTotalCompleted(repo).then(setTotal);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const [nextBest, nextTotal] = await Promise.all([
+          getBestStreak(repo),
+          getTotalCompleted(repo),
+        ]);
+        const cells: WeekCell[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const raw = await repo.getSetting(`completed:${localDate(d)}`);
+          cells.push({ key: localDate(d), done: raw === '1', label: WEEKDAYS[d.getDay()] });
+        }
+        if (!active) return;
+        setBest(nextBest);
+        setTotal(nextTotal);
+        setWeek(cells);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [repo]),
+  );
 
-    (async () => {
-      const cells: WeekCell[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const raw = await repo.getSetting(`completed:${localDate(d)}`);
-        cells.push({ key: localDate(d), done: raw === '1', label: WEEKDAYS[d.getDay()] });
+  useFocusEffect(
+    useCallback(() => {
+      const client = getSupabase();
+      if (!session || !client) {
+        return;
       }
-      setWeek(cells);
-    })();
-  }, [repo]);
-
-  useEffect(() => {
-    const client = getSupabase();
-    if (!session || !client) {
-      return;
-    }
-    let active = true;
-    fetchRanking(client).then((rows) => {
-      if (active) {
-        setRanking(rows);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, [session]);
+      let active = true;
+      fetchRanking(client).then((rows) => {
+        if (active) {
+          setRanking(rows);
+        }
+      });
+      return () => {
+        active = false;
+      };
+    }, [session]),
+  );
 
   const days = profile ? daysSince(profile.createdAt) : 0;
 

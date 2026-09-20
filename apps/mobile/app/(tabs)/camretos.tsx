@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useAuth } from '../../src/auth/AuthProvider';
@@ -43,16 +43,22 @@ export default function CamretoScreen() {
   const freeUnitLabel = translate(lang, freeUnit === 'reps' ? 'unit.reps' : 'unit.seconds');
   const challengeReady = !!challenge && !!exercise;
 
-  useEffect(() => {
-    async function load() {
-      const date = todayKey();
-      const alreadyDone = await isCompleted(repo, date);
-      if (alreadyDone) setCompleted(true);
-      const todayChallenge = await getTodayChallenge(repo);
-      setChallenge(todayChallenge);
-    }
-    load();
-  }, [repo]);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const date = todayKey();
+        const alreadyDone = await isCompleted(repo, date);
+        const todayChallenge = await getTodayChallenge(repo);
+        if (!active) return;
+        setCompleted(alreadyDone);
+        setChallenge(todayChallenge);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [repo]),
+  );
 
   const handleMessage = useCallback(
     (event: any) => {

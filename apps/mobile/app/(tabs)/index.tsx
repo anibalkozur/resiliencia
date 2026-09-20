@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
@@ -34,12 +34,26 @@ export default function InicioScreen() {
   const [completedCount, setCompletedCount] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
 
-  useEffect(() => {
-    getTodayChallenge(repo).then(setChallenge);
-    getStreak(repo).then(setStreak);
-    getCompletedCount(repo).then(setCompletedCount);
-    isCompleted(repo, todayKey()).then(setCompletedToday);
-  }, [repo]);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      Promise.all([
+        getTodayChallenge(repo),
+        getStreak(repo),
+        getCompletedCount(repo),
+        isCompleted(repo, todayKey()),
+      ]).then(([nextChallenge, nextStreak, nextCount, done]) => {
+        if (!active) return;
+        setChallenge(nextChallenge);
+        setStreak(nextStreak);
+        setCompletedCount(nextCount);
+        setCompletedToday(done);
+      });
+      return () => {
+        active = false;
+      };
+    }, [repo]),
+  );
 
   async function handleComplete() {
     const date = todayKey();

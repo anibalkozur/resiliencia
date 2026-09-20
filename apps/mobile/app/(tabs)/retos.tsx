@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
@@ -30,17 +31,24 @@ export default function RetosScreen() {
 
   const week = useMemo(() => buildWeek(goal, daysPerWeek), [goal, daysPerWeek]);
 
-  useEffect(() => {
-    (async () => {
-      const result: Record<string, boolean> = {};
-      for (const day of week) {
-        result[day.date] = await isCompleted(repo, day.date);
-      }
-      setDone(result);
-      const today = week.find((d) => d.isToday);
-      if (today) setSelected(today.date);
-    })();
-  }, [week, repo]);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const result: Record<string, boolean> = {};
+        for (const day of week) {
+          result[day.date] = await isCompleted(repo, day.date);
+        }
+        if (!active) return;
+        setDone(result);
+        const today = week.find((d) => d.isToday);
+        if (today) setSelected(today.date);
+      })();
+      return () => {
+        active = false;
+      };
+    }, [week, repo]),
+  );
 
   const selectedDay = week.find((d) => d.date === selected) ?? week.find((d) => d.isToday);
   const selectedExercise = selectedDay?.exerciseId
