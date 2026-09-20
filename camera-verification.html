@@ -1,0 +1,1522 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>FitChallenge — Verificación por cámara</title>
+    <style>
+      :root {
+        --bg: #030405;
+        --surface: #12161c;
+        --surface-2: #1a2028;
+        --line: #262e37;
+        --text: #edf1f5;
+        --text-dim: #8a95a3;
+        --volt: #2dd4a8;
+        --volt-dim: #22a886;
+        --ember: #ff5a36;
+        --blue: #2e6bff;
+        --danger: #ff5a5a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      }
+      #app {
+        max-width: 460px;
+        margin: 0 auto;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 16px 14px 40px;
+      }
+      h1 {
+        font-family: 'Archivo Black', 'Arial Black', sans-serif;
+        font-size: 22px;
+        line-height: 1.1;
+        margin: 0;
+        letter-spacing: -0.4px;
+      }
+      .eyebrow {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--volt);
+        font-weight: 700;
+        display: block;
+        margin-bottom: 6px;
+      }
+      p {
+        color: var(--text-dim);
+        font-size: 12.5px;
+        line-height: 1.5;
+        margin: 6px 0 0;
+      }
+      .video-wrap {
+        position: relative;
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-top: 12px;
+        background: #000;
+        aspect-ratio: 3/4;
+      }
+      video,
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      video {
+        transform: scaleX(-1);
+      }
+      canvas {
+        transform: scaleX(-1);
+      }
+      .no-mirror {
+        transform: none;
+      }
+      .hud {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 5;
+      }
+      .badge {
+        background: rgba(11, 14, 17, 0.75);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 11px;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--text-dim);
+      }
+      .dot.live {
+        background: var(--volt);
+        box-shadow: 0 0 8px var(--volt);
+      }
+      .flip-btn {
+        cursor: pointer;
+      }
+      .rep-hud {
+        position: absolute;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        z-index: 5;
+      }
+      .rep-count {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: 80px;
+        color: var(--volt);
+        text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+        line-height: 1;
+      }
+      .rep-label {
+        font-size: 12px;
+        color: #fff;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        opacity: 0.9;
+        font-weight: 700;
+      }
+      .state-msg {
+        position: absolute;
+        top: 44px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+        background: rgba(11, 14, 17, 0.78);
+        border-radius: 999px;
+        padding: 5px 13px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+        max-width: 92%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .state-msg.down {
+        color: var(--blue);
+      }
+      .state-msg.up {
+        color: var(--volt);
+      }
+      .state-msg.nobody {
+        color: var(--danger);
+      }
+      .state-msg.blocked {
+        color: var(--ember);
+      }
+      .checklist-hud {
+        position: absolute;
+        bottom: 12px;
+        left: 10px;
+        z-index: 5;
+        background: rgba(11, 14, 17, 0.75);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 7px 9px;
+        font-size: 9.5px;
+        min-width: 92px;
+      }
+      .checklist-hud .cl-title {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 3px;
+      }
+      .checklist-hud .cl-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 0;
+        color: var(--text-dim);
+      }
+      .checklist-hud .cl-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--danger);
+        flex-shrink: 0;
+      }
+      .checklist-hud .cl-row.ok .cl-dot {
+        background: var(--volt);
+      }
+      .checklist-hud .cl-row.ok span {
+        color: var(--text);
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        text-align: center;
+        border: none;
+        border-radius: 14px;
+        padding: 15px;
+        font-family: 'Archivo Black', 'Arial Black', sans-serif;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+      .btn-primary {
+        background: var(--volt);
+        color: #0b0e11;
+      }
+      .btn-ghost {
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+      }
+      .log {
+        font-family: ui-monospace, monospace;
+        font-size: 10.5px;
+        color: var(--text-dim);
+        margin-top: 8px;
+        max-height: 60px;
+        overflow: auto;
+      }
+      .result {
+        display: none;
+      }
+      .result.show {
+        display: block;
+      }
+      .verify-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #16210c;
+        border: 1px solid var(--volt-dim);
+        color: var(--volt);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 8px;
+      }
+      .verify-tag.broken {
+        background: #210c0c;
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+      .orientation-row {
+        position: absolute;
+        top: 76px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        justify-content: center;
+        z-index: 5;
+      }
+      .orientation-row .badge {
+        border-color: var(--volt-dim);
+        color: var(--volt);
+      }
+      .orientation-row .badge.orientation-bad {
+        border-color: var(--danger);
+        color: var(--danger);
+        animation: pulse-warn 1s infinite;
+      }
+      @keyframes pulse-warn {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .target-chip {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <span class="eyebrow">Modo verificado</span>
+      <h1 id="title">Verificación por cámara</h1>
+      <p>
+        Visión por computadora corriendo en el dispositivo: detecta tu esqueleto en vivo y verifica
+        la ejecución por ángulo articular real.
+      </p>
+
+      <div class="video-wrap">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="hud">
+          <div class="badge">
+            <div class="dot" id="liveDot"></div>
+            <span id="statusText">Cámara apagada</span>
+          </div>
+          <div class="badge flip-btn" id="flipBtn">
+            <span id="flipIcon"></span><span id="facingLabel">Frontal</span>
+          </div>
+        </div>
+        <div class="target-chip"><div class="badge" id="targetBadge">0/0</div></div>
+        <div class="orientation-row">
+          <div class="badge" id="orientationBadge" style="display: none">
+            <span id="orientationIcon"></span><span id="orientationText">Vertical</span>
+          </div>
+        </div>
+        <div class="state-msg" id="stateMsg" style="display: none"></div>
+        <div class="checklist-hud" id="checklistHud" style="display: none">
+          <div class="cl-title" id="clTitle">Cuerpo <span id="clCount">0/0</span></div>
+          <div id="clRows"></div>
+        </div>
+        <div class="rep-hud">
+          <div class="rep-count" id="repCount">0</div>
+          <div class="rep-label" id="repLabel"></div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="startBtn">Activar cámara</button>
+      <button class="btn btn-ghost" id="stopBtn" style="display: none">
+        Finalizar y verificar serie
+      </button>
+
+      <div class="card result" id="resultCard">
+        <span class="eyebrow">Resultado</span>
+        <h1 id="resultReps">0</h1>
+        <p id="resultDetail"></p>
+        <div class="verify-tag" id="verifyTag">
+          <span id="verifyText">Sesión con evidencia de pose — apta para ranking</span>
+        </div>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <script type="module">
+      import {
+        PoseLandmarker,
+        FilesetResolver,
+        DrawingUtils,
+      } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+
+      const qs = new URLSearchParams(location.search);
+      const EX_ID = qs.get('exercise') || 'sentadillas';
+      const TARGET = Math.max(1, parseInt(qs.get('target') || '10', 10));
+      const UNIT = qs.get('unit') || 'reps';
+
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('overlay');
+      const ctx = canvas.getContext('2d');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const repCountEl = document.getElementById('repCount');
+      const repLabelEl = document.getElementById('repLabel');
+      const stateMsg = document.getElementById('stateMsg');
+      const statusText = document.getElementById('statusText');
+      const liveDot = document.getElementById('liveDot');
+      const logEl = document.getElementById('log');
+      const targetBadge = document.getElementById('targetBadge');
+      const checklistHud = document.getElementById('checklistHud');
+      const clTitle = document.getElementById('clTitle');
+      const clRows = document.getElementById('clRows');
+      const resultCard = document.getElementById('resultCard');
+      const resultReps = document.getElementById('resultReps');
+      const resultDetail = document.getElementById('resultDetail');
+      const verifyText = document.getElementById('verifyText');
+      const flipBtn = document.getElementById('flipBtn');
+      const flipIcon = document.getElementById('flipIcon');
+      const facingLabel = document.getElementById('facingLabel');
+      const orientationBadge = document.getElementById('orientationBadge');
+      const orientationIcon = document.getElementById('orientationIcon');
+      const orientationText = document.getElementById('orientationText');
+
+      const NAME = {
+        sentadillas: 'Sentadillas',
+        flexiones: 'Flexiones',
+        plancha: 'Plancha',
+        zancadas: 'Zancadas',
+        puente_gluteo: 'Puente de glúteo',
+        mountain_climbers: 'Mountain Climbers',
+        sentadilla_isometrica: 'Sentadilla isométrica',
+      };
+      document.title = NAME[EX_ID] || 'Verificación';
+      document.getElementById('title').textContent = NAME[EX_ID] || 'Verificación';
+
+      const ICON = {
+        flip: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`,
+        device: `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>`,
+        warning: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        check: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+      };
+      flipIcon.innerHTML = ICON.flip;
+      orientationIcon.innerHTML = ICON.device;
+
+      const LID = {
+        nose: 0,
+        left_eye: 2,
+        right_eye: 5,
+        left_shoulder: 11,
+        right_shoulder: 12,
+        left_elbow: 13,
+        right_elbow: 14,
+        left_wrist: 15,
+        right_wrist: 16,
+        left_pinky: 17,
+        right_pinky: 18,
+        left_index: 19,
+        right_index: 20,
+        left_thumb: 21,
+        right_thumb: 22,
+        left_hip: 23,
+        right_hip: 24,
+        left_knee: 25,
+        right_knee: 26,
+        left_ankle: 27,
+        right_ankle: 28,
+        left_heel: 29,
+        right_heel: 30,
+        left_foot: 31,
+        right_foot: 32,
+      };
+      const LABEL = {
+        nose: 'Cabeza',
+        left_shoulder: 'Hombro I',
+        right_shoulder: 'Hombro D',
+        left_elbow: 'Codo I',
+        right_elbow: 'Codo D',
+        left_wrist: 'Muñeca I',
+        right_wrist: 'Muñeca D',
+        left_hip: 'Cadera I',
+        right_hip: 'Cadera D',
+        left_knee: 'Rodilla I',
+        right_knee: 'Rodilla D',
+        left_ankle: 'Tobillo I',
+        right_ankle: 'Tobillo D',
+      };
+
+      // ===================== CONFIG POR EJERCICIO =====================
+      // type frontal: exige las dos piernas; lateral: detecta lado por visibilidad.
+      // unit reps: cuenta ciclos; unit seconds: acumula tiempo en posición válida.
+      const CFG = {
+        sentadillas: {
+          name: 'Sentadillas',
+          unit: 'reps',
+          type: 'frontal',
+          left: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+          right: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+          downThresh: 100,
+          upThresh: 160,
+          downDelta: 0,
+          upDelta: 0,
+          liveness: 'hand',
+        },
+        flexiones: {
+          name: 'Flexiones',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+              line: { a: 'left_shoulder', b: 'left_hip', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+              line: { a: 'right_shoulder', b: 'right_hip', c: 'right_ankle' },
+            },
+          },
+          downDelta: 40,
+          upDelta: 12,
+          lineMin: 150,
+          groundedMax: 0.9,
+          liveness: 'hold',
+          postureMsg: 'Ponete en plancha horizontal para contar flexiones',
+          startMsg: 'Extendé los brazos en plancha, quieto un segundo',
+        },
+        plancha: {
+          name: 'Plancha',
+          unit: 'seconds',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+              line: { a: 'left_shoulder', b: 'left_hip', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+              line: { a: 'right_shoulder', b: 'right_hip', c: 'right_ankle' },
+            },
+          },
+          downDelta: 0,
+          upDelta: 12,
+          lineMin: 150,
+          groundedMax: 0.9,
+          liveness: 'hold',
+          postureMsg: 'Pará en plancha con los brazos extendidos',
+          startMsg: 'Entrá en plancha, quitá el cuerpo y aguantá',
+        },
+        zancadas: {
+          name: 'Zancadas',
+          unit: 'reps',
+          type: 'frontal',
+          left: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+          right: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+          downThresh: 115,
+          upThresh: 160,
+          downDelta: 0,
+          upDelta: 0,
+          liveness: 'hand',
+        },
+        puente_gluteo: {
+          name: 'Puente de glúteo',
+          unit: 'reps',
+          type: 'lateral',
+          bridge: true,
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 28,
+          upDelta: 10,
+          restTorsoMax: 38,
+          liveness: 'hand',
+          postureMsg: 'Recostate boca arriba con las rodillas flexionadas',
+          startMsg: 'Recostate boca arriba, quieto un segundo',
+        },
+        mountain_climbers: {
+          name: 'Mountain Climbers',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip', 'left_ankle'],
+              knee: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+              line: { a: 'left_shoulder', b: 'left_hip', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip', 'right_ankle'],
+              knee: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+              line: { a: 'right_shoulder', b: 'right_hip', c: 'right_ankle' },
+            },
+          },
+          kneeFold: 105,
+          lineMin: 150,
+          groundedMax: 0.9,
+          liveness: 'hand',
+          postureMsg: 'Pará en plancha apoyando las manos',
+          startMsg: 'Entrá en plancha para arrancar',
+        },
+        sentadilla_isometrica: {
+          name: 'Sentadilla isométrica',
+          unit: 'seconds',
+          type: 'frontal',
+          left: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+          right: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+          downThresh: 100,
+          upThresh: 160,
+          downDelta: 0,
+          upDelta: 0,
+          liveness: 'hand',
+        },
+      };
+      const cfg = CFG[EX_ID] || CFG.sentadillas;
+      const targetUnit = cfg.unit;
+      const targetVal = TARGET;
+      const FRONTAL_POINTS = [
+        'left_shoulder',
+        'right_shoulder',
+        'left_hip',
+        'right_hip',
+        'left_knee',
+        'right_knee',
+        'left_ankle',
+        'right_ankle',
+      ];
+      const VIS = 0.65,
+        CONFIRM_FRAMES = 4,
+        STATE_CONFIRM_FRAMES = 3,
+        MIN_REP_INTERVAL_MS = 350;
+
+      let poseLandmarker = null,
+        running = false,
+        repCount = 0,
+        holdMs = 0,
+        lastHoldOk = null;
+      let repState = 'up',
+        leftAngleHistory = [],
+        rightAngleHistory = [],
+        angleHistory = [],
+        groundedHistory = [],
+        lineAngleHistory = [],
+        sideVotes = [],
+        confirmedSide = null;
+      let candidateState = null,
+        candidateStreak = 0,
+        lastRepTime = 0,
+        repStateInitialized = false,
+        bodyOkStreak = 0;
+      let calibBuffer = [],
+        dynamicDownThresh = null,
+        dynamicUpThresh = null,
+        restAngleCalibrated = null;
+      let sessionStartTime = null,
+        repTimestamps = [],
+        continuityBroken = false,
+        paceWarnedIdx = 0;
+      let livenessChallengeActive = false,
+        livenessPassed = false,
+        livenessNextTriggerAt = null,
+        livenessConfirmFrames = 0,
+        livenessHoldStartTime = null;
+      const LIVENESS_MIN_MS = 4000,
+        LIVENESS_MAX_MS = 13000,
+        LIVENESS_FRAMES = 5,
+        LIVENESS_HOLD_MS = 2000;
+      let audioCtx = null,
+        masterGain = null,
+        soundEnabled = true;
+      let orientationSupported = false,
+        deviceIsVertical = true,
+        betaHistory = [];
+      const VERTICAL_TOLERANCE = 35,
+        SENSOR_CONFIRM_MS = 3000;
+
+      function post(type, data) {
+        try {
+          const payload = { type, ...data };
+          const s = JSON.stringify(payload);
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage)
+            window.ReactNativeWebView.postMessage(s);
+        } catch (e) {}
+      }
+      function log(m) {
+        logEl.textContent = '> ' + m + '\n' + logEl.textContent;
+      }
+      function angleBetween(A, B, C) {
+        const v1 = { x: A.x - B.x, y: A.y - B.y },
+          v2 = { x: C.x - B.x, y: C.y - B.y };
+        const dot = v1.x * v2.x + v1.y * v2.y;
+        const m1 = Math.hypot(v1.x, v1.y),
+          m2 = Math.hypot(v2.x, v2.y);
+        if (m1 === 0 || m2 === 0) return null;
+        const cos = Math.min(1, Math.max(-1, dot / (m1 * m2)));
+        return (Math.acos(cos) * 180) / Math.PI;
+      }
+      function avgVis(lm, pts) {
+        let s = 0;
+        for (const k of pts) {
+          const p = lm[LID[k]];
+          s += p ? (p.visibility ?? 0) : 0;
+        }
+        return s / pts.length;
+      }
+      function checkComplete(lm, pts) {
+        const miss = [];
+        for (const k of pts) {
+          const p = lm[LID[k]];
+          if (!p || (p.visibility ?? 0) < VIS) miss.push(k);
+        }
+        return { complete: miss.length === 0, missing: miss };
+      }
+      function renderChecklist(title, pts, missing) {
+        checklistHud.style.display = 'block';
+        clTitle.innerHTML = title + ' <span>' + pts.length + '/' + pts.length + '</span>';
+        clRows.innerHTML = pts
+          .map((k) => {
+            const ok = !missing.includes(k);
+            return (
+              '<div class="cl-row ' +
+              (ok ? 'ok' : '') +
+              '"><div class="cl-dot"></div><span>' +
+              LABEL[k] +
+              '</span></div>'
+            );
+          })
+          .join('');
+      }
+      function updateSide(lm, sc) {
+        const la = avgVis(lm, sc.sides.left.points),
+          ra = avgVis(lm, sc.sides.right.points);
+        let v = null;
+        if (la >= 0.4 || ra >= 0.4) v = la >= ra ? 'left' : 'right';
+        sideVotes.push(v);
+        if (sideVotes.length > 15) sideVotes.shift();
+        const c = { left: 0, right: 0 };
+        sideVotes.forEach((x) => {
+          if (x) c[x]++;
+        });
+        if (sideVotes.length >= 6) confirmedSide = c.left >= c.right ? 'left' : 'right';
+        return confirmedSide;
+      }
+      function groundedRatio(hip, ankle, shoulder) {
+        const tl = Math.hypot(shoulder.x - hip.x, shoulder.y - hip.y) || 0.0001;
+        return Math.abs(hip.y - ankle.y) / tl;
+      }
+      function torsoHorizontalAngle(shoulder, hip) {
+        const dx = shoulder.x - hip.x,
+          dy = shoulder.y - hip.y;
+        return (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
+      }
+      function attemptCalibration(angle, c) {
+        calibBuffer.push(angle);
+        if (calibBuffer.length > 10) calibBuffer.shift();
+        if (calibBuffer.length < 10) return false;
+        const mx = Math.max(...calibBuffer),
+          mn = Math.min(...calibBuffer);
+        if (mx - mn > 9) return false;
+        restAngleCalibrated = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length;
+        if (c.bridge) {
+          dynamicDownThresh = restAngleCalibrated + c.downDelta;
+          dynamicUpThresh = restAngleCalibrated + c.upDelta;
+        } else {
+          dynamicDownThresh = restAngleCalibrated - c.downDelta;
+          dynamicUpThresh = restAngleCalibrated - c.upDelta;
+        }
+        return true;
+      }
+      function scheduleLiveness() {
+        if (livenessPassed || livenessNextTriggerAt) return;
+        livenessNextTriggerAt =
+          performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
+      }
+      function checkHandLiveness(lm) {
+        if (livenessPassed) return false;
+        if (!livenessChallengeActive) {
+          if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
+          livenessChallengeActive = true;
+          livenessConfirmFrames = 0;
+          speak('Levantá una mano para confirmar que estás en vivo');
+        }
+        const rw = lm[LID.right_wrist],
+          lw = lm[LID.left_wrist],
+          rs = lm[LID.right_shoulder],
+          ls = lm[LID.left_shoulder];
+        const rUp = rw && rs && (rw.visibility ?? 0) > 0.5 && rw.y < rs.y - 0.05,
+          lUp = lw && ls && (lw.visibility ?? 0) > 0.5 && lw.y < ls.y - 0.05;
+        if (rUp || lUp) livenessConfirmFrames++;
+        else livenessConfirmFrames = 0;
+        checklistHud.style.display = 'none';
+        stateMsg.style.display = 'block';
+        stateMsg.className = 'state-msg blocked';
+        stateMsg.textContent = 'Levantá una mano para confirmar que estás en vivo';
+        if (livenessConfirmFrames >= LIVENESS_FRAMES) {
+          livenessPassed = true;
+          livenessChallengeActive = false;
+          log('Prueba de vida confirmada');
+          speak('Listo, gracias');
+        }
+        return true;
+      }
+      function checkHoldLiveness(smoothed, down) {
+        if (livenessPassed) return false;
+        if (!livenessChallengeActive) {
+          if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
+          livenessChallengeActive = true;
+          livenessHoldStartTime = null;
+          speak('Bajá y quedate abajo unos segundos');
+        }
+        const inDown = smoothed < down;
+        checklistHud.style.display = 'none';
+        stateMsg.style.display = 'block';
+        stateMsg.className = 'state-msg blocked';
+        if (inDown) {
+          if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
+          const rem = Math.max(0, LIVENESS_HOLD_MS - (performance.now() - livenessHoldStartTime));
+          stateMsg.textContent = 'Aguantá abajo ' + Math.ceil(rem / 1000) + 's más';
+          if (rem <= 0) {
+            livenessPassed = true;
+            livenessChallengeActive = false;
+            log('Prueba de vida confirmada');
+            speak('Listo, gracias');
+          }
+        } else {
+          livenessHoldStartTime = null;
+          stateMsg.textContent = 'Bajá y quedate unos segundos';
+        }
+        return true;
+      }
+      function ensureAudio() {
+        if (!audioCtx) {
+          try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const comp = audioCtx.createDynamicsCompressor();
+            comp.threshold.value = -12;
+            comp.knee.value = 6;
+            comp.ratio.value = 12;
+            comp.attack.value = 0.001;
+            comp.release.value = 0.15;
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 1.0;
+            masterGain.connect(comp).connect(audioCtx.destination);
+          } catch (e) {
+            log('Audio no disponible: ' + e.message);
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      }
+      function beep({ freq = 1300, dur = 0.11, delay = 0, type = 'square', gain = 0.9 } = {}) {
+        if (!audioCtx || !masterGain) return;
+        const o = audioCtx.createOscillator(),
+          g = audioCtx.createGain();
+        o.type = type;
+        o.frequency.value = freq;
+        const t0 = audioCtx.currentTime + delay;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(gain, t0 + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(g).connect(masterGain);
+        o.start(t0);
+        o.stop(t0 + dur + 0.02);
+      }
+      function playRep() {
+        if (!audioCtx || !soundEnabled) return;
+        beep({ freq: 1300, dur: 0.09, delay: 0 });
+        beep({ freq: 1300, dur: 0.09, delay: 0.1 });
+      }
+      function speak(text) {
+        if (!soundEnabled || typeof window.speechSynthesis === 'undefined') return;
+        try {
+          window.speechSynthesis.cancel();
+          const u = new SpeechSynthesisUtterance(text);
+          u.lang = 'es-ES';
+          u.rate = 1.05;
+          window.speechSynthesis.speak(u);
+        } catch (e) {}
+      }
+      function refreshHud() {
+        targetBadge.textContent = repCount + '/' + targetVal;
+        if (repLabelEl)
+          repLabelEl.textContent = cfg.unit === 'seconds' ? 'segundos' : 'de ' + targetVal;
+      }
+
+      function resetRepState() {
+        repCount = 0;
+        holdMs = 0;
+        lastHoldOk = null;
+        repState = 'up';
+        leftAngleHistory = [];
+        rightAngleHistory = [];
+        angleHistory = [];
+        groundedHistory = [];
+        lineAngleHistory = [];
+        sideVotes = [];
+        confirmedSide = null;
+        candidateState = null;
+        candidateStreak = 0;
+        lastRepTime = 0;
+        repStateInitialized = false;
+        bodyOkStreak = 0;
+        calibBuffer = [];
+        dynamicDownThresh = null;
+        dynamicUpThresh = null;
+        restAngleCalibrated = null;
+        sessionStartTime = null;
+        repTimestamps = [];
+        continuityBroken = false;
+        livenessChallengeActive = false;
+        livenessPassed = false;
+        livenessNextTriggerAt = null;
+        livenessConfirmFrames = 0;
+        livenessHoldStartTime = null;
+        repCountEl.textContent = '0';
+        refreshHud();
+        resultCard.classList.remove('show');
+      }
+      function announceSession() {
+        if (!sessionStartTime) {
+          sessionStartTime = performance.now();
+          speak('Empezá cuando quieras');
+        }
+      }
+
+      function registerRep() {
+        repCount++;
+        repTimestamps.push(performance.now());
+        repCountEl.textContent = repCount;
+        repCountEl.style.transform = 'scale(1.15)';
+        setTimeout(() => (repCountEl.style.transform = 'scale(1)'), 150);
+        playRep();
+        refreshHud();
+        if (targetUnit === 'reps' && repCount >= targetVal) {
+          postComplete('Meta cumplida: ' + repCount);
+        }
+      }
+      function postComplete(detail) {
+        running = false;
+        const s = video.srcObject;
+        if (s) s.getTracks().forEach((t) => t.stop());
+        liveDot.classList.remove('live');
+        statusText.textContent = 'Completado';
+        stopBtn.style.display = 'none';
+        startBtn.style.display = 'block';
+        startBtn.disabled = false;
+        resultReps.textContent = repCount + (targetUnit === 'seconds' ? 's' : '');
+        resultCard.classList.add('show');
+        verifyText.textContent = 'Verificado por pose — apto para ranking';
+        post('complete', { reps: repCount, detail: detail || '' });
+        log(detail || 'Completado');
+      }
+
+      function evaluateTransition(cand) {
+        if (cand && cand === candidateState) {
+          candidateStreak++;
+        } else {
+          candidateState = cand;
+          candidateStreak = cand ? 1 : 0;
+        }
+        if (!cand || candidateStreak < STATE_CONFIRM_FRAMES) return;
+        if (!repStateInitialized) {
+          if (cand === 'up') {
+            repState = 'up';
+            repStateInitialized = true;
+            scheduleLiveness();
+            announceSession();
+          }
+          return;
+        }
+        if (cand === 'down' && repState === 'up') {
+          repState = 'down';
+        } else if (cand === 'up' && repState === 'down') {
+          repState = 'up';
+          const now = performance.now();
+          if (now - lastRepTime >= MIN_REP_INTERVAL_MS) {
+            lastRepTime = now;
+            registerRep();
+          }
+        }
+      }
+      function evaluateTransitionCalibrated(cand) {
+        if (cand && cand === candidateState) {
+          candidateStreak++;
+        } else {
+          candidateState = cand;
+          candidateStreak = cand ? 1 : 0;
+        }
+        if (!cand || candidateStreak < STATE_CONFIRM_FRAMES) return;
+        if (cand === 'down' && repState === 'up') {
+          repState = 'down';
+        } else if (cand === 'up' && repState === 'down') {
+          repState = 'up';
+          const now = performance.now();
+          if (now - lastRepTime >= MIN_REP_INTERVAL_MS) {
+            lastRepTime = now;
+            registerRep();
+          }
+        }
+      }
+
+      // ---------- procesar pose ----------
+      function processPose(result) {
+        if (orientationSupported && !deviceIsVertical) {
+          bodyOkStreak = 0;
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          checklistHud.style.display = 'none';
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = 'Poné el celular parado en vertical';
+          return;
+        }
+        if (!result.landmarks || !result.landmarks.length) {
+          bodyOkStreak = 0;
+          sideVotes = [];
+          confirmedSide = null;
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          checklistHud.style.display = 'none';
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg nobody';
+          stateMsg.textContent = 'No se detecta cuerpo — pausado';
+          if (targetUnit === 'seconds') {
+            if (lastHoldOk) holdMs = 0;
+            lastHoldOk = false;
+          }
+          livenessChallengeActive = false;
+          return;
+        }
+        const lm = result.landmarks[0];
+        if (cfg.type === 'frontal') return processFrontal(lm);
+        return processLateral(lm);
+      }
+
+      function showState(cl, msg) {
+        stateMsg.style.display = 'block';
+        stateMsg.className = cl;
+        stateMsg.textContent = msg;
+      }
+
+      function processFrontal(lm) {
+        const { complete, missing } = checkComplete(lm, FRONTAL_POINTS);
+        renderChecklist('Cuerpo', FRONTAL_POINTS, missing);
+        if (!complete) {
+          bodyOkStreak = 0;
+          [leftAngleHistory, rightAngleHistory] = [[], []];
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          showState('state-msg blocked', 'Falta ver: ' + missing.map((m) => LABEL[m]).join(', '));
+          return;
+        }
+        bodyOkStreak = Math.min(bodyOkStreak + 1, CONFIRM_FRAMES);
+        if (bodyOkStreak < CONFIRM_FRAMES) {
+          showState('state-msg blocked', 'Confirmando cuerpo…');
+          return;
+        }
+        if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
+        const la = angleBetween(lm[LID.left_hip], lm[LID.left_knee], lm[LID.left_ankle]);
+        const ra = angleBetween(lm[LID.right_hip], lm[LID.right_knee], lm[LID.right_ankle]);
+        if (la == null || ra == null) return;
+        leftAngleHistory.push(la);
+        if (leftAngleHistory.length > 5) leftAngleHistory.shift();
+        rightAngleHistory.push(ra);
+        if (rightAngleHistory.length > 5) rightAngleHistory.shift();
+        const sl = leftAngleHistory.reduce((a, b) => a + b, 0) / leftAngleHistory.length;
+        const sr = rightAngleHistory.reduce((a, b) => a + b, 0) / rightAngleHistory.length;
+        const bothDown = cfg.downThresh
+          ? Math.max(sl, sr) < cfg.downThresh
+          : sl < dynamicDownThresh && sr < dynamicDownThresh;
+        const bothUp = cfg.upThresh
+          ? Math.min(sl, sr) > cfg.upThresh
+          : sl > dynamicUpThresh && sr > dynamicUpThresh;
+        const asymmetric = Math.abs(sl - sr) > 35;
+        let cand = null;
+        if (!(asymmetric && !(targetUnit === 'seconds' && bothDown))) {
+          if (bothDown) cand = 'down';
+          else if (bothUp) cand = 'up';
+        }
+
+        if (targetUnit === 'seconds') {
+          // hold: cuenta tiempo en posición baja mantenida
+          if (!repStateInitialized) {
+            if (restSitGuard(lm)) {
+              calibBuffer = [];
+              showState('state-msg blocked', 'Quedate quieto para calibrar');
+              return;
+            }
+            const ok = attemptCalibration(sl, cfg);
+            if (ok) {
+              repStateInitialized = true;
+              scheduleLiveness();
+              announceSession();
+              showState('state-msg blocked', '¡Listo! Bajá y mantené');
+            } else showState('state-msg blocked', 'Calibrando…');
+            return;
+          }
+          const holdOk = cand === 'down';
+          const now = performance.now();
+          if (holdOk) {
+            if (lastHoldOk === null) lastHoldOk = now;
+            else ((holdMs += now - lastHoldOk), (lastHoldOk = now));
+            if (holdMs / 1000 >= targetVal) {
+              postComplete('Tiempo logrado: ' + Math.floor(holdMs / 1000) + 's');
+            }
+          } else lastHoldOk = null;
+          repCountEl.textContent = Math.min(targetVal, Math.floor(holdMs / 1000));
+          refreshHud();
+          if (cand === 'down') showState('state-msg down', 'SOSTENÉ');
+          else showState('state-msg blocked', 'Bajá y mantené');
+          return;
+        }
+
+        evaluateTransition(cand);
+        if (asymmetric && !bothDown) {
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          showState('state-msg blocked', 'Movimiento asimétrico — usá ambos lados');
+        } else if (!repStateInitialized)
+          showState(
+            'state-msg blocked',
+            cand === 'up' ? 'Calibrando inicio…' : 'Parate derecho para calibrar',
+          );
+        else if (cand === 'down') showState('state-msg down', 'ABAJO');
+        else if (cand === 'up') showState('state-msg up', 'ARRIBA');
+      }
+
+      function restSitGuard(lm) {
+        // usados en laterales no-frontales; aquí no aplica (mantiene compatibilidad)
+        return false;
+      }
+
+      function processLateral(lm) {
+        const side = updateSide(lm, cfg);
+        if (!side) {
+          checklistHud.style.display = 'none';
+          showState('state-msg blocked', 'Ubicá el celular de perfil');
+          return;
+        }
+        const sc = cfg.sides[side];
+        const mp = cfg.name === 'Mountain Climbers' ? sc.points : sc.points;
+        const { complete, missing } = checkComplete(lm, mp);
+        renderChecklist(cfg.name, mp, missing);
+        if (!complete) {
+          bodyOkStreak = 0;
+          angleHistory = [];
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          showState('state-msg blocked', 'Falta ver: ' + missing.map((m) => LABEL[m]).join(', '));
+          return;
+        }
+        bodyOkStreak = Math.min(bodyOkStreak + 1, CONFIRM_FRAMES);
+        if (bodyOkStreak < CONFIRM_FRAMES) {
+          showState('state-msg blocked', 'Confirmando lado…');
+          return;
+        }
+
+        // postura real: apoyado en el piso
+        if (cfg.groundedMax) {
+          const hip = lm[LID[side + '_hip']],
+            ankle = lm[LID[side + '_ankle']],
+            shoulder = lm[LID[side + '_shoulder']];
+          const ratio = groundedRatio(hip, ankle, shoulder);
+          groundedHistory.push(ratio);
+          if (groundedHistory.length > 5) groundedHistory.shift();
+          const sr = groundedHistory.reduce((a, b) => a + b, 0) / groundedHistory.length;
+          if (sr > cfg.groundedMax) {
+            candidateState = null;
+            candidateStreak = 0;
+            repStateInitialized = false;
+            calibBuffer = [];
+            dynamicDownThresh = null;
+            dynamicUpThresh = null;
+            showState('state-msg blocked', cfg.postureMsg);
+            return;
+          }
+        }
+        if (sc.line) {
+          const A = lm[LID[sc.line.a]],
+            B = lm[LID[sc.line.b]],
+            C = lm[LID[sc.line.c]];
+          const line = angleBetween(A, B, C);
+          if (line != null) {
+            lineAngleHistory.push(line);
+            if (lineAngleHistory.length > 5) lineAngleHistory.shift();
+            const sl = lineAngleHistory.reduce((a, b) => a + b, 0) / lineAngleHistory.length;
+            if (cfg.lineMin && sl < cfg.lineMin) {
+              candidateState = null;
+              candidateStreak = 0;
+              repStateInitialized = false;
+              calibBuffer = [];
+              dynamicDownThresh = null;
+              dynamicUpThresh = null;
+              showState('state-msg blocked', 'Alineá el cuerpo (cadera alta o hundida)');
+              return;
+            }
+          }
+        }
+        if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
+
+        // mountain climbers: conteo por pliegue de rodilla
+        if (cfg.name === 'Mountain Climbers') {
+          const ka = angleBetween(lm[LID[sc.knee.a]], lm[LID[sc.knee.b]], lm[LID[sc.knee.c]]);
+          if (ka == null) return;
+          angleHistory.push(ka);
+          if (angleHistory.length > 5) angleHistory.shift();
+          const sk = angleHistory.reduce((a, b) => a + b, 0) / angleHistory.length;
+          if (!repStateInitialized) {
+            if (!attemptCalibration(sk, { downDelta: 0, upDelta: 0 })) {
+              showState('state-msg blocked', 'Entrá en plancha de perfil');
+              return;
+            }
+            repStateInitialized = true;
+            scheduleLiveness();
+            announceSession();
+            showState('state-msg blocked', '¡Listo! Arrancá');
+            return;
+          }
+          const folded = sk < cfg.kneeFold;
+          if (folded && repState !== 'fold') {
+            repState = 'fold';
+          } else if (!folded && repState === 'fold') {
+            repState = 'up';
+            const now = performance.now();
+            if (now - lastRepTime >= MIN_REP_INTERVAL_MS) {
+              lastRepTime = now;
+              registerRep();
+            }
+          }
+          showState(
+            folded ? 'state-msg down' : 'state-msg up',
+            folded ? 'RODILLA AL PECHO' : 'ARRIBA',
+          );
+          return;
+        }
+
+        const ang = angleBetween(lm[LID[sc.angle.a]], lm[LID[sc.angle.b]], lm[LID[sc.angle.c]]);
+        if (ang == null) return;
+        angleHistory.push(ang);
+        if (angleHistory.length > 7) angleHistory.shift();
+        const smoothed = angleHistory.reduce((a, b) => a + b, 0) / angleHistory.length;
+
+        if (!repStateInitialized) {
+          if (cfg.restTorsoMax) {
+            const shoulder = lm[LID[side + '_shoulder']],
+              hip = lm[LID[side + '_hip']];
+            if (torsoHorizontalAngle(shoulder, hip) > cfg.restTorsoMax) {
+              calibBuffer = [];
+              showState('state-msg blocked', cfg.startMsg);
+              return;
+            }
+          }
+          const calibrated = attemptCalibration(smoothed, cfg);
+          showState(
+            'state-msg blocked',
+            calibrated
+              ? '¡Listo! Empezá cuando quieras'
+              : cfg.startMsg + ' (quedate quieto un segundo)',
+          );
+          if (calibrated) {
+            repState = 'up';
+            repStateInitialized = true;
+            scheduleLiveness();
+            announceSession();
+          }
+          return;
+        }
+
+        if (cfg.liveness === 'hold' && checkHoldLiveness(smoothed, dynamicDownThresh)) return;
+
+        if (targetUnit === 'seconds') {
+          // hold: cuenta tiempo en posición válida (p. ej. plancha = brazos extendidos)
+          const holdOk = smoothed > dynamicUpThresh;
+          const now = performance.now();
+          if (holdOk) {
+            if (lastHoldOk === null) lastHoldOk = now;
+            else ((holdMs += now - lastHoldOk), (lastHoldOk = now));
+            if (holdMs / 1000 >= targetVal) {
+              postComplete('Tiempo logrado: ' + Math.floor(holdMs / 1000) + 's');
+            }
+          } else lastHoldOk = null;
+          repCountEl.textContent = Math.min(targetVal, Math.floor(holdMs / 1000));
+          refreshHud();
+          if (holdOk) showState('state-msg up', 'SOSTENÉ ' + Math.floor(holdMs / 1000) + 's');
+          else showState('state-msg blocked', 'Fuera de posición');
+          return;
+        }
+
+        let cand = null;
+        if (cfg.bridge) {
+          if (smoothed > dynamicDownThresh) cand = 'down';
+          else if (smoothed < dynamicUpThresh) cand = 'up';
+        } else {
+          if (smoothed < dynamicDownThresh) cand = 'down';
+          else if (smoothed > dynamicUpThresh) cand = 'up';
+        }
+        evaluateTransitionCalibrated(cand);
+        const tag = ' (' + Math.round(smoothed) + '°)';
+        if (cand === 'down') showState('state-msg down', 'ABAJO' + tag);
+        else if (cand === 'up') showState('state-msg up', 'ARRIBA' + tag);
+      }
+
+      function draw(result) {
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (result.landmarks && result.landmarks.length) {
+          const du = new DrawingUtils(ctx);
+          let pts = [];
+          if (cfg.type === 'frontal') pts = FRONTAL_POINTS;
+          else if (confirmedSide && cfg.sides[confirmedSide]) pts = cfg.sides[confirmedSide].points;
+          for (const lm of result.landmarks) {
+            du.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, {
+              color: '#3A4552',
+              lineWidth: 2,
+            });
+            for (const k of pts) {
+              const p = lm[LID[k]];
+              if (!p) continue;
+              const ok = (p.visibility ?? 0) >= VIS;
+              ctx.beginPath();
+              ctx.arc(p.x * canvas.width, p.y * canvas.height, ok ? 5 : 6, 0, 2 * Math.PI);
+              ctx.fillStyle = ok ? '#C8FF3D' : '#FF5A5A';
+              ctx.fill();
+              if (!ok) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#FF5A5A';
+                ctx.beginPath();
+                ctx.arc(p.x * canvas.width, p.y * canvas.height, 10, 0, 2 * Math.PI);
+                ctx.stroke();
+              }
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      let currentFacing = 'user';
+      function applyMirror() {
+        const mirror = currentFacing === 'user';
+        video.classList.toggle('no-mirror', !mirror);
+        canvas.classList.toggle('no-mirror', !mirror);
+      }
+      flipBtn.onclick = async () => {
+        currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+        facingLabel.textContent = currentFacing === 'user' ? 'Frontal' : 'Trasera';
+        applyMirror();
+        if (running) {
+          const old = video.srcObject;
+          if (old) old.getTracks().forEach((t) => t.stop());
+          try {
+            const ns = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: currentFacing },
+              audio: false,
+            });
+            video.srcObject = ns;
+            await video.play();
+            log('Cámara cambiada');
+          } catch (e) {
+            log('No se pudo cambiar: ' + e.message);
+          }
+        }
+      };
+
+      let lastTime = -1;
+      function loop() {
+        if (!running) return;
+        if (video.currentTime !== lastTime) {
+          lastTime = video.currentTime;
+          const r = poseLandmarker.detectForVideo(video, performance.now());
+          draw(r);
+          processPose(r);
+        }
+        requestAnimationFrame(loop);
+      }
+
+      async function initModel() {
+        statusText.textContent = 'Cargando modelo…';
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+        );
+        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',
+            delegate: 'GPU',
+          },
+          runningMode: 'VIDEO',
+          numPoses: 1,
+        });
+        log('Modelo de pose cargado');
+      }
+
+      async function ensureOrientationSensor() {
+        if (typeof DeviceOrientationEvent === 'undefined') return false;
+        try {
+          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const perm = await DeviceOrientationEvent.requestPermission();
+            if (perm !== 'granted') return false;
+          }
+        } catch (e) {
+          log('Sensor: ' + e.message);
+          return false;
+        }
+        window.addEventListener('deviceorientation', onDeviceOrientation);
+        return new Promise((res) => {
+          const st = performance.now();
+          (function ch() {
+            if (orientationSupported) {
+              res(true);
+              return;
+            }
+            if (performance.now() - st > SENSOR_CONFIRM_MS) {
+              res(false);
+              return;
+            }
+            requestAnimationFrame(ch);
+          })();
+        });
+      }
+      function onDeviceOrientation(ev) {
+        if (ev.beta == null) return;
+        orientationSupported = true;
+        betaHistory.push(ev.beta);
+        if (betaHistory.length > 8) betaHistory.shift();
+        const avg = betaHistory.reduce((a, b) => a + b, 0) / betaHistory.length;
+        const dev = Math.abs(90 - Math.abs(avg));
+        deviceIsVertical = dev <= VERTICAL_TOLERANCE;
+        orientationBadge.style.display = 'flex';
+        orientationBadge.className = 'badge ' + (deviceIsVertical ? '' : 'orientation-bad');
+        orientationIcon.innerHTML = deviceIsVertical ? ICON.check : ICON.warning;
+        orientationText.textContent = deviceIsVertical ? 'Vertical' : '¡Poné el celular vertical!';
+      }
+
+      async function startCamera() {
+        startBtn.disabled = true;
+        startBtn.textContent = 'Iniciando…';
+        ensureAudio();
+        const sensorOk = await ensureOrientationSensor();
+        if (!sensorOk) {
+          log('Sensor no confirmado — modo verificado exige celular vertical');
+          startBtn.disabled = false;
+          startBtn.textContent = 'Reintentar';
+          statusText.textContent = 'Sensor no confirmado';
+          return;
+        }
+        try {
+          if (!poseLandmarker) await initModel();
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: currentFacing },
+            audio: false,
+          });
+          video.srcObject = stream;
+          await video.play();
+          canvas.width = video.videoWidth || 480;
+          canvas.height = video.videoHeight || 640;
+          running = true;
+          resetRepState();
+          applyMirror();
+          startBtn.style.display = 'none';
+          stopBtn.style.display = 'block';
+          statusText.textContent = 'En vivo';
+          liveDot.classList.add('live');
+          log(
+            'Cámara activa · ' +
+              cfg.name +
+              ' · ' +
+              (cfg.unit === 'seconds' ? targetVal + 's' : targetVal + ' reps'),
+          );
+          requestAnimationFrame(loop);
+        } catch (e) {
+          log('Error: ' + e.message);
+          statusText.textContent = 'Sin acceso a cámara';
+          startBtn.disabled = false;
+          startBtn.textContent = 'Activar cámara';
+        }
+      }
+      function stopCamera() {
+        running = false;
+        const s = video.srcObject;
+        if (s) s.getTracks().forEach((t) => t.stop());
+        liveDot.classList.remove('live');
+        statusText.textContent = 'Detenido';
+        stopBtn.style.display = 'none';
+        startBtn.style.display = 'block';
+        startBtn.disabled = false;
+        stateMsg.style.display = 'none';
+        checklistHud.style.display = 'none';
+        const total = sessionStartTime
+          ? Math.round((performance.now() - sessionStartTime) / 1000)
+          : 0;
+        if (continuityBroken) {
+          verifyText.textContent = 'Serie no continua — no apta para ranking';
+          resultCard.querySelector('.verify-tag').classList.add('broken');
+        }
+        resultReps.textContent = repCount;
+        resultDetail.textContent =
+          (targetUnit === 'reps' ? repCount + ' reps' : 'Tiempo validado ' + holdMs + 's') +
+          ' · ' +
+          total +
+          's de sesión';
+        resultCard.classList.add('show');
+        post('complete', {
+          reps: repCount,
+          detail: targetUnit === 'seconds' ? String(Math.floor(holdMs / 1000)) : String(repCount),
+        });
+      }
+      startBtn.onclick = startCamera;
+      stopBtn.onclick = stopCamera;
+      refreshHud();
+    </script>
+  </body>
+</html>
