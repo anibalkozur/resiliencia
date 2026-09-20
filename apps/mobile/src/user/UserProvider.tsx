@@ -10,6 +10,7 @@ type UserState = {
   isLoading: boolean;
   createUser: (nickname: string) => Promise<void>;
   updateProfile: (patch: ProfilePatch) => Promise<UserProfile | null>;
+  attachAccount: (account: { userId: string; nickname: string }) => Promise<void>;
 };
 
 const UserContext = createContext<UserState | null>(null);
@@ -40,6 +41,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
           setProfile(updated);
         }
         return updated;
+      },
+      attachAccount: async (account: { userId: string; nickname: string }) => {
+        const local = await repo.getProfile();
+        const existing = local ?? {
+          id: account.userId,
+          nickname: 'Atleta',
+          createdAt: new Date().toISOString(),
+        };
+        const merged: UserProfile = {
+          ...existing,
+          id: account.userId,
+          nickname:
+            account.nickname.trim().length > 0 ? account.nickname.trim() : existing.nickname,
+        };
+        await repo.saveProfile(merged);
+        setProfile(merged);
       },
     }),
     [profile, isLoading, repo],

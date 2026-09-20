@@ -2,13 +2,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { colors } from '@resiliencia/design-tokens';
-import { UserProvider, useUser } from '../src/user/UserProvider';
+import { UserProvider } from '../src/user/UserProvider';
+import { AuthProvider, useAuth } from '../src/auth/AuthProvider';
 import { PrefsProvider } from '../src/prefs/PrefsProvider';
 
 function RootNavigator() {
-  const { profile, isLoading } = useUser();
+  const { session, authLoading } = useAuth();
 
-  if (isLoading) {
+  if (authLoading) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.teal} />
@@ -18,7 +19,12 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {profile ? <Stack.Screen name="(tabs)" /> : <Stack.Screen name="onboarding" />}
+      <Stack.Protected guard={session != null}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      <Stack.Protected guard={session == null}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
     </Stack>
   );
 }
@@ -27,8 +33,10 @@ export default function RootLayout() {
   return (
     <PrefsProvider>
       <UserProvider>
-        <StatusBar style="light" />
-        <RootNavigator />
+        <AuthProvider>
+          <StatusBar style="light" />
+          <RootNavigator />
+        </AuthProvider>
       </UserProvider>
     </PrefsProvider>
   );

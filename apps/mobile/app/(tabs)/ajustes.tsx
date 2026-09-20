@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { LANGUAGE_OPTIONS, MAX_DAYS, MIN_DAYS } from '../../src/prefs/service';
 import { translate } from '../../src/i18n/translations';
 import type { Language } from '../../src/prefs/types';
@@ -22,11 +23,14 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 
 export default function AjustesScreen() {
   const { prefs, updatePrefs } = usePrefs();
+  const { session, signOut } = useAuth();
   const lang = prefs?.language ?? 'es';
 
   if (!prefs) {
     return <View style={styles.container} />;
   }
+
+  const email = session?.user?.email ?? null;
 
   return (
     <View style={styles.container}>
@@ -70,6 +74,17 @@ export default function AjustesScreen() {
         </View>
 
         <Text style={styles.saved}>{translate(lang, 'settings.saved')}</Text>
+
+        <Text style={styles.section}>{translate(lang, 'settings.account')}</Text>
+        <Text style={styles.accountLine}>
+          {translate(lang, 'settings.logged_as', { email: email ?? '' })}
+        </Text>
+        <Pressable
+          style={({ pressed }) => [styles.action, pressed && styles.chipPressed]}
+          onPress={() => signOut()}
+        >
+          <Text style={styles.actionText}>{translate(lang, 'settings.logout')}</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -152,5 +167,26 @@ const styles = StyleSheet.create({
     color: colors.teal,
     fontSize: 13,
     marginTop: spacing.lg,
+  },
+  accountLine: {
+    color: colors.silverDim,
+    fontSize: 13,
+    marginBottom: spacing.sm,
+  },
+  action: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    marginRight: spacing.sm,
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+  },
+  actionText: {
+    color: colors.silver,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
 });

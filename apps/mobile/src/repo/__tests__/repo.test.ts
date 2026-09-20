@@ -36,4 +36,22 @@ describe('IRepo contract (MemoryRepo)', () => {
     await repo.setSetting('onboarded', 'false');
     expect(await repo.getSetting('onboarded')).toBe('false');
   });
+
+  it('removes a setting', async () => {
+    await repo.setSetting('temp', 'x');
+    expect(await repo.getSetting('temp')).toBe('x');
+    await repo.removeSetting('temp');
+    expect(await repo.getSetting('temp')).toBeNull();
+  });
+
+  it('lists persisted keys', async () => {
+    await repo.setSetting('sb-abc-auth-token', 't1');
+    await repo.setSetting('sb-abc-auth-token-user', 'u1');
+    await repo.setSetting('profile', 'p1');
+    const keys = await repo.listKeys();
+    expect(keys).toEqual(
+      expect.arrayContaining(['sb-abc-auth-token', 'sb-abc-auth-token-user', 'profile']),
+    );
+    expect(keys.filter((k) => k.startsWith('sb-'))).toHaveLength(2);
+  });
 });

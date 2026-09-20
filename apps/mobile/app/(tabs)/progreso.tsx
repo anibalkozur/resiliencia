@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { getRepo } from '../../src/repo';
 import { getBestStreak } from '../../src/retos/streak';
 import { getTotalCompleted } from '../../src/retos/completions';
 import { useUser } from '../../src/user/UserProvider';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { getSupabase } from '../../src/auth/supabase';
+import { fetchRanking, type RankingRow } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 
@@ -40,12 +43,14 @@ interface WeekCell {
 
 export default function ProgresoScreen() {
   const { profile } = useUser();
+  const { session } = useAuth();
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
   const repo = getRepo();
   const [best, setBest] = useState(0);
   const [total, setTotal] = useState(0);
   const [week, setWeek] = useState<WeekCell[]>([]);
+  const [ranking, setRanking] = useState<RankingRow[]>([]);
 
   useEffect(() => {
     getBestStreak(repo).then(setBest);
@@ -63,10 +68,26 @@ export default function ProgresoScreen() {
     })();
   }, [repo]);
 
+  useEffect(() => {
+    const client = getSupabase();
+    if (!session || !client) {
+      return;
+    }
+    let active = true;
+    fetchRanking(client).then((rows) => {
+      if (active) {
+        setRanking(rows);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [session]);
+
   const days = profile ? daysSince(profile.createdAt) : 0;
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
       <Text style={styles.title}>{translate(lang, 'progress.title')}</Text>
 
       <View style={styles.row}>
@@ -101,16 +122,46 @@ export default function ProgresoScreen() {
         <Text style={styles.emptyTitle}>{translate(lang, 'progress.empty_title')}</Text>
         <Text style={styles.emptyBody}>{translate(lang, 'progress.empty_body')}</Text>
       </View>
-    </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>{translate(lang, 'progress.ranking')}</Text>
+        {ranking.length === 0 ? (
+          <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+        ) : (
+          ranking.map((entry, index) => {
+            const isMe = entry.user_id === profile?.id;
+            return (
+              <View key={entry.user_id} style={[styles.rankRow, isMe && styles.rankRowMe]}>
+                <Text style={styles.rankPos}>{index + 1}</Text>
+                <View style={styles.rankInfo}>
+                  <Text style={[styles.rankName, isMe && styles.rankNameMe]} numberOfLines={1}>
+                    {isMe ? translate(lang, 'progress.you') : entry.nickname}
+                  </Text>
+                  <Text style={styles.rankSub}>
+                    {entry.current_streak} {translate(lang, 'progress.rank_streak')}
+                  </Text>
+                </View>
+                <Text style={styles.rankValue}>
+                  {entry.completed_challenges} {translate(lang, 'progress.rank_challenges')}
+                </Text>
+              </View>
+            );
+          })
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: colors.bg,
-    justifyContent: 'center',
+  },
+  container: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
   },
   title: {
     color: colors.silver,
@@ -201,5 +252,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.sm,
+  },
+  rankingEmpty: {
+    color: colors.silverDim,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    paddingVertical: spacing.md,
+  },
+  rankRowMe: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+  },
+  rankPos: {
+    color: colors.silverDim,
+    fontSize: 14,
+    fontWeight: '800',
+    width: 28,
+    textAlign: 'center',
+  },
+  rankInfo: {
+    flex: 1,
+    marginLeft: spacing.sm,
+  },
+  rankName: {
+    color: colors.silver,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rankNameMe: {
+    color: colors.teal,
+  },
+  rankSub: {
+    color: colors.silverDim,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  rankValue: {
+    color: colors.teal,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
 });

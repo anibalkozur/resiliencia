@@ -3,11 +3,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
-import { buildChallenge, getTodayChallenge, tomorrowKey } from '../../src/retos/service';
+import { buildChallenge, getTodayChallenge, todayKey, tomorrowKey } from '../../src/retos/service';
+import { isCompleted, markCompleted } from '../../src/retos/completions';
 import { getCompletedCount, getStreak } from '../../src/retos/streak';
+import { syncAfterLogin } from '../../src/sync/syncService';
 import { GOAL_TRANSLATION_KEYS, translate, type TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 import type { Goal } from '../../src/prefs/types';
@@ -20,6 +23,7 @@ function greetingKey(hour: number): TranslationKey {
 
 export default function InicioScreen() {
   const router = useRouter();
+  const { session } = useAuth();
   const { profile } = useUser();
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
@@ -28,12 +32,31 @@ export default function InicioScreen() {
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [streak, setStreak] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
+  const [completedToday, setCompletedToday] = useState(false);
 
   useEffect(() => {
     getTodayChallenge(repo).then(setChallenge);
     getStreak(repo).then(setStreak);
     getCompletedCount(repo).then(setCompletedCount);
+    isCompleted(repo, todayKey()).then(setCompletedToday);
   }, [repo]);
+
+  async function handleComplete() {
+    const date = todayKey();
+    const alreadyDone = await isCompleted(repo, date);
+    if (alreadyDone) {
+      router.push('/(tabs)/camretos');
+      return;
+    }
+    await markCompleted(repo, date);
+    setCompletedToday(true);
+    setCompletedCount(await getCompletedCount(repo));
+    setStreak(await getStreak(repo));
+    if (session) {
+      await syncAfterLogin(repo, session.user.id);
+    }
+    router.push('/(tabs)/camretos');
+  }
 
   const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
   const unit = exercise?.unit === 'reps' ? 'unit.reps' : 'unit.seconds';
@@ -75,8 +98,18 @@ export default function InicioScreen() {
             </View>
           </View>
 
-          <Pressable style={styles.cta} onPress={() => router.push('/retos')}>
-            <Text style={styles.ctaText}>{translate(lang, 'home.view')}</Text>
+          <Pressable
+            style={[styles.cta, completedToday && styles.ctaDone]}
+            disabled={completedToday}
+            onPress={handleComplete}
+          >
+            <Text style={[styles.ctaText, completedToday && styles.ctaTextDone]}>
+              {translate(lang, completedToday ? 'home.completed' : 'home.complete')}
+            </Text>
+          </Pressable>
+
+          <Pressable style={styles.secondary} onPress={() => router.push('/(tabs)/retos')}>
+            <Text style={styles.secondaryText}>{translate(lang, 'home.view')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -170,6 +203,25 @@ const styles = StyleSheet.create({
     color: colors.bg,
     fontSize: 15,
     fontWeight: '800',
+    letterSpacing: 2,
+  },
+  ctaDone: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.teal,
+  },
+  ctaTextDone: {
+    color: colors.teal,
+  },
+  secondary: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  secondaryText: {
+    color: colors.silverDim,
+    fontSize: 13,
+    fontWeight: '700',
     letterSpacing: 2,
   },
   streakBox: {

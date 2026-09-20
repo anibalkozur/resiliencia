@@ -20,4 +20,12 @@ export class MemoryRepo implements IRepo {
   async setSetting(key: string, value: string): Promise<void> {
     this.settings.set(key, value);
   }
+
+  async removeSetting(key: string): Promise<void> {
+    this.settings.delete(key);
+  }
+
+  async listKeys(): Promise<string[]> {
+    return Array.from(this.settings.keys());
+  }
 }

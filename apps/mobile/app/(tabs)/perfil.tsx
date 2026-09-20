@@ -12,6 +12,7 @@ import {
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { useAuth } from '../../src/auth/AuthProvider';
 import {
   SPORT_CATALOG,
   SPORT_DAYS_MAX,
@@ -110,6 +111,7 @@ function Stepper({
 export default function PerfilScreen() {
   const { profile, createUser, updateProfile } = useUser();
   const { prefs, updatePrefs } = usePrefs();
+  const { signOut } = useAuth();
   const lang = prefs?.language ?? 'es';
   const goal: Goal | undefined = prefs?.goal;
 
@@ -484,6 +486,18 @@ export default function PerfilScreen() {
           )
         )}
         <Text style={styles.autoSaveHint}>{translate(lang, 'profile.auto_save')}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>{translate(lang, 'settings.account')}</Text>
+        <Pressable
+          accessible
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutPressed]}
+          onPress={() => signOut()}
+        >
+          <Text style={styles.logoutText}>{translate(lang, 'settings.logout')}</Text>
+        </Pressable>
       </View>
     </ScrollView>
   );
@@ -887,5 +901,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginTop: spacing.xs,
+  },
+  logoutButton: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  logoutPressed: {
+    opacity: 0.7,
+  },
+  logoutText: {
+    color: colors.silver,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
 });

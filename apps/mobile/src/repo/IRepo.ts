@@ -5,4 +5,6 @@ export interface IRepo {
   saveProfile(profile: UserProfile): Promise<void>;
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
+  removeSetting(key: string): Promise<void>;
+  listKeys(): Promise<string[]>;
 }
