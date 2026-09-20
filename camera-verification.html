@@ -317,10 +317,7 @@
     <div id="app">
       <span class="eyebrow">Modo verificado</span>
       <h1 id="title">Verificación por cámara</h1>
-      <p>
-        Visión por computadora corriendo en el dispositivo: detecta tu esqueleto en vivo y verifica
-        la ejecución por ángulo articular real.
-      </p>
+      <p id="desc">Cargando instrucciones…</p>
 
       <div class="video-wrap">
         <video id="video" playsinline autoplay muted></video>
@@ -416,6 +413,25 @@
       };
       document.title = NAME[EX_ID] || 'Verificación';
       document.getElementById('title').textContent = NAME[EX_ID] || 'Verificación';
+
+      const HOWTO = {
+        sentadillas:
+          'Parate derecho frente a la cámara con los pies al ancho de los hombros. Bajá llevando la cadera hacia atrás hasta que tus rodillas queden cerca de 90° y volvé a subir. Cada bajada y subida completa cuenta como 1.',
+        flexiones:
+          'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo.',
+        plancha:
+          'Pará en plancha con los brazos extendidos y el cuerpo formando una línea recta de la cabeza a los pies. Mantené la posición sin bajar la cadera hasta completar el tiempo.',
+        zancadas:
+          'Parate derecho mirando a la cámara. Da un paso largo hacia adelante y bajá hasta que ambas rodillas queden cerca de 90°. Volvé a la posición inicial y repetí con la otra pierna.',
+        puente_gluteo:
+          'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Elevá la cadera apretando los glúteos, mantené un segundo y bajá hasta apoyarla. Cada subida cuenta como 1.',
+        mountain_climbers:
+          'Ponete en plancha apoyando las manos. Llevá una rodilla rápido al pecho y volvé, alternando las piernas en ritmo continuo. Cada rodilla al pecho cuenta como 1.',
+        sentadilla_isometrica:
+          'Parate derecho y bajá a una sentadilla hasta que tus rodillas queden cerca de 90°. Mantené la posición sin subir hasta completar el tiempo.',
+      };
+      document.getElementById('desc').textContent =
+        HOWTO[EX_ID] || 'Segui la guía en pantalla para completar el ejercicio.';
 
       const ICON = {
         flip: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`,
