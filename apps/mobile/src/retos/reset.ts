@@ -11,7 +11,10 @@ export async function resetLocalProgress(repo: IRepo): Promise<void> {
 }
 
 export async function resetCloudProgress(client: SupabaseClient, userId: string): Promise<void> {
-  const { error } = await client.from('daily_challenges').delete().eq('user_id', userId);
+  const { error } = await client
+    .from('daily_challenges')
+    .update({ status: 'pending' })
+    .eq('user_id', userId);
   if (error) {
     throw error;
   }

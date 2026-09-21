@@ -121,4 +121,17 @@ describe('fetchRanking', () => {
 
     expect(await fetchRanking(client)).toEqual([]);
   });
+
+  it('filters out users with zero completed challenges', async () => {
+    const { client, setRpcResult } = fakeClient();
+    setRpcResult([
+      { user_id: 'u1', nickname: 'ana', completed_challenges: 3 },
+      { user_id: 'u2', nickname: 'leo', completed_challenges: 0 },
+      { user_id: 'u3', nickname: 'sara', completed_challenges: 0 },
+    ]);
+
+    const rows = await fetchRanking(client);
+
+    expect(rows.map((row) => row.user_id)).toEqual(['u1']);
+  });
 });

@@ -82,7 +82,7 @@ export async function fetchRanking(client: SupabaseClient, maxRows = 50): Promis
   if (error || !data) {
     return [];
   }
-  return data as RankingRow[];
+  return (data as RankingRow[]).filter((row) => row.completed_challenges > 0);
 }
 
 export async function syncAfterLogin(

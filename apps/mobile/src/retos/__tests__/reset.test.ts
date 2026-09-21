@@ -6,13 +6,13 @@ import { getTodayChallenge } from '../service';
 import { resetCloudProgress, resetLocalProgress } from '../reset';
 
 function fakeDeleteClient() {
-  const calls: { table: string; eq: unknown[] }[] = [];
+  const calls: { table: string; eq: unknown[]; body: unknown }[] = [];
   const client = {
     from(table: string) {
       return {
-        delete: () => ({
+        update: (body: unknown) => ({
           eq: async (...eqArgs: unknown[]) => {
-            calls.push({ table, eq: eqArgs });
+            calls.push({ table, eq: eqArgs, body });
             return { error: null };
           },
         }),
@@ -45,18 +45,20 @@ describe('resetLocalProgress', () => {
 });
 
 describe('resetCloudProgress', () => {
-  it('deletes the user own daily_challenges rows', async () => {
+  it('sets the user own daily_challenges to pending', async () => {
     const { client, calls } = fakeDeleteClient();
 
     await resetCloudProgress(client, 'user-1');
 
-    expect(calls).toEqual([{ table: 'daily_challenges', eq: ['user_id', 'user-1'] }]);
+    expect(calls).toEqual([
+      { table: 'daily_challenges', eq: ['user_id', 'user-1'], body: { status: 'pending' } },
+    ]);
   });
 
-  it('throws when the delete fails', async () => {
+  it('throws when the update fails', async () => {
     const client = {
       from: () => ({
-        delete: () => ({
+        update: () => ({
           eq: async () => ({ error: new Error('boom') }),
         }),
       }),
