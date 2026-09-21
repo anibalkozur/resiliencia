@@ -181,3 +181,27 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - Aplicar `0006_oauth_nickname.sql` en la nube (falta acceso admin del PO).
 - Limpieza menor: quitar `unitLabel` muerto en `camera-verification.html` y revisar si `retos.plan_days` ya no se usa.
 - Evaluar con el PO cambiar días de descanso del plan (opción ofrecida).
+
+### 2026-09-22 — Limpieza de código muerto, fix de cámara en Libre (GPU) y migración 0006 aplicada
+
+**Petición del PO (vía app/chat):**
+
+1. Limpiar código muerto sin romper lo que funciona (`unitLabel` y `retos.plan_days`). **Hecho** (`4056a6b` + gh-pages `d202a9d`): ambos sin uso confirmado por grep; 123 tests, typecheck y lint en verde; sin cambios visuales → no requirió recarga.
+2. Bug de cámara: al ir a Retos (cámara activa) y pasar a Libre, quedaba en "Cargando modelo…" sin cámara; había que cambiar de pestaña para que activara.
+
+**Análisis y fix del bug de cámara (`bfece35` + gh-pages `fcd2135`, `VERIFY_VERSION` v7):**
+
+- Causa raíz: cada pestaña montaba su propia WebView con MediaPipe (`delegate: 'GPU'`, WebGL). Al pasar Retos → Libre convivían **dos WebViews pesadas** y el `PoseLandmarker.createFromOptions` de la segunda se colgaba definitivamente (promise que nunca resolvía) → "Cargando modelo…" infinito. Cambiar de pestaña "lo arreglaba" porque una WebView se desmontaba y liberaba el recurso.
+- Fix en 3 partes:
+  - **Una sola WebView a la vez:** `src/retos/useScreenFocused.ts` (nuevo) + gate en `retos.tsx` y `camretos.tsx` — la WebView solo se monta si la pestaña está enfocada; al cambiar de tab se desmonta (libera cámara/GPU). El remount por `useCameraRestart` (app resume) se conserva.
+  - **`initModel` resiliente en `camera-verification.html`:** `withTimeout` (20s por intento) + fallback automático **GPU → CPU** si el primer intento tarda o falla; también timeout en `FilesetResolver` (CDN colgado). Nunca más quedarse clavado de forma permanente.
+- Validado por el PO en dispositivo: "parece que funciona" (Retos → Libre directo con cámara).
+
+**Migración `0006_oauth_nickname.sql` — APLICADA (por el PO):** ejecutada en el SQL Editor de Supabase (Success, sin filas — esperado en `create or replace function`). Nuevos usuarios OAuth (Google) quedan con `full_name`/`name` como nickname en vez de "atleta"; existentes no cambian.
+
+**Pendientes / planes:**
+
+- **Rotación a medianoche:** solo validable cuando cambie la hora real (dejar la app abierta; PO lo hará cuando ocurra). Alternativa: adelantar el reloj del teléfono a 23:59 con la app abierta.
+- **Ranking integral:** completar reto del día por cámara con sesión Google → verificar actualización de posición en Progreso; con reset de progreso con sesión, desaparecer del ranking.
+- **Días de descanso:** definir con el PO si pueden saltarse/adelantarse y si la racha cuenta solo en días de plan.
+- Backlog menor: flush de autosave en logout (ventana 400 ms, riesgo bajo) y re-validar imagen congelada con el fix de hoy (mitigado con remount).
