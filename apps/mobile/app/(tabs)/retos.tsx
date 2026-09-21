@@ -14,6 +14,7 @@ import { buildVerifyUri } from '../../src/retos/verify';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
+import { useScreenFocused } from '../../src/retos/useScreenFocused';
 import { useDayKey } from '../../src/retos/DayProvider';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
@@ -40,6 +41,7 @@ export default function RetosScreen() {
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const restartKey = useCameraRestart();
+  const focused = useScreenFocused();
 
   const week = useMemo(
     () => buildWeek(goal, daysPerWeek, new Date(`${dayKey}T00:00:00`)),
@@ -139,7 +141,7 @@ export default function RetosScreen() {
                 <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
               </Pressable>
             </View>
-          ) : (
+          ) : focused ? (
             <>
               <View style={styles.challengeBar}>
                 <Text style={styles.cameraTitle}>
@@ -168,7 +170,7 @@ export default function RetosScreen() {
                 style={styles.webView}
               />
             </>
-          )}
+          ) : null}
         </View>
       ) : today && !trainingToday ? (
         <View style={styles.cameraContainer}>

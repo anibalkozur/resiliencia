@@ -8,6 +8,7 @@ import { buildVerifyUri } from '../../src/retos/verify';
 import { translate } from '../../src/i18n/translations';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
+import { useScreenFocused } from '../../src/retos/useScreenFocused';
 
 export default function LibreScreen() {
   const { prefs } = usePrefs();
@@ -15,6 +16,7 @@ export default function LibreScreen() {
   const { libreExerciseId } = useLibreExercise();
   const [freeResult, setFreeResult] = useState<string | null>(null);
   const restartKey = useCameraRestart();
+  const focused = useScreenFocused();
 
   const freeExercise = EXERCISES.find((e) => e.id === libreExerciseId);
   const freeUnit = freeExercise?.unit ?? 'reps';
@@ -39,17 +41,19 @@ export default function LibreScreen() {
         </View>
       ) : null}
       <View style={styles.cameraContainer}>
-        <WebView
-          key={`${libreExerciseId}-${restartKey}`}
-          originWhitelist={['*']}
-          source={{ uri: buildVerifyUri(libreExerciseId, freeTarget, freeUnit) }}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-          onMessage={handleMessage}
-          style={styles.webView}
-        />
+        {focused ? (
+          <WebView
+            key={`${libreExerciseId}-${restartKey}`}
+            originWhitelist={['*']}
+            source={{ uri: buildVerifyUri(libreExerciseId, freeTarget, freeUnit) }}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            allowsInlineMediaPlayback={true}
+            mediaPlaybackRequiresUserAction={false}
+            onMessage={handleMessage}
+            style={styles.webView}
+          />
+        ) : null}
       </View>
     </View>
   );
