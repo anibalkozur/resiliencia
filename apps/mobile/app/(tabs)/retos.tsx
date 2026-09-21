@@ -257,15 +257,13 @@ const styles = StyleSheet.create({
   },
   cameraContainer: {
     flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
   },
   challengeBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
+    marginHorizontal: spacing.md,
   },
   cameraTitle: {
     color: colors.silver,
@@ -281,7 +279,6 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
-    borderRadius: radius.lg,
   },
   doneBox: {
     flex: 1,
