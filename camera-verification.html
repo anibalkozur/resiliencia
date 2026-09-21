@@ -372,6 +372,7 @@
 
       const qs = new URLSearchParams(location.search);
       const EX_ID = qs.get('exercise') || 'sentadillas';
+      const MODE = qs.get('mode') || 'libre';
       const TARGET = Math.max(1, parseInt(qs.get('target') || '10', 10));
       const UNIT = qs.get('unit') || 'reps';
 
@@ -419,9 +420,12 @@
             ? 'segundo'
             : 'segundos';
       document.title = NAME[EX_ID] || 'Verificación';
-      document.getElementById('title').textContent = `${
-        NAME[EX_ID] || 'Verificación'
-      } · ${TARGET} ${unitLabel}`;
+      const titleEl = document.getElementById('title');
+      if (MODE === 'reto') {
+        titleEl.style.display = 'none';
+      } else {
+        titleEl.textContent = `${NAME[EX_ID] || 'Verificación'} · ${TARGET} ${unitLabel}`;
+      }
 
       const HOWTO = {
         sentadillas:
