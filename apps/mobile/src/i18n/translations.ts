@@ -23,7 +23,8 @@ const es = {
   'home.completed': 'RETO COMPLETADO',
 
   'challenge.meta': 'Meta: {target} {unit}',
-  'challenge.note': 'La detección automática del ejercicio llega en la próxima fase del plan.',
+  'challenge.note':
+    'Realizá el ejercicio frente a la cámara hasta llegar a la meta. Si la ejecución es correcta, el reto se completa solo.',
   'challenge.rotation': 'Mañana hay otro reto.',
   'unit.reps': 'repeticiones',
   'unit.seconds': 'segundos',
@@ -50,7 +51,7 @@ const es = {
 
   'tabs.home': 'Inicio',
   'tabs.retos': 'Retos',
-  'tabs.camretos': 'Cámara',
+  'tabs.camretos': 'Libre',
   'cam.challenge': 'Reto de hoy',
   'cam.free': 'Modo libre',
   'cam.free_hint': 'Elegí un ejercicio y la cámara se activa al instante.',
@@ -238,7 +239,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.completed': 'CHALLENGE DONE',
 
     'challenge.meta': 'Goal: {target} {unit}',
-    'challenge.note': 'Automatic exercise detection arrives in the next phase of the plan.',
+    'challenge.note':
+      'Perform the exercise in front of the camera until you reach the goal. If the execution is correct, the challenge completes automatically.',
     'challenge.rotation': 'Another challenge comes tomorrow.',
     'unit.reps': 'reps',
     'unit.seconds': 'seconds',
@@ -265,7 +267,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'tabs.home': 'Home',
     'tabs.retos': 'Challenges',
-    'tabs.camretos': 'Camera',
+    'tabs.camretos': 'Free',
     'cam.challenge': "Today's challenge",
     'cam.free': 'Free mode',
     'cam.free_hint': 'Pick an exercise and the camera turns on instantly.',
@@ -448,7 +450,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.completed': 'DESAFIO CONCLUÍDO',
 
     'challenge.meta': 'Meta: {target} {unit}',
-    'challenge.note': 'A detecção automática do exercício chega na próxima fase do plano.',
+    'challenge.note':
+      'Faça o exercício em frente à câmera até atingir a meta. Se a execução estiver correta, o desafio é concluído automaticamente.',
     'challenge.rotation': 'Amanhã há outro desafio.',
     'unit.reps': 'repetições',
     'unit.seconds': 'segundos',
@@ -475,7 +478,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'tabs.home': 'Início',
     'tabs.retos': 'Desafios',
-    'tabs.camretos': 'Câmera',
+    'tabs.camretos': 'Livre',
     'cam.challenge': 'Desafio de hoje',
     'cam.free': 'Modo livre',
     'cam.free_hint': 'Escolha um exercício e a câmera liga na hora.',

@@ -1,14 +1,20 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, ScrollView, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { WebView } from 'react-native-webview';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseDescKey, exerciseNameKey } from '../../src/retos/catalog';
-import { isCompleted } from '../../src/retos/completions';
+import { isCompleted, markCompleted } from '../../src/retos/completions';
 import { buildWeek } from '../../src/retos/week';
+import { getTodayChallenge, todayKey } from '../../src/retos/service';
+import { buildVerifyUri } from '../../src/retos/verify';
+import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
+import type { DailyChallenge } from '../../src/retos/types';
 
 const WEEKDAYS: TranslationKey[] = [
   'weekday.sun',
@@ -21,11 +27,14 @@ const WEEKDAYS: TranslationKey[] = [
 ];
 
 export default function RetosScreen() {
+  const router = useRouter();
   const { prefs } = usePrefs();
+  const { session } = useAuth();
   const lang = prefs?.language ?? 'es';
   const goal = prefs?.goal ?? 'mantener';
   const daysPerWeek = prefs?.daysPerWeek ?? 4;
   const repo = getRepo();
+  const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -39,8 +48,10 @@ export default function RetosScreen() {
         for (const day of week) {
           result[day.date] = await isCompleted(repo, day.date);
         }
+        const todayChallenge = await getTodayChallenge(repo);
         if (!active) return;
         setDone(result);
+        setChallenge(todayChallenge);
         const today = week.find((d) => d.isToday);
         if (today) setSelected(today.date);
       })();
@@ -55,6 +66,29 @@ export default function RetosScreen() {
     ? EXERCISES.find((e) => e.id === selectedDay.exerciseId)
     : undefined;
   const selectedUnit = selectedExercise?.unit === 'reps' ? 'unit.reps' : 'unit.seconds';
+
+  const challengeExercise = challenge
+    ? EXERCISES.find((e) => e.id === challenge.exerciseId)
+    : undefined;
+  const date = todayKey();
+  const challengeDone = done[date] ?? false;
+
+  const handleMessage = useCallback(
+    (event: any) => {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (data.type !== 'complete') return;
+      const reps = Number(data.reps) || 0;
+      const target = challenge?.target ?? 0;
+      if (reps >= target) {
+        void markCompleted(repo, date);
+        setDone((prev) => ({ ...prev, [date]: true }));
+        if (session) {
+          void syncAfterLogin(repo, session.user.id);
+        }
+      }
+    },
+    [repo, challenge, date, session],
+  );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -126,6 +160,46 @@ export default function RetosScreen() {
               <Text style={styles.cardTitle}>{translate(lang, 'retos.rest')}</Text>
               <Text style={styles.cardNote}>{translate(lang, 'retos.rest_note')}</Text>
             </>
+          )}
+        </View>
+      ) : null}
+
+      {challenge && challengeExercise ? (
+        <View style={styles.cameraSection}>
+          {challengeDone ? (
+            <View style={styles.cameraCard}>
+              <Text style={styles.cameraDoneText}>{translate(lang, 'home.completed')}</Text>
+              <Pressable style={styles.cameraCta} onPress={() => router.push('/(tabs)/camretos')}>
+                <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.cameraCard}>
+              <Text style={styles.cameraTitle}>
+                {translate(lang, 'cam.challenge')} ·{' '}
+                {translate(lang, exerciseNameKey(challengeExercise.id))}
+              </Text>
+              <Text style={styles.cameraMeta}>
+                {challenge.target} {challengeExercise.unit === 'reps' ? 'reps' : 'seg'}
+              </Text>
+              <WebView
+                originWhitelist={['*']}
+                source={{
+                  uri: buildVerifyUri(
+                    challenge.exerciseId,
+                    challenge.target,
+                    challengeExercise.unit,
+                  ),
+                }}
+                cacheEnabled={false}
+                javaScriptEnabled={true}
+                domStorageEnabled={true}
+                allowsInlineMediaPlayback={true}
+                mediaPlaybackRequiresUserAction={false}
+                onMessage={handleMessage}
+                style={styles.webView}
+              />
+            </View>
           )}
         </View>
       ) : null}
@@ -255,5 +329,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.md,
+  },
+  cameraSection: {
+    marginTop: spacing.xl,
+  },
+  cameraCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
+  },
+  cameraTitle: {
+    color: colors.silver,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  cameraMeta: {
+    color: colors.teal,
+    fontSize: 30,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
+  webView: {
+    height: 420,
+    marginTop: spacing.md,
+    borderRadius: radius.lg,
+  },
+  cameraDoneText: {
+    color: colors.teal,
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  cameraCta: {
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  cameraCtaText: {
+    color: colors.bg,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
 });

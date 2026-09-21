@@ -7,7 +7,7 @@ import DumbbellIcon from '../../components/icons/DumbbellIcon';
 import UserIcon from '../../components/icons/UserIcon';
 import GearIcon from '../../components/icons/GearIcon';
 import ChartIcon from '../../components/icons/ChartIcon';
-import CameraIcon from '../../components/icons/CameraIcon';
+import BoltIcon from '../../components/icons/BoltIcon';
 import BrandHeader from '../../components/BrandHeader';
 
 export default function TabsLayout() {
@@ -52,7 +52,7 @@ export default function TabsLayout() {
         name="camretos"
         options={{
           title: translate(lang, 'tabs.camretos'),
-          tabBarIcon: ({ color, size }) => <CameraIcon color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <BoltIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen
