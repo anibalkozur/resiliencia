@@ -91,83 +91,85 @@ export default function RetosScreen() {
   );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
-      <View style={styles.planChip}>
-        <Text style={styles.planChipText}>
-          {translate(lang, 'retos.plan_days', { n: daysPerWeek })}
-        </Text>
-      </View>
+    <View style={styles.screen}>
+      <ScrollView style={styles.headerScroll} contentContainerStyle={styles.container}>
+        <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
+        <View style={styles.planChip}>
+          <Text style={styles.planChipText}>
+            {translate(lang, 'retos.plan_days', { n: daysPerWeek })}
+          </Text>
+        </View>
 
-      <View style={styles.weekRow}>
-        {week.map((day) => (
-          <Pressable
-            key={day.date}
-            onPress={() => setSelected(day.date)}
-            style={[
-              styles.weekCell,
-              day.isTraining ? styles.weekCellTraining : styles.weekCellRest,
-              day.isToday && styles.weekCellToday,
-              day.date === selected && day.isToday && styles.weekCellSelectedToday,
-            ]}
-          >
-            <Text
+        <View style={styles.weekRow}>
+          {week.map((day) => (
+            <Pressable
+              key={day.date}
+              onPress={() => setSelected(day.date)}
               style={[
-                styles.weekLabel,
-                day.isTraining ? styles.weekLabelTraining : styles.weekLabelRest,
-                day.isToday && styles.weekLabelToday,
+                styles.weekCell,
+                day.isTraining ? styles.weekCellTraining : styles.weekCellRest,
+                day.isToday && styles.weekCellToday,
+                day.date === selected && day.isToday && styles.weekCellSelectedToday,
               ]}
             >
-              {translate(lang, WEEKDAYS[day.dayOfWeek])}
-            </Text>
-            {done[day.date] ? <View style={styles.dotDone} /> : null}
-            {day.date === selected && !day.isToday ? <View style={styles.dotSelected} /> : null}
-          </Pressable>
-        ))}
-      </View>
-
-      {selectedDay ? (
-        <View style={styles.card}>
-          {selectedDay.isTraining ? (
-            <>
-              {selectedDay.isToday ? (
-                <Text style={styles.cardToday}>{translate(lang, 'retos.today')}</Text>
-              ) : null}
-              <Text style={styles.cardTitle}>
-                {selectedExercise ? translate(lang, exerciseNameKey(selectedExercise.id)) : '—'}
+              <Text
+                style={[
+                  styles.weekLabel,
+                  day.isTraining ? styles.weekLabelTraining : styles.weekLabelRest,
+                  day.isToday && styles.weekLabelToday,
+                ]}
+              >
+                {translate(lang, WEEKDAYS[day.dayOfWeek])}
               </Text>
-              {selectedExercise ? (
-                <Text style={styles.cardDesc}>
-                  {translate(lang, exerciseDescKey(selectedExercise.id))}
-                </Text>
-              ) : null}
-              <Text style={styles.cardTarget}>
-                {translate(lang, 'challenge.meta', {
-                  target: selectedDay.target ?? 0,
-                  unit: translate(lang, selectedUnit),
-                })}
-              </Text>
-              {selectedDay.isToday ? (
-                <Text style={styles.cardNote}>
-                  {translate(lang, 'challenge.note')}
-                  {'\n'}
-                  {translate(lang, 'challenge.rotation')}
-                </Text>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <Text style={styles.cardTitle}>{translate(lang, 'retos.rest')}</Text>
-              <Text style={styles.cardNote}>{translate(lang, 'retos.rest_note')}</Text>
-            </>
-          )}
+              {done[day.date] ? <View style={styles.dotDone} /> : null}
+              {day.date === selected && !day.isToday ? <View style={styles.dotSelected} /> : null}
+            </Pressable>
+          ))}
         </View>
-      ) : null}
+
+        {selectedDay ? (
+          <View style={styles.card}>
+            {selectedDay.isTraining ? (
+              <>
+                {selectedDay.isToday ? (
+                  <Text style={styles.cardToday}>{translate(lang, 'retos.today')}</Text>
+                ) : null}
+                <Text style={styles.cardTitle}>
+                  {selectedExercise ? translate(lang, exerciseNameKey(selectedExercise.id)) : '—'}
+                </Text>
+                {selectedExercise ? (
+                  <Text style={styles.cardDesc}>
+                    {translate(lang, exerciseDescKey(selectedExercise.id))}
+                  </Text>
+                ) : null}
+                <Text style={styles.cardTarget}>
+                  {translate(lang, 'challenge.meta', {
+                    target: selectedDay.target ?? 0,
+                    unit: translate(lang, selectedUnit),
+                  })}
+                </Text>
+                {selectedDay.isToday ? (
+                  <Text style={styles.cardNote}>
+                    {translate(lang, 'challenge.note')}
+                    {'\n'}
+                    {translate(lang, 'challenge.rotation')}
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <Text style={styles.cardTitle}>{translate(lang, 'retos.rest')}</Text>
+                <Text style={styles.cardNote}>{translate(lang, 'retos.rest_note')}</Text>
+              </>
+            )}
+          </View>
+        ) : null}
+      </ScrollView>
 
       {challenge && challengeExercise ? (
         <View style={styles.cameraSection}>
           {challengeDone ? (
-            <View style={styles.cameraCard}>
+            <View style={[styles.cameraCard, styles.cameraCardDone]}>
               <Text style={styles.cameraDoneText}>{translate(lang, 'home.completed')}</Text>
               <Pressable style={styles.cameraCta} onPress={() => router.push('/(tabs)/camretos')}>
                 <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
@@ -203,7 +205,7 @@ export default function RetosScreen() {
           )}
         </View>
       ) : null}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -211,6 +213,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  headerScroll: {
+    flexShrink: 1,
   },
   container: {
     paddingHorizontal: spacing.lg,
@@ -331,14 +336,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   cameraSection: {
-    marginTop: spacing.xl,
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
   cameraCard: {
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing.lg,
+  },
+  cameraCardDone: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cameraTitle: {
     color: colors.silver,
@@ -352,7 +365,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   webView: {
-    height: 420,
+    flex: 1,
     marginTop: spacing.md,
     borderRadius: radius.lg,
   },
