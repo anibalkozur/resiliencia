@@ -145,3 +145,39 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - WebCrypto: `apps/mobile/src/auth/webcryptoPolyfill.ts` con SHA-256 nativo de `expo-crypto` (elimina el warning "Code Challenge method will default to use plain").
 - Tests: 119 mobile + 69 domain.
 - Cámara para verificación de retos: `expo-camera` + `CameraView` con overlay de contador/timer.
+
+### 2026-09-21 — Header contextual, cámara más grande, auto-refresh a medianoche (resumen del día)
+
+**Peticiones del PO (vía app/chat, orden cronológico):**
+
+1. Quitar la línea repetida "Sentadillas · 20 repeticiones" en Libre y mostrar la meta al lado del título de la página.
+2. Usar el espacio al lado del logo en el header por pestaña (saludo+nickname, "Reto del día", título movido, selector de ejercicio en Libre, Perfil, Ajustes).
+3. Arreglar la cámara congelada al volver de minimizar/app background.
+4. Auto-refrescar reto del día, descanso, semana, saludo y última semana de progreso al pasar la medianoche.
+5. Dar más lugar a la cámara en Retos (título chico, días con contraste, chip de PLAN reemplazado por leyenda pequeña).
+6. Eliminar por completo el título "Sentadilla isométrica · 28 segundos" de la página de cámara.
+7. Cámara y texto de ayuda a ancho completo en Retos (igual que Libre) con menos espacio con la barra.
+
+**Cambios aplicados (main, 9 commits):**
+
+- `camera-verification.html`: título del ejercicio pasado al lado del nombre (`· N repeticiones/segundos`) y luego **eliminado por completo** (la meta sigue en el badge "0/28" del HUD y en la barra de Retos). Cache-bust `VERIFY_VERSION` subido v2→v6, gh-pages desplegada en cada cambio.
+- `components/BrandHeader.tsx`: header contextual por ruta — Inicio: saludo por hora + nickname (una línea, chico); Retos: "Reto del día"; Progreso/Perfil/Ajustes: la palabra movida al header; Libre: selector del ejercicio con flecha ▾ que abre menú modal (`header.pick_exercise`).
+- `src/header/LibreExerciseProvider.tsx` (nuevo): estado del ejercicio libre compartido entre header y pantalla.
+- `src/i18n/greeting.ts` (nuevo): `greetingKey(hour)` extraído de index.
+- `app/(tabs)/_layout.tsx`: `LibreExerciseProvider` + `DayProvider` envolviendo Tabs.
+- `src/retos/DayProvider.tsx` (nuevo): timer hasta el próximo día que cambia la fecha de contexto → reto del día, descanso, semana, saludo y ventana de la última semana se refrescan solos a las 00:00.
+- `src/retos/useCameraRestart.ts` (nuevo): AppState + foco → al volver al primer plano re-monta la WebView de cámara (destraba la imagen congelada).
+- `app/(tabs)/retos.tsx`: título "TU SEMANA" más chico con leyenda "Plan N días" al lado (sin chip); días de la semana con texto visible (hoy en teal, completado con celda teal); cámara y texto a ancho completo sin bordes redondeados; menos margen con la barra.
+- `app/(tabs)/camretos.tsx`: sin chips (la selección vive en el header), sin línea "ejercicio · meta"; cámara a pantalla completa + banner de resultado.
+- `app/(tabs)/index.tsx`, `progreso.tsx`, `perfil.tsx`, `ajustes.tsx`: títulos del cuerpo retirados (moved al header); ajustes alineado arriba (ya no centrado).
+- `src/i18n/translations.ts`: `header.reto`, `header.pick_exercise`, `retos.plan_small` (es/en/pt).
+
+**Verificación:** 123 tests en verde (11 suites), typecheck y lint OK. gh-pages actualizada (v6, sin título). JS pendiente de recargar en el teléfono del PO.
+
+**Pendientes / planes para mañana (2026-09-22):**
+
+- En dispositivo, con reload de JS: confirmar cámara destrabada al volver de otra app, reto del día rotando solo a medianoche y título fuera de la página.
+- Validación integral: completar el reto del día por cámara y verificar que el ranking se actualiza (con reset presionado con sesión debe desaparecer del ranking).
+- Aplicar `0006_oauth_nickname.sql` en la nube (falta acceso admin del PO).
+- Limpieza menor: quitar `unitLabel` muerto en `camera-verification.html` y revisar si `retos.plan_days` ya no se usa.
+- Evaluar con el PO cambiar días de descanso del plan (opción ofrecida).
