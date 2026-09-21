@@ -315,7 +315,6 @@
   </head>
   <body>
     <div id="app">
-      <h1 id="title">Verificación por cámara</h1>
       <p id="desc">Cargando instrucciones…</p>
 
       <div class="video-wrap">
@@ -372,7 +371,6 @@
 
       const qs = new URLSearchParams(location.search);
       const EX_ID = qs.get('exercise') || 'sentadillas';
-      const MODE = qs.get('mode') || 'libre';
       const TARGET = Math.max(1, parseInt(qs.get('target') || '10', 10));
       const UNIT = qs.get('unit') || 'reps';
 
@@ -420,12 +418,6 @@
             ? 'segundo'
             : 'segundos';
       document.title = NAME[EX_ID] || 'Verificación';
-      const titleEl = document.getElementById('title');
-      if (MODE === 'reto') {
-        titleEl.style.display = 'none';
-      } else {
-        titleEl.textContent = `${NAME[EX_ID] || 'Verificación'} · ${TARGET} ${unitLabel}`;
-      }
 
       const HOWTO = {
         sentadillas:
