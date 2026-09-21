@@ -141,7 +141,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
   title: {
@@ -151,7 +150,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   body: {
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
   },
   section: {
     color: colors.silverDim,

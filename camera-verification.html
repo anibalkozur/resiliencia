@@ -410,8 +410,18 @@
         mountain_climbers: 'Mountain Climbers',
         sentadilla_isometrica: 'Sentadilla isométrica',
       };
+      const unitLabel =
+        UNIT === 'reps'
+          ? TARGET === 1
+            ? 'repetición'
+            : 'repeticiones'
+          : TARGET === 1
+            ? 'segundo'
+            : 'segundos';
       document.title = NAME[EX_ID] || 'Verificación';
-      document.getElementById('title').textContent = NAME[EX_ID] || 'Verificación';
+      document.getElementById('title').textContent = `${
+        NAME[EX_ID] || 'Verificación'
+      } · ${TARGET} ${unitLabel}`;
 
       const HOWTO = {
         sentadillas:
