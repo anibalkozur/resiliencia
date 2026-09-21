@@ -32,7 +32,6 @@ export default function LibreScreen() {
     <View style={styles.container}>
       <View style={styles.topSection}>
         <View style={styles.card}>
-          <Text style={styles.freeHint}>{translate(lang, 'cam.free_hint')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -88,16 +87,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing.lg,
-    marginTop: spacing.md,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
   },
-  freeHint: { color: colors.silverDim, fontSize: 13, marginBottom: spacing.sm },
-  chipsRow: { gap: spacing.sm, paddingRight: spacing.lg },
+  chipsRow: { gap: spacing.sm, paddingRight: spacing.lg, paddingVertical: spacing.xs },
   chip: {
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
   },
   chipSelected: { borderColor: colors.teal, backgroundColor: '#0D1E18' },
@@ -107,7 +105,7 @@ const styles = StyleSheet.create({
     color: colors.silver,
     fontSize: 14,
     fontWeight: '800',
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   freeResult: {
     color: colors.teal,
