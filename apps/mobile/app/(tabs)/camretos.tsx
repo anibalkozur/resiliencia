@@ -68,7 +68,6 @@ export default function LibreScreen() {
           key={freeExerciseId}
           originWhitelist={['*']}
           source={{ uri: buildVerifyUri(freeExerciseId, freeTarget, freeUnit) }}
-          cacheEnabled={false}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           allowsInlineMediaPlayback={true}
