@@ -55,9 +55,6 @@ export default function LibreScreen() {
               );
             })}
           </ScrollView>
-          <Text style={styles.freeMeta}>
-            {translate(lang, exerciseNameKey(freeExerciseId))} · {freeTarget} {freeUnitLabel}
-          </Text>
           {freeResult ? <Text style={styles.freeResult}>{freeResult}</Text> : null}
         </View>
       </View>
@@ -101,12 +98,6 @@ const styles = StyleSheet.create({
   chipSelected: { borderColor: colors.teal, backgroundColor: '#0D1E18' },
   chipText: { color: colors.silverDim, fontSize: 13, fontWeight: '600' },
   chipTextSelected: { color: colors.teal, fontWeight: '800' },
-  freeMeta: {
-    color: colors.silver,
-    fontSize: 14,
-    fontWeight: '800',
-    marginTop: spacing.xs,
-  },
   freeResult: {
     color: colors.teal,
     fontSize: 13,
