@@ -2,26 +2,18 @@ import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
-import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
 import { buildChallenge, getTodayChallenge, todayKey, tomorrowKey } from '../../src/retos/service';
 import { isCompleted } from '../../src/retos/completions';
 import { getCompletedCount, getStreak } from '../../src/retos/streak';
-import { GOAL_TRANSLATION_KEYS, translate, type TranslationKey } from '../../src/i18n/translations';
+import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 import type { Goal } from '../../src/prefs/types';
 
-function greetingKey(hour: number): TranslationKey {
-  if (hour < 12) return 'home.greeting_morning';
-  if (hour < 19) return 'home.greeting_afternoon';
-  return 'home.greeting_evening';
-}
-
 export default function InicioScreen() {
   const router = useRouter();
-  const { profile } = useUser();
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
   const goal: Goal = prefs?.goal ?? 'mantener';
@@ -65,12 +57,6 @@ export default function InicioScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        {translate(lang, greetingKey(new Date().getHours()), {
-          name: profile?.nickname ?? 'Atleta',
-        })}
-      </Text>
-
       {challenge && exercise ? (
         <View style={styles.card}>
           <Text style={styles.cardLabel}>{translate(lang, 'home.challenge')}</Text>

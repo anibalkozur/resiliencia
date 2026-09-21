@@ -74,7 +74,6 @@ export default function AjustesScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{translate(lang, 'settings.title')}</Text>
       <View style={styles.body}>
         <Text style={styles.section}>{translate(lang, 'settings.days')}</Text>
         <View style={styles.row}>

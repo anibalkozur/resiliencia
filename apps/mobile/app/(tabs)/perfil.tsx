@@ -210,7 +210,6 @@ export default function PerfilScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{translate(lang, 'profile.title')}</Text>
       <Text style={styles.caption}>{translate(lang, 'profile.caption')}</Text>
 
       <View style={styles.card}>

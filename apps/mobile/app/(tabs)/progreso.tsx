@@ -101,8 +101,6 @@ export default function ProgresoScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
-      <Text style={styles.title}>{translate(lang, 'progress.title')}</Text>
-
       <View style={styles.row}>
         <View style={styles.metric}>
           <Text style={styles.metricValue}>{best}</Text>

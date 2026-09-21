@@ -35,6 +35,9 @@ const es = {
   'retos.rest_note': 'Sin ejercicio. El descanso también es parte del plan.',
   'retos.today': 'HOY',
 
+  'header.reto': 'Reto del día',
+  'header.pick_exercise': 'Elegí tu ejercicio',
+
   'progress.title': 'PROGRESO',
   'progress.best_streak': 'MEJOR RACHA',
   'progress.completed': 'COMPLETADOS',
@@ -251,6 +254,9 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'retos.rest_note': 'No workout. Rest is part of the plan too.',
     'retos.today': 'TODAY',
 
+    'header.reto': "Today's challenge",
+    'header.pick_exercise': 'Pick an exercise',
+
     'progress.title': 'PROGRESS',
     'progress.best_streak': 'BEST STREAK',
     'progress.completed': 'COMPLETED',
@@ -461,6 +467,9 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'retos.rest': 'DESCANSO',
     'retos.rest_note': 'Sem exercício. O descanso também faz parte do plano.',
     'retos.today': 'HOJE',
+
+    'header.reto': 'Desafio do dia',
+    'header.pick_exercise': 'Escolha o exercício',
 
     'progress.title': 'PROGRESSO',
     'progress.best_streak': 'MELHOR SEQUÊNCIA',
