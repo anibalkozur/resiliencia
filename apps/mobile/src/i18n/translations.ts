@@ -31,6 +31,7 @@ const es = {
 
   'retos.title': 'TU SEMANA',
   'retos.plan_days': 'PLAN: {n} DÍAS / SEMANA',
+  'retos.plan_small': 'Plan {n} días',
   'retos.rest': 'DESCANSO',
   'retos.rest_note': 'Sin ejercicio. El descanso también es parte del plan.',
   'retos.today': 'HOY',
@@ -250,6 +251,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'retos.title': 'YOUR WEEK',
     'retos.plan_days': 'PLAN: {n} DAYS / WEEK',
+    'retos.plan_small': 'Plan {n} days',
     'retos.rest': 'REST',
     'retos.rest_note': 'No workout. Rest is part of the plan too.',
     'retos.today': 'TODAY',
@@ -464,6 +466,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'retos.title': 'SUA SEMANA',
     'retos.plan_days': 'PLANO: {n} DIAS / SEMANA',
+    'retos.plan_small': 'Plano {n} dias',
     'retos.rest': 'DESCANSO',
     'retos.rest_note': 'Sem exercício. O descanso também faz parte do plano.',
     'retos.today': 'HOJE',

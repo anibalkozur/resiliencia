@@ -95,7 +95,12 @@ export default function RetosScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.topSection}>
-        <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
+          <Text style={styles.planSmall}>
+            {translate(lang, 'retos.plan_small', { n: daysPerWeek })}
+          </Text>
+        </View>
         <View style={styles.weekRow}>
           {week.map((day) => (
             <View
@@ -108,18 +113,20 @@ export default function RetosScreen() {
               ]}
             >
               <Text
-                style={[styles.weekLabel, (day.isToday || done[day.date]) && styles.weekLabelToday]}
+                style={[
+                  styles.weekLabel,
+                  done[day.date]
+                    ? styles.weekLabelDone
+                    : day.isToday
+                      ? styles.weekLabelToday
+                      : null,
+                ]}
               >
                 {translate(lang, WEEKDAYS[day.dayOfWeek])}
               </Text>
               {done[day.date] ? <View style={styles.dotDone} /> : null}
             </View>
           ))}
-        </View>
-        <View style={styles.planChip}>
-          <Text style={styles.planChipText}>
-            {translate(lang, 'retos.plan_days', { n: daysPerWeek })}
-          </Text>
         </View>
       </View>
 
@@ -151,6 +158,7 @@ export default function RetosScreen() {
                     challenge.exerciseId,
                     challenge.target,
                     challengeExercise.unit,
+                    'reto',
                   ),
                 }}
                 javaScriptEnabled={true}
@@ -183,17 +191,28 @@ const styles = StyleSheet.create({
   topSection: {
     paddingHorizontal: spacing.md,
   },
+  titleRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
   title: {
     color: colors.silver,
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: 1,
-    marginTop: spacing.md,
+  },
+  planSmall: {
+    color: colors.silverDim,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   weekRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   weekCell: {
     width: 34,
@@ -208,7 +227,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   weekCellRest: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
     borderColor: colors.line,
   },
   weekCellToday: {
@@ -216,12 +235,17 @@ const styles = StyleSheet.create({
   },
   weekCellDone: {
     backgroundColor: colors.teal,
+    borderColor: colors.teal,
   },
   weekLabel: {
+    color: colors.silver,
     fontSize: 11,
     fontWeight: '700',
   },
   weekLabelToday: {
+    color: colors.teal,
+  },
+  weekLabelDone: {
     color: colors.bg,
   },
   dotDone: {
@@ -231,21 +255,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 3,
     backgroundColor: colors.bg,
-  },
-  planChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  planChipText: {
-    color: colors.silverDim,
-    fontSize: 12,
-    letterSpacing: 1,
   },
   cameraContainer: {
     flex: 1,
