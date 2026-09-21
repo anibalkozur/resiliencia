@@ -14,6 +14,7 @@ import { buildVerifyUri } from '../../src/retos/verify';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
+import { useDayKey } from '../../src/retos/DayProvider';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 
@@ -35,11 +36,15 @@ export default function RetosScreen() {
   const goal = prefs?.goal ?? 'mantener';
   const daysPerWeek = prefs?.daysPerWeek ?? 4;
   const repo = getRepo();
+  const dayKey = useDayKey();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const restartKey = useCameraRestart();
 
-  const week = useMemo(() => buildWeek(goal, daysPerWeek), [goal, daysPerWeek]);
+  const week = useMemo(
+    () => buildWeek(goal, daysPerWeek, new Date(`${dayKey}T00:00:00`)),
+    [goal, daysPerWeek, dayKey],
+  );
 
   useFocusEffect(
     useCallback(() => {

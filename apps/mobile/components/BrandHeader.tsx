@@ -9,6 +9,7 @@ import { EXERCISES, exerciseNameKey } from '../src/retos/catalog';
 import { translate } from '../src/i18n/translations';
 import { greetingKey } from '../src/i18n/greeting';
 import { useLibreExercise } from '../src/header/LibreExerciseProvider';
+import { useDayKey } from '../src/retos/DayProvider';
 
 const logo = require('../assets/brand/logo.png');
 
@@ -28,6 +29,7 @@ export default function BrandHeader() {
   const { prefs } = usePrefs();
   const { profile } = useUser();
   const { libreExerciseId, setLibreExerciseId } = useLibreExercise();
+  useDayKey();
   const lang = prefs?.language ?? 'es';
   const section = sectionForPath(pathname);
 

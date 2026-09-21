@@ -10,6 +10,7 @@ import { useAuth } from '../../src/auth/AuthProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getSupabase } from '../../src/auth/supabase';
 import { fetchRanking, type RankingRow } from '../../src/sync/syncService';
+import { useDayKey } from '../../src/retos/DayProvider';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 
@@ -48,6 +49,7 @@ export default function ProgresoScreen() {
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
   const repo = getRepo();
+  const dayKey = useDayKey();
   const [best, setBest] = useState(0);
   const [total, setTotal] = useState(0);
   const [week, setWeek] = useState<WeekCell[]>([]);
@@ -63,7 +65,7 @@ export default function ProgresoScreen() {
         ]);
         const cells: WeekCell[] = [];
         for (let i = 6; i >= 0; i--) {
-          const d = new Date();
+          const d = new Date(`${dayKey}T00:00:00`);
           d.setDate(d.getDate() - i);
           const raw = await repo.getSetting(`completed:${localDate(d)}`);
           cells.push({ key: localDate(d), done: raw === '1', label: WEEKDAYS[d.getDay()] });
@@ -76,7 +78,7 @@ export default function ProgresoScreen() {
       return () => {
         active = false;
       };
-    }, [repo]),
+    }, [repo, dayKey]),
   );
 
   useFocusEffect(

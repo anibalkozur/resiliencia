@@ -5,9 +5,10 @@ import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
-import { buildChallenge, getTodayChallenge, todayKey, tomorrowKey } from '../../src/retos/service';
+import { buildChallenge, getTodayChallenge, tomorrowKey } from '../../src/retos/service';
 import { isCompleted } from '../../src/retos/completions';
 import { getCompletedCount, getStreak } from '../../src/retos/streak';
+import { useDayKey } from '../../src/retos/DayProvider';
 import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 import type { Goal } from '../../src/prefs/types';
@@ -18,6 +19,7 @@ export default function InicioScreen() {
   const lang = prefs?.language ?? 'es';
   const goal: Goal = prefs?.goal ?? 'mantener';
   const repo = getRepo();
+  const dayKey = useDayKey();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [streak, setStreak] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
@@ -30,7 +32,7 @@ export default function InicioScreen() {
         getTodayChallenge(repo),
         getStreak(repo),
         getCompletedCount(repo),
-        isCompleted(repo, todayKey()),
+        isCompleted(repo, dayKey),
       ]).then(([nextChallenge, nextStreak, nextCount, done]) => {
         if (!active) return;
         setChallenge(nextChallenge);
@@ -41,7 +43,7 @@ export default function InicioScreen() {
       return () => {
         active = false;
       };
-    }, [repo]),
+    }, [repo, dayKey]),
   );
 
   function handleGoToReto() {
