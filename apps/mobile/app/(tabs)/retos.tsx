@@ -158,7 +158,6 @@ export default function RetosScreen() {
                     challenge.exerciseId,
                     challenge.target,
                     challengeExercise.unit,
-                    'reto',
                   ),
                 }}
                 javaScriptEnabled={true}
