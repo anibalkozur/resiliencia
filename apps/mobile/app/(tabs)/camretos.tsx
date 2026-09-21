@@ -7,12 +7,14 @@ import { EXERCISES, DEFAULT_TARGETS } from '../../src/retos/catalog';
 import { buildVerifyUri } from '../../src/retos/verify';
 import { translate } from '../../src/i18n/translations';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
+import { useCameraRestart } from '../../src/retos/useCameraRestart';
 
 export default function LibreScreen() {
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
   const { libreExerciseId } = useLibreExercise();
   const [freeResult, setFreeResult] = useState<string | null>(null);
+  const restartKey = useCameraRestart();
 
   const freeExercise = EXERCISES.find((e) => e.id === libreExerciseId);
   const freeUnit = freeExercise?.unit ?? 'reps';
@@ -38,7 +40,7 @@ export default function LibreScreen() {
       ) : null}
       <View style={styles.cameraContainer}>
         <WebView
-          key={libreExerciseId}
+          key={`${libreExerciseId}-${restartKey}`}
           originWhitelist={['*']}
           source={{ uri: buildVerifyUri(libreExerciseId, freeTarget, freeUnit) }}
           javaScriptEnabled={true}

@@ -13,6 +13,7 @@ import { getTodayChallenge, todayKey } from '../../src/retos/service';
 import { buildVerifyUri } from '../../src/retos/verify';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
+import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 
@@ -36,6 +37,7 @@ export default function RetosScreen() {
   const repo = getRepo();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
+  const restartKey = useCameraRestart();
 
   const week = useMemo(() => buildWeek(goal, daysPerWeek), [goal, daysPerWeek]);
 
@@ -137,6 +139,7 @@ export default function RetosScreen() {
                 </Text>
               </View>
               <WebView
+                key={`stream-${restartKey}`}
                 originWhitelist={['*']}
                 source={{
                   uri: buildVerifyUri(
