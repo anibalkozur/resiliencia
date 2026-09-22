@@ -201,7 +201,7 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 
 **Pendientes / planes:**
 
-- **Rotación a medianoche:** solo validable cuando cambie la hora real (dejar la app abierta; PO lo hará cuando ocurra). Alternativa: adelantar el reloj del teléfono a 23:59 con la app abierta.
+- ~~**Rotación a medianoche:**~~ **VALIDADA 2026-09-22/23 por el PO a las 00:00 (app en primer plano en Retos):** se actualizó todo solo — barra con el reto nuevo, día de la semana marcado como hoy, saludo del header y ventana de Progreso. Incluye el fix `8fabb60`: la WebView de retos ahora se re-monta al cambiar el día (`key` con `dayKey` + ejercicio + meta) para que la página de cámara muestre el reto nuevo y no el viejo.
 - **Ranking integral:** completar reto del día por cámara con sesión Google → verificar actualización de posición en Progreso; con reset de progreso con sesión, desaparecer del ranking.
 - **Días de descanso:** definir con el PO si pueden saltarse/adelantarse y si la racha cuenta solo en días de plan.
 - Backlog menor: flush de autosave en logout (ventana 400 ms, riesgo bajo) y re-validar imagen congelada con el fix de hoy (mitigado con remount).
