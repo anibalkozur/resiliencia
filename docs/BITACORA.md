@@ -205,3 +205,37 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - **Ranking integral:** completar reto del día por cámara con sesión Google → verificar actualización de posición en Progreso; con reset de progreso con sesión, desaparecer del ranking.
 - **Días de descanso:** definir con el PO si pueden saltarse/adelantarse y si la racha cuenta solo en días de plan.
 - Backlog menor: flush de autosave en logout (ventana 400 ms, riesgo bajo) y re-validar imagen congelada con el fix de hoy (mitigado con remount).
+
+### 2026-09-22 — Ranking de repeticiones (modo libre), cadencia y gesto de palma
+
+**Decisiones de diseño aprobadas por el PO:**
+
+1. **Reto diario solo alimenta racha** (tipo Duolingo): sin rigor, pausas permitidas, `seriesOk` ignorado, NO aporta a los rankings de reps.
+2. **Libre con modo ranking:** el usuario arma la meta (stepper) + toggle "¿Participar en ranking?". La sesión rankea solo si `ranked && seriesOk && value >= target`.
+3. **Gesto de palma** (HandLandmarker) para empezar la serie, aplicado a todos los ejercicios en modo ranking; 5 s de countdown sonoro después de la palma (para entrar en posición); 30 s sin detectar palma → "No veo tu palma — acercate" + reintento. Si el modelo de mano falla, se arranca sin gesto pero con cadencia.
+4. **Cadencia 5 s/rep** para `sentadillas` y `flexiones` (`REP_CADENCE`); countdown circular visible cuando hay ranking.
+5. **Plancha con ranking:** el cronómetro corre solo en posición (pose válida), se detiene al moverse, NO se reinicia; rankea al completar la meta.
+6. **Liveness aleatoria a mitad de sesión: se mantiene en todos los modos** (el gesto suma al inicio, no reemplaza).
+7. **Gym Bros:** agendado para la siguiente fase (fuera de este trabajo).
+
+**Cambios implementados (HTML v8 + app):**
+
+- `camera-verification.html` v8 (main `8819718`, gh-pages `912b400`): params `ranked`/`cadence`; HUD de gesto, countdown central de 5 s (beep por segundo) y cadencia; `HandLandmarker` compartiendo el `FilesetResolver` (fallback GPU→CPU igual que pose, _idem_ `withTimeout`); `isOpenPalm` (≥4 dedos extendidos, tolerante a distancia); timeout 30 s con reintento; serie rota por descanso largo → fuera de ranking; plancha ranked: el tiempo se detiene al salir de posición sin reset; payload `complete` ahora incluye `ranked`, `seriesOk`, `cadence`, `unit`, `value`. Se repurposó el código muerto (`continuityBroken` → `seriesOk`).
+- App:
+  - `src/retos/verify.ts`: `VERIFY_VERSION` **8**, `buildVerifyUri(..., { ranked, cadenceSec })`.
+  - `src/retos/catalog.ts`: `REP_CADENCE` (sentadillas/flexiones 5 s).
+  - `src/header/LibreExerciseProvider.tsx`: expone `libreTarget` y `libreRanked`.
+  - `camretos.tsx`: barra de armado (meta −/+ , toggle ranking, INICIAR), WebView solo con sesión abierta, resultado segun `ranked/seriesOk/value`, registra sesión local.
+  - `src/retos/freeSessions.ts` (nuevo): store local `libre:sessions` (cap 500) con `ranked/seriesOk/value/target`.
+  - `src/sync/syncService.ts`: `uploadSessions` (insert a `workout_sessions` solo en éxito), `fetchRepsRanking`, `fetchTotalRepsRanking`, `syncAfterLogin` suma sesiones conservando datos si el insert falla.
+  - `progreso.tsx`: ranking con segmentos **Racha | Reps | Total** y selector de ejercicio (chips).
+  - i18n es/en/pt: claves `cam.free_setup_*`, `cam.free_ranked_*`, `progress.rank_reps/total/sessions`.
+  - Tests: 137 en verde (nuevos para `freeSessions` y sync de sesiones/RPC), typecheck y lint OK.
+
+**Migración `0008_reps_ranking.sql`: ESCRITA, PENDIENTE DE APLICAR por el PO** en el SQL Editor de Supabase (mismo flujo que `0006`). Amplía `workout_sessions` (`exercise_code`, `value`, `target`, `source`, `ranked`, `series_ok`) + `get_reps_ranking` y `get_total_reps_ranking` (solo `source='libre'`, `ranked`, `series_ok`, `value>=target`; grants `authenticated`). Uso `exercise_code` (texto) en vez de `exercise_id` (uuid) para que el cliente no necesite mapear códigos.
+
+**Pendientes / planes:**
+
+- **PO: aplicar `0008` en Supabase** (SQL Editor) para que el ranking de reps funcione en la nube.
+- Validación en dispositivo del flujo completo: armar meta → ranking ON → palma → countdown → cadencia → resultado y aparición en Progreso (Racha/Reps/Total).
+- Evaluar el detalle pendiente: gesto de palma del reto diario (reto diario no usa ranking por ahora).
