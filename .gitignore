@@ -7,3 +7,4 @@ web-build/
 *.tsbuildinfo
 .DS_Store
 metro.log
+supabase/.temp/
