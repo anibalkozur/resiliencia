@@ -4,6 +4,8 @@ import { getSupabase } from '../auth/supabase';
 import { getPrefs } from '../prefs/service';
 import { getCompletedDates } from '../retos/completions';
 import { buildChallenge } from '../retos/service';
+import { getFreeSessions, clearFreeSessions } from '../retos/freeSessions';
+import type { FreeSession } from '../retos/freeSessions';
 
 export interface RankingRow {
   user_id: string;
@@ -11,6 +13,19 @@ export interface RankingRow {
   completed_challenges: number;
   current_streak: number;
   best_streak: number;
+}
+
+export interface RepsRankingRow {
+  user_id: string;
+  nickname: string;
+  best_value: number;
+  sessions: number;
+}
+
+export interface TotalRepsRankingRow {
+  user_id: string;
+  nickname: string;
+  total_value: number;
 }
 
 interface ExerciseRow {
@@ -25,6 +40,17 @@ interface DailyChallengeRow {
   target: number;
   status: 'completed';
   goal_requested: string;
+}
+
+export interface WorkoutSessionRow {
+  user_id: string;
+  exercise_code: string;
+  value: number;
+  target: number;
+  source: 'reto_diario' | 'libre';
+  ranked: boolean;
+  series_ok: boolean;
+  session_date: string;
 }
 
 async function fetchExerciseIds(client: SupabaseClient): Promise<Map<string, string>> {
@@ -85,6 +111,59 @@ export async function fetchRanking(client: SupabaseClient, maxRows = 50): Promis
   return (data as RankingRow[]).filter((row) => row.completed_challenges > 0);
 }
 
+export async function uploadSessions(
+  client: SupabaseClient,
+  userId: string,
+  sessions: FreeSession[],
+): Promise<number> {
+  if (sessions.length === 0) {
+    return 0;
+  }
+  const rows: WorkoutSessionRow[] = sessions.map((s) => ({
+    user_id: userId,
+    exercise_code: s.exerciseId,
+    value: s.value,
+    target: s.target,
+    source: 'libre',
+    ranked: s.ranked,
+    series_ok: s.seriesOk,
+    session_date: s.date,
+  }));
+  const { error } = await client.from('workout_sessions').insert(rows);
+  if (error) {
+    throw error;
+  }
+  return rows.length;
+}
+
+export async function fetchRepsRanking(
+  client: SupabaseClient,
+  exerciseCode: string,
+  maxRows = 10,
+): Promise<RepsRankingRow[]> {
+  const { data, error } = await client.rpc('get_reps_ranking', {
+    p_exercise_code: exerciseCode,
+    p_max_rows: maxRows,
+  });
+  if (error || !data) {
+    return [];
+  }
+  return data as RepsRankingRow[];
+}
+
+export async function fetchTotalRepsRanking(
+  client: SupabaseClient,
+  maxRows = 10,
+): Promise<TotalRepsRankingRow[]> {
+  const { data, error } = await client.rpc('get_total_reps_ranking', {
+    p_max_rows: maxRows,
+  });
+  if (error || !data) {
+    return [];
+  }
+  return data as TotalRepsRankingRow[];
+}
+
 export async function syncAfterLogin(
   repo: IRepo,
   userId: string,
@@ -94,7 +173,13 @@ export async function syncAfterLogin(
     return 0;
   }
   try {
-    return await uploadCompletions(client, repo, userId);
+    let uploaded = await uploadCompletions(client, repo, userId);
+    const sessions = await getFreeSessions(repo);
+    if (sessions.length > 0) {
+      uploaded += await uploadSessions(client, userId, sessions);
+      await clearFreeSessions(repo);
+    }
+    return uploaded;
   } catch {
     return 0;
   }

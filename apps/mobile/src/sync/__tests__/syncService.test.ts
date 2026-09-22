@@ -3,7 +3,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { MemoryRepo } from '../../repo/memoryRepo';
 import { markCompleted, getCompletedDates } from '../../retos/completions';
 import { todayKey } from '../../retos/service';
-import { uploadCompletions, fetchRanking } from '../syncService';
+import { pushFreeSession, getFreeSessions } from '../../retos/freeSessions';
+import {
+  uploadCompletions,
+  uploadSessions,
+  fetchRanking,
+  fetchRepsRanking,
+  fetchTotalRepsRanking,
+} from '../syncService';
 
 const EXERCISE_CODES = [
   'sentadillas',
@@ -20,9 +27,19 @@ interface UpsertCall {
   options: unknown;
 }
 
+interface InsertCall {
+  table: string;
+  rows: Record<string, unknown>[];
+}
+
 function fakeClient() {
-  const calls: { upsert: UpsertCall | null; rpc: { name: string; args: unknown } | null } = {
+  const calls: {
+    upsert: UpsertCall | null;
+    insert: InsertCall | null;
+    rpc: { name: string; args: unknown } | null;
+  } = {
     upsert: null,
+    insert: null,
     rpc: null,
   };
   let rpcError: unknown = null;
@@ -41,6 +58,10 @@ function fakeClient() {
       return {
         upsert: async (rows: Record<string, unknown>[], options: unknown) => {
           calls.upsert = { rows, options };
+          return { error: null };
+        },
+        insert: async (rows: Record<string, unknown>[]) => {
+          calls.insert = { table, rows };
           return { error: null };
         },
       };
@@ -133,5 +154,130 @@ describe('fetchRanking', () => {
     const rows = await fetchRanking(client);
 
     expect(rows.map((row) => row.user_id)).toEqual(['u1']);
+  });
+});
+
+describe('uploadSessions', () => {
+  it('inserts one row per free session with ranked flags', async () => {
+    const { client, calls } = fakeClient();
+
+    const count = await uploadSessions(client, 'user-1', [
+      {
+        date: '2026-09-22',
+        exerciseId: 'sentadillas',
+        value: 25,
+        target: 20,
+        ranked: true,
+        seriesOk: true,
+      },
+      {
+        date: '2026-09-22',
+        exerciseId: 'flexiones',
+        value: 8,
+        target: 10,
+        ranked: false,
+        seriesOk: false,
+      },
+    ]);
+
+    expect(count).toBe(2);
+    expect(calls.insert?.table).toBe('workout_sessions');
+    expect(calls.insert?.rows).toEqual([
+      {
+        user_id: 'user-1',
+        exercise_code: 'sentadillas',
+        value: 25,
+        target: 20,
+        source: 'libre',
+        ranked: true,
+        series_ok: true,
+        session_date: '2026-09-22',
+      },
+      {
+        user_id: 'user-1',
+        exercise_code: 'flexiones',
+        value: 8,
+        target: 10,
+        source: 'libre',
+        ranked: false,
+        series_ok: false,
+        session_date: '2026-09-22',
+      },
+    ]);
+  });
+
+  it('returns 0 and skips insert for empty sessions', async () => {
+    const { client, calls } = fakeClient();
+
+    expect(await uploadSessions(client, 'user-1', [])).toBe(0);
+    expect(calls.insert).toBeNull();
+  });
+});
+
+describe('fetchRepsRanking', () => {
+  it('calls get_reps_ranking with the exercise code', async () => {
+    const { client, calls } = fakeClient();
+    calls.rpc = null;
+
+    await fetchRepsRanking(client, 'sentadillas', 20);
+
+    expect(calls.rpc).toEqual({
+      name: 'get_reps_ranking',
+      args: { p_exercise_code: 'sentadillas', p_max_rows: 20 },
+    });
+  });
+
+  it('maps rpc data to rep rows', async () => {
+    const { client, setRpcResult } = fakeClient();
+    setRpcResult([
+      { user_id: 'u1', nickname: 'ana', best_value: 30, sessions: 4 },
+      { user_id: 'u2', nickname: 'leo', best_value: 25, sessions: 2 },
+    ]);
+
+    const rows = await fetchRepsRanking(client, 'sentadillas');
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ best_value: 30, sessions: 4 });
+  });
+
+  it('returns an empty list on error', async () => {
+    const { client, setRpcResult } = fakeClient();
+    setRpcResult(null, new Error('boom'));
+
+    expect(await fetchRepsRanking(client, 'sentadillas')).toEqual([]);
+  });
+});
+
+describe('fetchTotalRepsRanking', () => {
+  it('calls get_total_reps_ranking', async () => {
+    const { client, calls } = fakeClient();
+    calls.rpc = null;
+
+    await fetchTotalRepsRanking(client, 15);
+
+    expect(calls.rpc).toEqual({
+      name: 'get_total_reps_ranking',
+      args: { p_max_rows: 15 },
+    });
+  });
+
+  it('maps total rows and keeps session store intact', async () => {
+    const repo = new MemoryRepo();
+    await pushFreeSession(repo, {
+      date: '2026-09-22',
+      exerciseId: 'sentadillas',
+      value: 25,
+      target: 20,
+      ranked: true,
+      seriesOk: true,
+    });
+    const { client, setRpcResult } = fakeClient();
+    setRpcResult([{ user_id: 'u1', nickname: 'ana', total_value: 120 }]);
+
+    const rows = await fetchTotalRepsRanking(client);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ total_value: 120 });
+    expect(await getFreeSessions(repo)).toHaveLength(1);
   });
 });

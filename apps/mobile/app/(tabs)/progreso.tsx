@@ -1,15 +1,23 @@
-import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { getRepo } from '../../src/repo';
 import { getBestStreak } from '../../src/retos/streak';
 import { getTotalCompleted } from '../../src/retos/completions';
+import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
 import { useUser } from '../../src/user/UserProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getSupabase } from '../../src/auth/supabase';
-import { fetchRanking, type RankingRow } from '../../src/sync/syncService';
+import {
+  fetchRanking,
+  fetchRepsRanking,
+  fetchTotalRepsRanking,
+  type RankingRow,
+  type RepsRankingRow,
+  type TotalRepsRankingRow,
+} from '../../src/sync/syncService';
 import { useDayKey } from '../../src/retos/DayProvider';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
@@ -23,6 +31,20 @@ const WEEKDAYS: TranslationKey[] = [
   'weekday.fri',
   'weekday.sat',
 ];
+
+type RankTab = 'streak' | 'reps' | 'total';
+const RANK_TABS: RankTab[] = ['streak', 'reps', 'total'];
+
+function rankTabLabel(tab: RankTab): TranslationKey {
+  switch (tab) {
+    case 'reps':
+      return 'progress.rank_reps';
+    case 'total':
+      return 'progress.rank_total';
+    default:
+      return 'progress.rank_streak';
+  }
+}
 
 function daysSince(iso: string): number {
   const created = new Date(iso);
@@ -54,6 +76,34 @@ export default function ProgresoScreen() {
   const [total, setTotal] = useState(0);
   const [week, setWeek] = useState<WeekCell[]>([]);
   const [ranking, setRanking] = useState<RankingRow[]>([]);
+  const [tab, setTab] = useState<RankTab>('streak');
+  const [repsExercise, setRepsExercise] = useState('sentadillas');
+  const [repsRanking, setRepsRanking] = useState<RepsRankingRow[]>([]);
+  const [totalRanking, setTotalRanking] = useState<TotalRepsRankingRow[]>([]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!session || !client || tab === 'streak') {
+      return;
+    }
+    let active = true;
+    if (tab === 'reps') {
+      fetchRepsRanking(client, repsExercise).then((rows) => {
+        if (active) {
+          setRepsRanking(rows);
+        }
+      });
+    } else {
+      fetchTotalRepsRanking(client).then((rows) => {
+        if (active) {
+          setTotalRanking(rows);
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [session, tab, repsExercise]);
 
   useFocusEffect(
     useCallback(() => {
@@ -138,10 +188,97 @@ export default function ProgresoScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardLabel}>{translate(lang, 'progress.ranking')}</Text>
-        {ranking.length === 0 ? (
+        <View style={styles.tabsRow}>
+          {RANK_TABS.map((t) => (
+            <Pressable
+              key={t}
+              style={[styles.tab, tab === t && styles.tabActive]}
+              onPress={() => setTab(t)}
+            >
+              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+                {translate(lang, rankTabLabel(t))}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {!session ? (
+          <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+        ) : tab === 'streak' ? (
+          ranking.length === 0 ? (
+            <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+          ) : (
+            ranking.map((entry, index) => {
+              const isMe = entry.user_id === profile?.id;
+              return (
+                <View key={entry.user_id} style={[styles.rankRow, isMe && styles.rankRowMe]}>
+                  <Text style={styles.rankPos}>{index + 1}</Text>
+                  <View style={styles.rankInfo}>
+                    <Text style={[styles.rankName, isMe && styles.rankNameMe]} numberOfLines={1}>
+                      {isMe ? translate(lang, 'progress.you') : entry.nickname}
+                    </Text>
+                    <Text style={styles.rankSub}>
+                      {entry.current_streak} {translate(lang, 'progress.rank_streak')}
+                    </Text>
+                  </View>
+                  <Text style={styles.rankValue}>
+                    {entry.completed_challenges} {translate(lang, 'progress.rank_challenges')}
+                  </Text>
+                </View>
+              );
+            })
+          )
+        ) : tab === 'reps' ? (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.chipsRow}
+              contentContainerStyle={styles.chipsContent}
+            >
+              {EXERCISES.map((ex) => {
+                const active = ex.id === repsExercise;
+                return (
+                  <Pressable
+                    key={ex.id}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setRepsExercise(ex.id)}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {translate(lang, exerciseNameKey(ex.id))}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {repsRanking.length === 0 ? (
+              <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+            ) : (
+              repsRanking.map((entry, index) => {
+                const isMe = entry.user_id === profile?.id;
+                return (
+                  <View key={entry.user_id} style={[styles.rankRow, isMe && styles.rankRowMe]}>
+                    <Text style={styles.rankPos}>{index + 1}</Text>
+                    <View style={styles.rankInfo}>
+                      <Text style={[styles.rankName, isMe && styles.rankNameMe]} numberOfLines={1}>
+                        {isMe ? translate(lang, 'progress.you') : entry.nickname}
+                      </Text>
+                      <Text style={styles.rankSub}>
+                        {entry.sessions} {translate(lang, 'progress.rank_sessions')}
+                      </Text>
+                    </View>
+                    <Text style={styles.rankValue}>
+                      {entry.best_value} {translate(lang, 'progress.rank_reps')}
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+          </>
+        ) : totalRanking.length === 0 ? (
           <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
         ) : (
-          ranking.map((entry, index) => {
+          totalRanking.map((entry, index) => {
             const isMe = entry.user_id === profile?.id;
             return (
               <View key={entry.user_id} style={[styles.rankRow, isMe && styles.rankRowMe]}>
@@ -150,13 +287,8 @@ export default function ProgresoScreen() {
                   <Text style={[styles.rankName, isMe && styles.rankNameMe]} numberOfLines={1}>
                     {isMe ? translate(lang, 'progress.you') : entry.nickname}
                   </Text>
-                  <Text style={styles.rankSub}>
-                    {entry.current_streak} {translate(lang, 'progress.rank_streak')}
-                  </Text>
                 </View>
-                <Text style={styles.rankValue}>
-                  {entry.completed_challenges} {translate(lang, 'progress.rank_challenges')}
-                </Text>
+                <Text style={styles.rankValue}>{entry.total_value}</Text>
               </View>
             );
           })
@@ -312,5 +444,59 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing.sm,
+  },
+  tabActive: {
+    borderColor: colors.teal,
+    backgroundColor: 'rgba(45, 212, 168, 0.08)',
+  },
+  tabText: {
+    color: colors.silverDim,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  tabTextActive: {
+    color: colors.teal,
+  },
+  chipsRow: {
+    marginTop: spacing.md,
+  },
+  chipsContent: {
+    gap: spacing.sm,
+    paddingRight: spacing.sm,
+  },
+  chip: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  chipActive: {
+    borderColor: colors.teal,
+    backgroundColor: 'rgba(45, 212, 168, 0.08)',
+  },
+  chipText: {
+    color: colors.silverDim,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chipTextActive: {
+    color: colors.teal,
   },
 });

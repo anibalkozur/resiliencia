@@ -30,6 +30,11 @@ export const DEFAULT_TARGETS: Record<string, number> = {
   sentadilla_isometrica: 25,
 };
 
+export const REP_CADENCE: Record<string, number> = {
+  sentadillas: 5,
+  flexiones: 5,
+};
+
 export const GOAL_EXERCISE_ORDER: Record<Goal, string[]> = {
   perder_grasa: [
     'sentadillas',
