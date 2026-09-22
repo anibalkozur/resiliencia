@@ -153,7 +153,7 @@ export default function RetosScreen() {
                 </Text>
               </View>
               <WebView
-                key={`stream-${restartKey}`}
+                key={`stream-${dayKey}-${challenge.exerciseId}-${challenge.target}-${restartKey}`}
                 originWhitelist={['*']}
                 source={{
                   uri: buildVerifyUri(
