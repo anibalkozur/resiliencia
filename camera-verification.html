@@ -355,6 +355,48 @@
         justify-content: center;
         display: none;
       }
+      .liveness-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 8;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: rgba(3, 4, 5, 0.88);
+        text-align: center;
+      }
+      .liveness-overlay .lv-line {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: clamp(56px, 12vh, 140px);
+        line-height: 1.05;
+        letter-spacing: 2px;
+        color: var(--volt);
+        text-shadow: 0 0 36px rgba(45, 212, 168, 0.7);
+        animation: lvPulse 1.1s ease-in-out infinite;
+      }
+      .liveness-overlay .lv-instruct {
+        margin-top: 26px;
+        max-width: 82%;
+        font-size: clamp(16px, 3.6vh, 30px);
+        font-weight: 700;
+        color: #fff;
+        background: rgba(11, 14, 17, 0.7);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 16px;
+      }
+      @keyframes lvPulse {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.65;
+          transform: scale(0.97);
+        }
+      }
       .card {
         background: var(--surface);
         border: 1px solid var(--line);
@@ -402,6 +444,12 @@
         </div>
         <div class="countdown-overlay" id="countdownOverlay">5</div>
         <div class="cadence-hud" id="cadenceHud">5</div>
+        <div class="liveness-overlay" id="livenessOverlay">
+          <div class="lv-line">SEÑAL</div>
+          <div class="lv-line">DE</div>
+          <div class="lv-line">VIDA</div>
+          <p class="lv-instruct" id="livenessInstruct"></p>
+        </div>
       </div>
 
       <button class="btn btn-primary" id="startBtn">Activar cámara</button>
@@ -464,6 +512,8 @@
       const gestureText = document.getElementById('gestureText');
       const countdownOverlay = document.getElementById('countdownOverlay');
       const cadenceHud = document.getElementById('cadenceHud');
+      const livenessOverlay = document.getElementById('livenessOverlay');
+      const livenessInstruct = document.getElementById('livenessInstruct');
 
       const NAME = {
         sentadillas: 'Sentadillas',
@@ -684,6 +734,7 @@
       const cfg = CFG[EX_ID] || CFG.sentadillas;
       const targetUnit = cfg.unit;
       const targetVal = TARGET;
+      const livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
       const FRONTAL_POINTS = [
         'left_shoulder',
         'right_shoulder',
@@ -745,6 +796,7 @@
       let audioCtx = null,
         masterGain = null,
         soundEnabled = true;
+      let livenessBeepTimer = null;
       let orientationSupported = false,
         deviceIsVertical = true,
         betaHistory = [];
@@ -845,17 +897,41 @@
         return true;
       }
       function scheduleLiveness() {
-        if (livenessPassed || livenessNextTriggerAt) return;
+        if (livenessPassed || livenessNextTriggerAt || !livenessEnabled) return;
         livenessNextTriggerAt =
           performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
       }
+      function showLiveness(instruct) {
+        livenessInstruct.textContent = instruct;
+        livenessOverlay.style.display = 'flex';
+        stateMsg.style.display = 'none';
+        if (livenessBeepTimer == null)
+          livenessBeepTimer = setInterval(() => {
+            beep({ freq: 1400, dur: 0.09, gain: 0.9 });
+            beep({ freq: 1400, dur: 0.09, delay: 0.16, gain: 0.9 });
+          }, 700);
+      }
+      function hideLiveness() {
+        livenessOverlay.style.display = 'none';
+        if (livenessBeepTimer != null) {
+          clearInterval(livenessBeepTimer);
+          livenessBeepTimer = null;
+        }
+      }
+      function extendCadenceForLiveness(now) {
+        if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
+          cadenceDeadline = Math.max(cadenceDeadline, now + 10000);
+      }
       function checkHandLiveness(lm) {
-        if (livenessPassed) return false;
+        if (livenessPassed || !livenessEnabled) return false;
         if (!livenessChallengeActive) {
           if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
           livenessChallengeActive = true;
           livenessConfirmFrames = 0;
-          speak('Levantá una mano para confirmar que estás en vivo');
+          const now = performance.now();
+          extendCadenceForLiveness(now);
+          showLiveness('Levantá la mano por encima de la cabeza');
+          speak('Señal de vida. Levantá la mano por encima de la cabeza');
         }
         const rw = lm[LID.right_wrist],
           lw = lm[LID.left_wrist],
@@ -865,43 +941,39 @@
           lUp = lw && ls && (lw.visibility ?? 0) > 0.5 && lw.y < ls.y - 0.05;
         if (rUp || lUp) livenessConfirmFrames++;
         else livenessConfirmFrames = 0;
-        checklistHud.style.display = 'none';
-        stateMsg.style.display = 'block';
-        stateMsg.className = 'state-msg blocked';
-        stateMsg.textContent = 'Levantá una mano para confirmar que estás en vivo';
         if (livenessConfirmFrames >= LIVENESS_FRAMES) {
           livenessPassed = true;
           livenessChallengeActive = false;
+          hideLiveness();
           log('Prueba de vida confirmada');
           speak('Listo, gracias');
         }
         return true;
       }
       function checkHoldLiveness(smoothed, down) {
-        if (livenessPassed) return false;
+        if (livenessPassed || !livenessEnabled) return false;
         if (!livenessChallengeActive) {
           if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
           livenessChallengeActive = true;
           livenessHoldStartTime = null;
-          speak('Bajá y quedate abajo unos segundos');
+          const now = performance.now();
+          extendCadenceForLiveness(now);
+          showLiveness('Bajá y aguantá abajo unos segundos');
+          speak('Señal de vida. Bajá y aguantá abajo unos segundos');
         }
         const inDown = smoothed < down;
-        checklistHud.style.display = 'none';
-        stateMsg.style.display = 'block';
-        stateMsg.className = 'state-msg blocked';
         if (inDown) {
           if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
           const rem = Math.max(0, LIVENESS_HOLD_MS - (performance.now() - livenessHoldStartTime));
-          stateMsg.textContent = 'Aguantá abajo ' + Math.ceil(rem / 1000) + 's más';
           if (rem <= 0) {
             livenessPassed = true;
             livenessChallengeActive = false;
+            hideLiveness();
             log('Prueba de vida confirmada');
             speak('Listo, gracias');
           }
         } else {
           livenessHoldStartTime = null;
-          stateMsg.textContent = 'Bajá y quedate unos segundos';
         }
         return true;
       }
@@ -994,6 +1066,7 @@
         cadenceHud.style.display = 'none';
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'none';
+        hideLiveness();
         livenessChallengeActive = false;
         livenessPassed = false;
         livenessNextTriggerAt = null;
@@ -1047,6 +1120,7 @@
       }
       function postComplete(detail) {
         running = false;
+        hideLiveness();
         const s = video.srcObject;
         if (s) s.getTracks().forEach((t) => t.stop());
         liveDot.classList.remove('live');
@@ -1231,6 +1305,7 @@
             if (lastHoldOk) holdMs = 0;
             lastHoldOk = false;
           }
+          hideLiveness();
           livenessChallengeActive = false;
           return;
         }
@@ -1762,6 +1837,7 @@
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'none';
         cadenceHud.style.display = 'none';
+        hideLiveness();
         const total = sessionStartTime
           ? Math.round((performance.now() - sessionStartTime) / 1000)
           : 0;
