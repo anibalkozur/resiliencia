@@ -120,7 +120,10 @@ export default function LibreScreen() {
             />
           </View>
           {libreRanked ? (
-            <Text style={styles.hint}>{translate(lang, 'cam.free_setup_hint', { cadence })}</Text>
+            <>
+              <Text style={styles.hint}>{translate(lang, 'cam.free_setup_hint', { cadence })}</Text>
+              <Text style={styles.livenessNote}>{translate(lang, 'cam.free_setup_liveness')}</Text>
+            </>
           ) : null}
           <Pressable style={styles.startBtn} onPress={startSession}>
             <Text style={styles.startBtnText}>{translate(lang, 'cam.free_setup_start')}</Text>
@@ -240,6 +243,15 @@ const styles = StyleSheet.create({
     color: colors.silverDim,
     fontSize: 12,
     lineHeight: 17,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+    maxWidth: 320,
+  },
+  livenessNote: {
+    color: colors.teal,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
     textAlign: 'center',
     marginBottom: spacing.lg,
     maxWidth: 320,

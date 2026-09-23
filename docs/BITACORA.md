@@ -244,3 +244,10 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - El PO reportó que la **palma abierta no se detectaba de lejos** (el modelo de mano requiere la mano grande/cerca). Decision: eliminar `HandLandmarker` y usar el **pose** (que ya se usa para toda la verificación y funciona a la distancia del cuerpo).
 - Nueva señal de inicio: la muñeca (la más alta de las dos) queda **por encima de la nariz un 6% del alto del frame** durante 4 cuadros seguidos (`handIsRaised`). Se detecta con los landmarks ya disponibles (cero carga extra de modelo, menos peso de descarga).
 - Se quitó `HAND_MODEL_URL`, el fallback `handModelOk` y `isOpenPalm`; textos actualizados (HTML + `cam.free_setup_hint` es/en/pt). `VERIFY_VERSION` → **9** para refrescar caché. 137 tests, typecheck y lint en verde.
+
+**Mejoras a la señal de vida (2026-09-22) — v10 (por feedback del PO)**
+
+- Momento clave resuelto: la señal de vida caía durante la **cadencia de 5 s de ranking** y rompía la serie → quedaba fuera de ranking. Ahora, al activarse el challenge en ranking con cadencia, esa vuelta pasa a **10 s** (`extendCadenceForLiveness`).
+- Threshold: la señal de vida se pide en **series de más de 5 repeticiones** (`targetVal > 5`); en ejercicios por tiempo (plancha, isométrica) se mantiene como antes. Series cortas ya no molestan.
+- **Overlay de pantalla completa** "SEÑAL / DE / VIDA" en 3 líneas gigantes con animación + **beeps dobles seguidos cada 700 ms** + voz; se cierra al confirmar. Decisión de equipo: gesto **mano arriba de la cabeza** (reps/isométricas) y **"aguantá abajo 2 s"** (plancha y flexiones, para no sacarte de posición).
+- Nota en la pestaña Libre (ranking) aclarando la señal de vida (`cam.free_setup_liveness` es/en/pt). `VERIFY_VERSION` → **10**.
