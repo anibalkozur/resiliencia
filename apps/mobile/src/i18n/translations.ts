@@ -65,7 +65,8 @@ const es = {
   'cam.free_after_done': 'PROBAR EN MODO LIBRE',
   'cam.free_setup_target': 'Meta',
   'cam.free_setup_participate': '¿Participar en ranking?',
-  'cam.free_setup_hint': 'En ranking: palma abierta para empezar y {cadence} s entre repeticiones.',
+  'cam.free_setup_hint':
+    'En ranking: levantá la mano arriba de la cabeza para empezar y {cadence} s entre repeticiones.',
   'cam.free_setup_start': 'INICIAR',
   'cam.free_ranked_ok': 'Ranking: {n} {unit} · serie apta',
   'cam.free_ranked_bad': 'Serie fuera del ranking (descanso largo o meta no cumplida)',
@@ -294,7 +295,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'cam.free_after_done': 'TRY FREE MODE',
     'cam.free_setup_target': 'Target',
     'cam.free_setup_participate': 'Join the ranking?',
-    'cam.free_setup_hint': 'Ranking mode: show an open hand to start and {cadence} s between reps.',
+    'cam.free_setup_hint':
+      'Ranking mode: raise your hand above your head to start and {cadence} s between reps.',
     'cam.free_setup_start': 'START',
     'cam.free_ranked_ok': 'Ranking: {n} {unit} · eligible',
     'cam.free_ranked_bad': 'Not eligible for ranking (long rest or goal not met)',
@@ -516,7 +518,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'cam.free_after_done': 'TENTAR MODO LIVRE',
     'cam.free_setup_target': 'Meta',
     'cam.free_setup_participate': 'Participar do ranking?',
-    'cam.free_setup_hint': 'No ranking: palma aberta para começar e {cadence} s entre repetições.',
+    'cam.free_setup_hint':
+      'No ranking: levante a mão acima da cabeça para começar e {cadence} s entre repetições.',
     'cam.free_setup_start': 'INICIAR',
     'cam.free_ranked_ok': 'Ranking: {n} {unit} · série válida',
     'cam.free_ranked_bad': 'Fora do ranking (descanso longo ou meta não cumprida)',
