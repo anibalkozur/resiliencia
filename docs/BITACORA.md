@@ -256,3 +256,16 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - Threshold: la señal de vida se pide en **series de más de 5 repeticiones** (`targetVal > 5`); en ejercicios por tiempo (plancha, isométrica) se mantiene como antes. Series cortas ya no molestan.
 - **Overlay de pantalla completa** "SEÑAL / DE / VIDA" en 3 líneas gigantes con animación + **beeps dobles seguidos cada 700 ms** + voz; se cierra al confirmar. Decisión de equipo: gesto **mano arriba de la cabeza** (reps/isométricas) y **"aguantá abajo 2 s"** (plancha y flexiones, para no sacarte de posición).
 - Nota en la pestaña Libre (ranking) aclarando la señal de vida (`cam.free_setup_liveness` es/en/pt). `VERIFY_VERSION` → **10**.
+
+**Evaluación de la auditoría externa + Bloque B (2026-09-27) — v11**
+
+- El PO encargó revisar una **auditoría externa** de la app. Los 17 roles la verificaron hallazgo por hallazgo (3 subagentes de exploración en paralelo): **14/14 confirmados** (ninguno central resultó falso). Informe completo del equipo en `docs/2026-09-27_evaluacion_auditoria_externa.md`. Bonus propios: la señal de vida era eludible de 3 formas + al modo segundos le faltaba rigor; 0008 mezclaba plancha/segundos en el ranking de "reps" y su índice parcial quedaba desalineado; el catch del reset mentía; "69 tests de dominio" eran en realidad 35.
+- **Decisiones del PO (2026-09-27):** el ranking se **etiqueta como "verificado en el dispositivo"** mientras no exista validación server-side (el gate `validate_workout` del plan sigue pendiente → 0010), y se aprobó **todo el Bloque B**:
+  1. **Cámara (v11):** `qualified` ahora exige `gestureStarted && seriesOk && livenessPassed` (cuando la señal de vida aplica); el payload lleva **`liveness_ok`**; el modo segundos ya no califica sin checks; modo no-ranked ya no dice "apto para ranking"; checklist numerador correcto (`{ok}/{total}`). Etiqueta de resultado: "Sesión verificada en el dispositivo — apta para ranking".
+  2. **Reset completo:** `resetLocalProgress` borra también `libre:sessions`; el reset en la nube ahora usa la RPC **`reset_own_progress`** (borra `workout_sessions` + `daily_challenges` propias) en vez del UPDATE que no borraba el ranking; se corrigió el copy y el catch mentiroso (nuevo `settings.reset_error` es/en/pt).
+  3. **Sync robusto:** `uploadSessions` con **idempotencia** (`client_op_id` + UPSERT por `(user_id, client_op_id)`); `markCompleted` se espera antes del sync en el reto diario; la sesión libre se **sube al instante** si hay sesión.
+  4. **Fechas:** la sesión libre usa `todayKey()` local (se eliminó el `toISOString` UTC que fechaba al día siguiente tras las 21 h en ARG).
+  5. **JSON.parse seguro** en los 5 sitios (prefs, profile, reto del día, mensajes de retos y de Libre).
+  6. **Cámara en build real:** `onPermissionRequest` en ambos WebView + `android.permissions.CAMERA` + `NSCameraUsageDescription` en `app.json`.
+- **Migraciones:** `0008` corregida (filtro `measurement_type='reps'` en `get_reps_ranking` + índice alineado con `source='libre'`) y nueva **`0009_reset_own_progress.sql`** (columna `client_op_id` + índice único + RPC de reset con grants `authenticated`). **AMBAS PENDIENTES DE APLICAR por el PO** en el SQL Editor de Supabase (aplicar 0008 y 0009 en orden).
+- `VERIFY_VERSION` → **11**. Tests: 139 en verde, typecheck, lint y prettier OK.
