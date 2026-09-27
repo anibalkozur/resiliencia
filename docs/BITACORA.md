@@ -354,3 +354,33 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 **Notas no bloqueantes:** (1) si un cambio futuro del catálogo vuelve irreproducible un reto histórico, la fecha se omite del sync en silencio (considerar fallback visible si importa la racha); (2) borde de 1 día en la ventana por zonas horarias extremas; (3) **pendiente conceptual confirmado**: `goal` sigue viniendo del cliente — sin `verified` automático no falsifica nada, el server ya valida coherencia contra el algoritmo para el goal declarado; cierre futuro: snapshot del `goal` en BD (p. ej. `challenge_plans`) al asignar el reto.
 
 **Verificación propia:** 141/141 tests (12 suites), typecheck OK, lint OK, `git diff --check` limpio. Dictamen: **reparación aprobada**, sin defectos bloqueantes.
+
+### 2026-09-27 — NEW IDEA del PO: free tier (flexiones/abdominales/sentadillas) + suscripción (resto) — plan completo del equipo (registrado, PENDIENTE de implementar; seguimos mañana)
+
+**La idea del PO:**
+
+- Free: `flexiones`, `abdominales`, `sentadillas`. Suscripción (única vez o mensual) desbloquea el resto de ejercicios.
+- **Ranking TOTAL no se elimina**: queda **solo para suscritos**. Los boards por ejercicio incluyen a todos, pero cada usuario aporta solo a los ejercicios que puede ejecutar.
+- Los free **no participan del reto del día** (la rotación incluye ejercicios no disponibles) → consecuencia aceptada: **el ranking de rachas/streak también queda solo para suscritos**.
+- Free = solo boards por ejercicio de los 3 free, vía **Modo Libre**.
+
+**🚩 Conflicto de regla de producto (decisión explícita pendiente):** "el reto del día y el ecosistema Gym son gratis para siempre" (`PLAN_COMPLETO.md:731`, `AGENTS.md`) queda **obsoleto** con este modelo. Requiere acta PO + actualizar `PLAN_COMPLETO` §15.4. Todo lo demás asume el cambio aprobado.
+
+**Plan por fases (roles del repo):**
+
+- **F0 — Fundaciones (sin dinero):** crear `abdominales` (8º ejercicio, reps): catálogo×5 (`catalog.ts`, i18n×3, DB `0012` drop/re-add CHECK de `0005`, réplica en `validate_workout`, detector `situp` portable de `docs/prototipo/camera-verification.html`), gh-pages + `VERIFY_VERSION` 13. **Compat determinista por fecha de corte** (orden 7 para fechas < feature, 8 para >=; el server replica). `tier` free/premium en catálogo y DB. Actualizar `service.test.ts` (tolengths). Roles: FE, CV, BE, DATA, SEC.
+- **F1 — Semántica de ranking (entitlement):** helper `has_active_entitlement(uid,key)` (security definer); `get_total_reps_ranking` → `+ where has_active_entitlement(ws.user_id,'premium_exercises')` (TOTAL solo suscritos); `get_reps_ranking` → `+ and (e.tier='free' or has_active_entitlement(...))`; `get_ranking` (streak) → solo suscritos. Estampa `ranked_as_premium` en `workout_sessions` al verificar (historial estable si cae la suscripción). Edge: rechaza premium sin entitlement y **toda** completión de free (`rejected: premium_required`). Roles: BE, SEC.
+- **F2 — Paywall mock (sin cobrar):** gate de pantallas free (tab Retos → pantalla suscripción; home preview), Modo Libre con candados, chips de ranking filtrados, copy 3 idiomas. Mide conversión intencional. Roles: UX, FE, PRODUCT.
+- **F3 — Billing real (⛳ gate PO + autorización `AGENTS.md:86-87`):** cuentas (Google Play Console US$25 vez / Apple US$99 año / RevenueCat gratis hasta ~US$2.5k MRR / EAS), `react-native-purchases`, productos `premium_monthly` + `premium_lifetime` (clave entitlement `premium_exercises`; precio sugerido mensual ~US$2.99-3.99, lifetime ~US$19.99-29.99, local por país), edge `revenuecat_webhook` (verifica firma → escribe `entitlements` con `expires_at`), RLS select-own (patrón `workout_submissions`), restore purchases, trial 7 días, refunds webhook → revoca entitlement. Roles: PO, FE, BE, SEC, SRE, FIN.
+- **F4 — Cumplimiento + lanzamiento store:** política privacidad + términos públicos/versionados (cláusulas de suscripción, renovación, cancelación, reembolsos por store), data safety form real, content rating 13+ / targeting 13+, reembolsos (Play 48 h / UE 14 días; meta <3%), fiscal (stores son vendedor de récord; gate formalización ~300 USD recurrentes, `§15.5.2`), ficha store, closed testing 12+ testers 14 días, rollout 10→50→100. Roles: LEG, ASO, FIN, CSC, SRE.
+- **F5 — Métricas y anti-abuso:** unit economics (ARPU, MRR, CAC<LTV/3, churn, %conversión, % reembolsos <3%), regla del 30%, vigilancia premium sharing / trial abuse (gate server-side por `auth.uid()`). Roles: DATA, FIN, CSC, GRO, SEC.
+
+**Modo de pago (cómo se cobra de verdad):** app móvil con contenido digital in-app **debe** usar Play Billing/StoreKit (MercadoPago/Stripe solo B2B/web). Canal: SDK → store Billing → RevenueCat → webhook → `entitlements`. Offline: todo sigue `pending`; sin suscriptores el sistema queda igual (rankings vacíos), pero la semántica queda lista para el futuro validador real.
+
+**Legal (`[LEG]` pre-flight adaptado):** privacidad + términos (suscripción), biometría cámara = dato sensible (retención 30 días, consentimiento explícito, evidencia agregada no video, extender `contrato_evidencia`), data safety form, 13+ (menores: consentimiento parental GDPR art. 8 + billing parental), reembolsos por store, store review (restore purchases, términos linkados, gate invisible), formalización fiscal ~300 USD.
+
+**Entregado hoy:** plan completo presentado al PO (respuesta larga en chat). No se tocó código. Pendientes para mañana:
+
+1. Acto formal: registrar decisión de cambio de regla (reto del día premium) + actualizar `PLAN_COMPLETO` §15.4.
+2. Confirmar D1 (crear `abdominales`), D2 (precios), y empezar **F0** si el PO da luz verde.
+3. [Alto nivel] Hasta que existan cuentas de store, no hay cobro posible; F0–F2 no dependen de eso.
