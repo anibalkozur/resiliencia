@@ -462,7 +462,7 @@
         <h1 id="resultReps">0</h1>
         <p id="resultDetail"></p>
         <div class="verify-tag" id="verifyTag">
-          <span id="verifyText">Sesión con evidencia de pose — apta para ranking</span>
+          <span id="verifyText">Evidencia de pose — verificación en el dispositivo</span>
         </div>
       </div>
       <div class="log" id="log"></div>
@@ -842,7 +842,8 @@
       }
       function renderChecklist(title, pts, missing) {
         checklistHud.style.display = 'block';
-        clTitle.innerHTML = title + ' <span>' + pts.length + '/' + pts.length + '</span>';
+        clTitle.innerHTML =
+          title + ' <span>' + (pts.length - missing.length) + '/' + pts.length + '</span>';
         clRows.innerHTML = pts
           .map((k) => {
             const ok = !missing.includes(k);
@@ -1113,10 +1114,20 @@
           detail,
           ranked: MODE_RANKED,
           seriesOk: MODE_RANKED && seriesOk,
+          livenessOk: MODE_RANKED && (livenessPassed || !livenessEnabled),
           cadence: MODE_RANKED && targetUnit === 'reps' ? CADENCE_SEC : 0,
           unit: cfg.unit,
           value,
         };
+      }
+      function qualifiedNow() {
+        return (
+          MODE_RANKED &&
+          gestureStarted &&
+          seriesOk &&
+          currentValue() >= targetVal &&
+          (livenessPassed || !livenessEnabled)
+        );
       }
       function postComplete(detail) {
         running = false;
@@ -1131,8 +1142,10 @@
         resultReps.textContent = repCount + (targetUnit === 'seconds' ? 's' : '');
         resultCard.classList.add('show');
         verifyText.textContent = MODE_RANKED
-          ? 'Sesión apta para ranking'
-          : 'Verificado por pose — apto para ranking';
+          ? qualifiedNow()
+            ? 'Sesión verificada en el dispositivo — apta para ranking'
+            : 'No califica para ranking'
+          : 'Verificado por pose';
         post('complete', completePayload(detail || 'Completado'));
         log(detail || 'Completado');
       }
@@ -1844,13 +1857,17 @@
         const value = currentValue();
         const tagEl = resultCard.querySelector('.verify-tag');
         if (MODE_RANKED) {
-          const qualified = gestureStarted && seriesOk && value >= targetVal;
+          const qualified =
+            gestureStarted &&
+            seriesOk &&
+            value >= targetVal &&
+            (livenessPassed || !livenessEnabled);
           verifyText.textContent = qualified
-            ? 'Sesión apta para ranking'
+            ? 'Sesión verificada en el dispositivo — apta para ranking'
             : 'No califica para ranking';
           tagEl.classList.toggle('broken', !qualified);
         } else {
-          verifyText.textContent = 'Verificado por pose — apto para ranking';
+          verifyText.textContent = 'Verificado por pose';
           tagEl.classList.remove('broken');
         }
         resultReps.textContent = value;
