@@ -77,7 +77,7 @@ Reglas del juego para las sesiones de trabajo:
 
 ---
 
-## 1. El equipo (staff completo) a simple vista
+## 1. El equipo (staff completo + modo lean) a simple vista
 
 | Tag    | Rol                                | Foco                                                             | Entra en             |
 | ------ | ---------------------------------- | ---------------------------------------------------------------- | -------------------- |
@@ -98,6 +98,31 @@ Reglas del juego para las sesiones de trabajo:
 | [CSC]  | Soporte / Comunidad                | Canal de soporte, muro, reseñas                                  | Fase 6               |
 | [LEG]  | Legal / Cumplimiento               | Marca, privacidad, data safety, contratos B2B                    | Fase 0 (nombre) / 10 |
 | [FIN]  | Finanzas / Contador                | Unit economics, factura B2B, regla del 30%                       | Fase 8               |
+| [MED]  | Medicina deportiva / nutrición     | Seguridad del ejercicio, métricas de salud y copy clínico        | Fase 0 (consulta)    |
+
+### 1.1 Modo operativo sin inversión inicial
+
+La tabla anterior describe el equipo completo, no la cantidad de roles que deben
+trabajar simultáneamente. Para el MVP sin inversión, el núcleo activo es
+`[PM]`, `[DER]`, `[MOB]`, `[UX]`, `[BE]`, `[QA]`, `[SEC]`, `[LEG]` y `[SRE]`
+(su superficie ya es real: Supabase productivo + deploy gh-pages). `[CV]` entra
+en cada trabajo de cámara y `[MED]` revisa salud a demanda.
+
+`[WEB]`, `[GRO]`, `[ASO]`, `[SAL]`, `[CSC]` y `[FIN]` quedan en pausa o a demanda
+hasta tener usuarios o un cliente B2B real. `[DATA]` empieza con eventos y
+métricas mínimas, no con dashboards ni gates rígidos.
+
+Funciones que no requieren otro agente por ahora:
+
+- Descubrimiento de producto: `[DER]` + `[UX]` + PO, con apoyo de `[GRO]`/`[SAL]`.
+- Accesibilidad y localización: `[UX]` diseña, `[MOB]` implementa y `[QA]` prueba.
+- Privacidad: `[LEG]` es dueño legal; `[BE]` y `[SEC]` verifican la implementación.
+- Seguridad del entrenador IA: `[BE]` + `[SEC]` + `[MED]` + `[MOB]` hasta que
+  una futura escala justifique un especialista IA.
+
+`[FIN]` puede ser una checklist del PO hasta que existan ingresos. `[PM]` puede
+ser Tech Lead durante el MVP; ambas funciones deben separarse cuando el equipo
+crezca.
 
 ---
 
@@ -138,11 +163,14 @@ pido lo del ranking?`.
 **[MOB] — Mobile React Native / Expo — "el pragmático"**
 Prioridad: que la app se sienta viva y nunca se rompa en el device del usuario.
 
-- Pantallas, navegación, estado (Zustand), `expo-sqlite` + `sync_queue`, i18n.
-- Porta `app.html` a `packages/domain` (TS puro) con tests idénticos (Fase 1.8).
+- Pantallas, navegación, estado real de la app, `expo-sqlite`, i18n y sync
+  idempotente; no asumir herramientas que todavía no existen en el repo.
+- Mantiene una sola fuente de lógica de dominio: integrar `packages/domain` o
+  retirar el código muerto, pero no proteger dos implementaciones divergentes.
 - Respeta los design tokens de [UX] sin excepciones (nada de emoji, nada de
   colores fuera de paleta).
-- Coordina la cámara con [CV] y los permisos/sensores (orientación).
+- Coordina la cámara con [CV], permisos, sensores, builds reales y estados de
+  error/offline.
 - Entregables: features con tests, PR limpio, pantallas aprobadas por [UX].
 
 **[BE] — Backend / Supabase — "el estricto de RLS"**
@@ -176,9 +204,9 @@ Prioridad: que un gimnasio entienda su panel en 30 segundos y que facture.
 **[SRE] — DevOps / SRE — "el guardián del free-tier"**
 Prioridad: que el costo siempre sea 0 hasta tener ingresos, y después ≤30%.
 
-- Cron `healthz` (anti-pausa de Supabase free), `pg_dump` semanal a Storage,
-  partición de `ad_impressions`, filtros de retención de evidencias (30 días).
-- Alertas al 60/80% de DB / Edge Functions / Storage / MAU; escalera T0–T4.
+- Deploy, recuperación, límites del free-tier y observabilidad mínima.
+- Backups y alertas solo cuando exista una base remota productiva que proteger;
+  no crear infraestructura futura por anticipado.
 - Dueño de los runbooks (qué se hace si el proyecto se pausa, si se llena
   Storage, si el cron falla).
 - Entregables: monitoreo activo, runbooks, reporte de costos mensual.
@@ -186,18 +214,22 @@ Prioridad: que el costo siempre sea 0 hasta tener ingresos, y después ≤30%.
 **[QA] — QA / Testing — "el abogado del diablo"**
 Prioridad: romper la cámara y la app **antes** que el usuario.
 
-- Test grid de pose (5 perfiles de cuerpo, gama baja) + E2E (Detox) +
-  regex de flujos críticos (onboarding → reto → verificado → sync).
+- Flujos críticos, dispositivos reales, permisos, offline, corrupción local,
+  duplicados, sincronización y regresiones de traducción.
+- El test grid de pose y Detox se amplían cuando la cámara y el build sean
+  estables; no bloquean el primer MVP si todavía no son ejecutables.
 - Prueba manuales anti-fraude: sesión editada → rechazo (checklist B del plan).
 - Entregables: test grid actualizado, reporte por release, bug tickets claros.
 
 ### 2.3 Producto y diseño
 
-**[UX] — Product designer / UX-UI — "el guardián de la marca"**
+**[UX] — Product designer / UX-UI — "el guardián de la experiencia"**
 Prioridad: que cada pantalla se sienta ResiliencIA (paleta teal→cian→azul +
 plata, Archivo/Inter, íconos de línea, sin emoji).
 
 - Convierte la guía de marca en pantallas reales y en tokens compartidos.
+- Hace investigación de uso, accesibilidad, estados de error y copy; no solo
+  revisión visual.
 - Flujos clave: onboarding, entrenamiento verificado, ranking, amigos/duelos,
   panel B2B (con [WEB]).
 - Aprueba visualmente cada release (accesibilidad, contraste, legibilidad).
@@ -209,7 +241,8 @@ plata, Archivo/Inter, íconos de línea, sin emoji).
 Prioridad: medir antes de opinar.
 
 - Dashboards: D1/D7/D30, % sesiones verificadas, funnels, rachas.
-- Dueño de los **gates**: D30 > 20%, CAC < LTV/3, % reembolsos < 3%.
+- Define eventos y métricas útiles; los gates de negocio son hipótesis hasta
+  contar con una muestra suficiente.
 - Traductor entre métricas y decisiones de [GRO], [PM] y vos.
 - Entregables: dashboards PostHog, informes de fase, alertas de anomalías.
 
@@ -227,31 +260,31 @@ Prioridad: que el ranking y el dinero no se rompan.
 **[GRO] — Marketing / growth — "el cazador de la ciudad faro"**
 Prioridad: instalaciones baratas y escalables por ciudad.
 
-- Contenido demo ("la app que te cacha si hacés trampa"), comunidad beta de
-  500, Discord/WhatsApp, waitlist.
+- Descubrimiento, contenido orgánico y validación de mensajes después de que el
+  flujo principal funcione; no presupone una comunidad de 500 personas.
 - Ejecuta el playbook de la sección 23 del plan (ciudad por ciudad).
 - Entregables: calendario de contenido, campañas por ciudad, funnel creciendo.
 
 **[ASO] — ASO / Play Store — "el optimizador de la ficha"**
 Prioridad: convertir la búsqueda en instalaciones (8–12%).
 
-- Título/subtítulo/keywords por mercado (ES/EN/PT), ícono + experimentos,
-  capturas con hook en 4 s, reseñas en el momento de logro.
+- Ficha honesta, capturas reales, requisitos de publicación y localización
+  cuando el lanzamiento esté próximo; los experimentos requieren tráfico.
 - Entregables: ficha pública, experimentos corriendo, reporte de conversión.
 
 **[SAL] — Ventas B2B — "el cerrador"**
 Prioridad: el motor de adquisición: gyms y tiendas locales.
 
-- Pitch pack, demo de 30 s, pipeline de la "ciudad faro" (3–5 gyms + 2–3
-  tiendas) con cuota/trueque según sección 23.4.
+- Entrevistas y pilotos para validar el problema B2B antes de vender contratos;
+  el pipeline y las metas de gimnasios son posteriores.
 - Trabaja con [FIN] (contrato de 1 página, cobro antes de servir).
 - Entregables: pipeline, reuniones cerradas, gimnasios activos.
 
 **[CSC] — Soporte / Comunidad — "la voz del usuario"**
 Prioridad: que nadie se quede sin respuesta (SLA 72 h).
 
-- Canal `soporte@resiliencia.app`, triaje (compras/ads/trampas/B2B), reseñas.
-- Modera el muro social y la comunidad; pasa aprendizajes a [PM] y [UX].
+- Canal mínimo de feedback, triaje de incidencias y aprendizaje para [PM]/[UX].
+- Comunidad, muro, reseñas y SLA formal se activan cuando haya usuarios reales.
 - Entregables: base de FAQs, respuestas a reseñas, informe de reembolsos.
 
 ### 2.6 Legal y finanzas
@@ -266,14 +299,28 @@ Prioridad: cero sustos antes de crecer.
   contratos B2B de 1 página.
 - Entregables: check legal por fase, contratos, política publicada.
 
-**[FIN] — Finanzas / Contador — "el custodio del 30%"**
+**[FIN] — Finanzas / Contador — "el custodio del cash"**
 Prioridad: que el dinero siempre alcance para el siguiente paso.
 
-- Unit economics (ARPU, CAC-LTV, MRR, MRR B2B) y la **regla dura: infra nunca
-  > 30% del ingreso bruto** (19.6).
-- Factura B2B (15.5), webhooks de cobro, formalización al superar ~300 USD
-  recurrentes de B2B.
+- Presupuesto real, costos, comisiones, impuestos y punto de formalización;
+  unit economics cuando existan ventas.
+- Regla interna de costo (plan 19.6): infraestructura + servicios ≤30% del
+  ingreso bruto; se aplica como control de gasto del PO, no como asesoramiento
+  fiscal universal.
+- Factura B2B y webhooks cuando exista un cliente; ningún umbral del plan se
+  interpreta como asesoramiento fiscal universal.
 - Entregables: tabla de unit economics, reporte de costos mensual, facturas.
+
+### 2.7 Salud y seguridad del ejercicio
+
+**[MED] — Medicina deportiva / nutrición — "el guardián de la salud"**
+
+- Revisa métricas como IMC, cintura, peso meta y mensajes de nutrición sin
+  presentarlos como diagnóstico.
+- Define contraindicaciones, señales para detener un ejercicio, límites para
+  menores y copy seguro; toda recomendación debe tener evidencia y contexto.
+- Trabaja con `[UX]`, `[CV]`, `[LEG]` y `[DATA]`. Es asesoría puntual, no dueño de
+  una funcionalidad clínica.
 
 ---
 
@@ -283,28 +330,30 @@ Se trabaja por **sprints semanales** agrupados en **fases** (espejo del plan).
 El equipo "entra" según la fase lo necesite; con staffing completo, los roles
 de ingeniería están desde el inicio y los de negocio/legal se activan a tiempo.
 
-| Fase                         | Semanas | Quién trabaja (principal + apoyo)             | Gate de salida                                           |
-| ---------------------------- | ------- | --------------------------------------------- | -------------------------------------------------------- |
-| 0. Fundaciones               | 1–2     | [PM], [MOB], [UX], [BE](setup), [LEG](nombre) | Repo+CI+tokens verdes; marca chequeada                   |
-| 1. Backend base              | 3–4     | [BE], [SRE], [QA](cubre), [MOB]               | Auth+catálogo+sync+dominio portado con tests             |
-| 2. Motor de retos            | 5–6     | [MOB], [BE], [UX]                             | Loop reto diario + semanal + "+1/día"                    |
-| 3. Cámara verificada         | 6–9     | [CV], [QA], [SEC], [MOB], [SRE]               | Pose nativa + evidencia + `validate_workout` + test grid |
-| 4. Rankings y temporadas     | 9–11    | [BE], [DATA], [SEC], [MOB]                    | Rankings justos + temporadas + telemetría anti-fraude    |
-| 5. Retos semanales/flash     | 11–12   | [MOB], [BE], [UX]                             | Retos semanales/gym/flash                                |
-| 6. Social (amigos/duelos)    | 12–13   | [MOB], [BE], [CSC]                            | Amigos, duelos 1v1 y grupo con RLS                       |
-| 7. B2B: gimnasios y panel    | 13–15   | [WEB], [SAL], [FIN], [BE]                     | Panel en vivo, cobro antes de servir                     |
-| 8. Monetización              | 15–17   | [BE], [FIN], [GRO](M-3), [ASO](M-3)           | Ads+Premium+sponsors facturando (sandbox real)           |
-| 9. Entrenador IA             | 17–19   | [CV], [BE], [MOB]                             | Coach reacciona <1.5 s sin inventar datos                |
-| 10. Play Store + lanzamiento | 19–20   | [PM], [QA], [SRE], [LEG], [ASO], [GRO], [CSC] | Bundle aprobado + landing + marketing activo             |
+| Fase                         | Semanas | Quién trabaja (principal + apoyo)                  | Gate de salida                                    |
+| ---------------------------- | ------- | -------------------------------------------------- | ------------------------------------------------- |
+| 0. Fundaciones               | 1–2     | [PM], [DER], [MOB], [UX], [BE], [QA], [SEC], [LEG] | Repo+CI+tokens verdes; marca chequeada            |
+| 1. Backend base              | 3–4     | [BE], [QA], [SEC], [MOB], [SRE](a demanda)         | Auth+catálogo+sync con tests e idempotencia       |
+| 2. Motor de retos            | 5–6     | [MOB], [BE], [UX]                                  | Loop reto diario + semanal + "+1/día"             |
+| 3. Cámara verificada         | 6–9     | [CV], [MOB], [QA], [SEC], [BE]                     | Cámara probada + límites + validación server-side |
+| 4. Rankings y temporadas     | 9–11    | [BE], [SEC], [QA], [MOB], [DATA](mínimo)           | Ranking idempotente y resistente a manipulación   |
+| 5. Retos semanales/flash     | 11–12   | [MOB], [BE], [UX]                                  | Retos semanales/gym/flash                         |
+| 6. Social (amigos/duelos)    | 12–13   | [MOB], [BE], [CSC]                                 | Amigos, duelos 1v1 y grupo con RLS                |
+| 7. B2B: gimnasios y panel    | 13–15   | [WEB], [SAL], [FIN], [BE]                          | Panel en vivo, cobro antes de servir              |
+| 8. Monetización              | 15–17   | [BE], [FIN], [GRO](M-3), [ASO](M-3)                | Ads+Premium+sponsors facturando (sandbox real)    |
+| 9. Entrenador IA             | 17–19   | [BE], [MOB], [SEC], [MED], [DATA](evaluación)      | Coach seguro, evaluado y sin inventar datos       |
+| 10. Play Store + lanzamiento | 19–20   | [PM], [QA], [SRE], [LEG], [ASO], [GRO], [CSC]      | Bundle aprobado + landing + marketing activo      |
 
 **Progresión de roles (quién se suma cuándo):**
 
-- **Fase 0**: [PM], [MOB], [UX]; [BE] prepara repo/Supabase; [LEG] resuelve el
-  nombre (día 1, tarea bloqueante).
-- **Fases 1–2**: [BE] y [SRE] activos; [QA] part-time cubriendo al port.
-- **Fase 3 (momento crítico)**: llegan [CV] y [SEC] a tiempo completo; [QA]
-  pasa a full — es la etapa del diferencial, nadie la saltea.
-- **Fase 4**: [DATA] arma la telemetría de integridad del ranking.
+- **Fase 0**: [PM], [DER], [MOB], [UX], [BE], [QA], [SEC] y [LEG]; [MED] se
+  consulta para salud. El nombre no bloquea el producto si no hay presupuesto.
+- **Fases 1–2**: [BE], [MOB], [QA] y [SEC] siguen activos; [SRE] entra solo para
+  despliegue o datos remotos.
+- **Fase 3 (momento crítico)**: se suma [CV] con [MOB], [QA], [SEC] y [BE]; el
+  ranking no se comunica como verificado hasta cerrar el gate de seguridad.
+- **Fase 4**: [DATA] arma eventos y telemetría mínima de integridad del ranking;
+  los dashboards avanzados esperan tráfico real.
 - **Fases 5–6**: crece el ecosistema social; [CSC] entra a sostener comunidad
   y muro.
 - **Fase 7**: [WEB], [SAL] y [FIN] activan el motor B2B (la ciudad faro).

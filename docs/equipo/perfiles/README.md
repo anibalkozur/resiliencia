@@ -4,6 +4,13 @@
 > **Consulta obligatoria** antes de convocar un rol, antes de cada reunión,
 > antes de cada entrega y en cada gate.
 
+> **Modo operativo:** existen 18 perfiles, pero no se activan todos a la vez.
+> Para el MVP sin inversión rige el modo lean definido en `AGENTS.md` y
+> `docs/equipo/EQUIPO.md`: los roles de negocio y B2B quedan a demanda hasta
+> validar usuarios o clientes. Descubrimiento de producto,
+> accesibilidad/localización, privacidad y seguridad de IA se cubren primero
+> con roles existentes; no son perfiles adicionales todavía.
+
 ## Protocolo de uso (el "cómo")
 
 1. **Antes de convocar un rol** → leer su perfil y seguir su _pre-flight_.
