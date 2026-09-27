@@ -47,7 +47,20 @@ export function buildChallenge(date: string, goal: Goal = 'mantener'): DailyChal
     date,
     exerciseId: exercise.id,
     target,
+    goal,
   };
+}
+
+export function inferChallengeGoal(
+  challenge: Pick<DailyChallenge, 'date' | 'exerciseId' | 'target'>,
+): Goal | null {
+  const goals = Object.keys(GOAL_EXERCISE_ORDER) as Goal[];
+  return (
+    goals.find((goal) => {
+      const expected = buildChallenge(challenge.date, goal);
+      return expected.exerciseId === challenge.exerciseId && expected.target === challenge.target;
+    }) ?? null
+  );
 }
 
 function storageKey(date: string): string {
@@ -70,7 +83,16 @@ export async function getStoredChallenge(
       Number.isInteger(parsed.target) &&
       parsed.target > 0
     ) {
-      return parsed as DailyChallenge;
+      const stored = {
+        date: parsed.date,
+        exerciseId: parsed.exerciseId,
+        target: parsed.target,
+      };
+      const goal =
+        parsed.goal && parsed.goal in GOAL_EXERCISE_ORDER
+          ? parsed.goal
+          : inferChallengeGoal(stored);
+      return { ...parsed, goal } as DailyChallenge;
     }
   } catch {
     // El reto se puede reconstruir abajo si el dato local está corrupto.

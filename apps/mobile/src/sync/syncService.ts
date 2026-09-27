@@ -3,7 +3,7 @@ import type { IRepo } from '../repo';
 import { getSupabase } from '../auth/supabase';
 import { getPrefs } from '../prefs/service';
 import { getCompletedDates, getCompletionMeta } from '../retos/completions';
-import { buildChallenge, getStoredChallenge } from '../retos/service';
+import { buildChallenge, getStoredChallenge, inferChallengeGoal } from '../retos/service';
 import { EXERCISES } from '../retos/catalog';
 import { getFreeSessions, clearFreeSessions } from '../retos/freeSessions';
 import type { FreeSession } from '../retos/freeSessions';
@@ -56,13 +56,17 @@ export async function uploadCompletions(
   for (const date of dates) {
     const challenge = (await getStoredChallenge(repo, date)) ?? buildChallenge(date, prefs.goal);
     const meta = await getCompletionMeta(repo, date);
+    const goal = challenge.goal ?? inferChallengeGoal(challenge);
+    if (!goal) {
+      continue;
+    }
     const unit = EXERCISES.find((e) => e.id === challenge.exerciseId)?.unit ?? 'reps';
     completions.push({
       clientOpId: `daily:${date}`,
       challengeDate: date,
       exerciseCode: challenge.exerciseId,
       target: challenge.target,
-      goal: prefs.goal,
+      goal,
       value: meta?.value ?? challenge.target,
       unit,
       evidence: meta?.evidence,

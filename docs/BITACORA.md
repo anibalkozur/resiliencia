@@ -339,3 +339,18 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - Consecuencia de producto: los rankings de **reps y rachas quedan vacíos** hasta que exista validador real (video/attestation server-side) o revisión manual; la evidencia se conserva como **registro y filtro de datos imposibles** (`missing_evidence` → `pending`; imposible → `rejected`).
 - Pendientes del PO: aplicar **`0008 → 0009 → 0010 → 0011`** en orden (SQL Editor) y `supabase functions deploy validate_workout` (con `SUPABASE_SERVICE_ROLE_KEY` seteada). Aviso: usuarios con build v11 sin actualizar verán sus sesiones ranked `rejected` (versión no soportada).
 - Tests: 141 en verde, typecheck y lint OK.
+
+### 2026-09-27 — Reparación del equipo auditor (5 archivos, +50/−10) — revisada y aprobada
+
+**Cambios del equipo auditor (equipo que no escribe el código) — verificado en diff, 6/6 confirmado:**
+
+- **`workout_submissions` ahora tiene `evidence_hash` y `verification_version`** (0011, `alter table ... add column if not exists`). Esto arregla un **bug real de v3**: el edge escribe esas columnas pero no existían en 0010 → el insert habría fallado 503 al desplegar.
+- **`goal` persistido en el reto local** (`buildChallenge` lo estampa; `DailyChallenge.goal?: Goal` en types.ts).
+- **`inferChallengeGoal`** para datos viejos: encuentra el `goal` que reproduce `(date, exerciseId, target)` con el algoritmo determinista; determinista en la práctica (multiplicadores 1.2/1.1/1 dan targets distintos por objetivo).
+- **`syncService`** usa el goal almacenado/inferido para retos históricos (no `prefs.goal`); fechas sin goal inferible se omiten del sync (no llegan ni como `pending`).
+- **Ventana server-side 365 días (sin futuras)**: alinea el edge con el almacén offline de la app (`getCompletedDates`); deshace la regresión de la ventana de 2 días (habría rechazado propuestas históricas legítimas). Borde despreciable: ventana UTC vs fechas locales en el límite extremo de 365 días/zona horaria.
+- **Reintentos actualizan en vez de ignorar** (se quita `ignoreDuplicates` en ambos upserts): con evaluación server-side determinista y todo `pending`, es seguro y mantiene la bandeja al día.
+
+**Notas no bloqueantes:** (1) si un cambio futuro del catálogo vuelve irreproducible un reto histórico, la fecha se omite del sync en silencio (considerar fallback visible si importa la racha); (2) borde de 1 día en la ventana por zonas horarias extremas; (3) **pendiente conceptual confirmado**: `goal` sigue viniendo del cliente — sin `verified` automático no falsifica nada, el server ya valida coherencia contra el algoritmo para el goal declarado; cierre futuro: snapshot del `goal` en BD (p. ej. `challenge_plans`) al asignar el reto.
+
+**Verificación propia:** 141/141 tests (12 suites), typecheck OK, lint OK, `git diff --check` limpio. Dictamen: **reparación aprobada**, sin defectos bloqueantes.

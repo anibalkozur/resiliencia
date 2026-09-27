@@ -13,6 +13,7 @@ const MAX_REPS = 1000;
 const MAX_SECONDS = 900;
 const MIN_MS_PER_REP = 350;
 const MIN_CADENCE_SEC = 2;
+const MAX_CHALLENGE_AGE_DAYS = 365;
 // Versiones de evidencia soportadas. La versión llega en la URL de la cámara
 // (?v=) y en buildVerifyUri; solo se aceptan versiones explícitas para evitar
 // downgrade o versiones inventadas.
@@ -182,13 +183,18 @@ function todayUtcKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Ventana de fecha aceptada: hoy o ayer (UTC) para tolerar zonas horarias.
+// Ventana de fecha aceptada: desde hoy hasta el límite offline de la app
+// (UTC). No se aceptan fechas futuras.
 function challengeDateInWindow(dateKey: string): boolean {
   const now = new Date();
-  const yesterday = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1),
+  const minimumDate = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() - (MAX_CHALLENGE_AGE_DAYS - 1),
+    ),
   );
-  const min = yesterday.toISOString().slice(0, 10);
+  const min = minimumDate.toISOString().slice(0, 10);
   const max = todayUtcKey();
   return dateKey >= min && dateKey <= max;
 }
@@ -452,7 +458,7 @@ Deno.serve(async (request) => {
   if (sessionRows.length > 0) {
     const { error: insertError } = await admin
       .from('workout_submissions')
-      .upsert(sessionRows, { onConflict: 'user_id,client_op_id', ignoreDuplicates: true });
+      .upsert(sessionRows, { onConflict: 'user_id,client_op_id' });
     if (insertError) return response({ error: 'submission_storage_failed' }, 503);
   }
 
@@ -532,7 +538,7 @@ Deno.serve(async (request) => {
   if (completionRows.length > 0) {
     const { error: insertError } = await admin
       .from('daily_challenge_submissions')
-      .upsert(completionRows, { onConflict: 'user_id,challenge_date', ignoreDuplicates: true });
+      .upsert(completionRows, { onConflict: 'user_id,challenge_date' });
     if (insertError) return response({ error: 'completion_storage_failed' }, 503);
   }
 

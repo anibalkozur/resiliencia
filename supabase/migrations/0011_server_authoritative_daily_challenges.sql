@@ -9,6 +9,12 @@
 
 begin;
 
+-- La Edge Function también conserva el hash y la versión de evidencia de las
+-- sesiones libres. Estas columnas deben existir antes de recibir propuestas.
+alter table public.workout_submissions
+  add column if not exists evidence_hash text,
+  add column if not exists verification_version text;
+
 -- ---------------------------------------------------------------------------
 -- Resultado autoritativo del reto
 -- ---------------------------------------------------------------------------
