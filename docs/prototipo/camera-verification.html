@@ -1,0 +1,1893 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>FitChallenge — Verificación por cámara</title>
+    <style>
+      :root {
+        --bg: #030405;
+        --surface: #12161c;
+        --surface-2: #1a2028;
+        --line: #262e37;
+        --text: #edf1f5;
+        --text-dim: #8a95a3;
+        --volt: #2dd4a8;
+        --volt-dim: #22a886;
+        --ember: #ff5a36;
+        --blue: #2e6bff;
+        --danger: #ff5a5a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      }
+      #app {
+        max-width: 460px;
+        margin: 0 auto;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 20px 18px 40px;
+      }
+      h1 {
+        font-family: 'Archivo Black', 'Arial Black', sans-serif;
+        font-size: 24px;
+        letter-spacing: -0.5px;
+        margin: 0;
+      }
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--volt);
+        font-weight: 700;
+        display: block;
+        margin-bottom: 6px;
+      }
+      p {
+        color: var(--text-dim);
+        font-size: 13.5px;
+        line-height: 1.5;
+        margin: 8px 0 0;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 16px;
+        margin-top: 16px;
+      }
+      .video-wrap {
+        position: relative;
+        width: 100%;
+        border-radius: 18px;
+        overflow: hidden;
+        margin-top: 16px;
+        background: #000;
+        aspect-ratio: 3/4;
+      }
+      video,
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      video {
+        transform: scaleX(-1);
+      }
+      canvas {
+        transform: scaleX(-1);
+      }
+      video.no-mirror {
+        transform: none;
+      }
+      canvas.no-mirror {
+        transform: none;
+      }
+      .hud {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: space-between;
+        z-index: 5;
+      }
+      .badge {
+        background: rgba(11, 14, 17, 0.75);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--text-dim);
+      }
+      .dot.live {
+        background: var(--volt);
+        box-shadow: 0 0 8px var(--volt);
+      }
+      .rep-hud {
+        position: absolute;
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        z-index: 5;
+      }
+      .rep-count {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: 92px;
+        color: var(--volt);
+        text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+        line-height: 1;
+      }
+      .rep-label {
+        font-size: 13px;
+        color: #fff;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        opacity: 0.9;
+        font-weight: 700;
+      }
+      .state-msg {
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+        background: rgba(11, 14, 17, 0.75);
+        border-radius: 999px;
+        padding: 6px 14px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .state-msg.down {
+        color: var(--blue);
+      }
+      .state-msg.up {
+        color: var(--volt);
+      }
+      .state-msg.nobody {
+        color: var(--danger);
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        text-align: center;
+        border: none;
+        border-radius: 14px;
+        padding: 15px;
+        font-family: 'Archivo Black', 'Arial Black', sans-serif;
+        font-size: 14px;
+        cursor: pointer;
+        margin-top: 14px;
+      }
+      .btn-primary {
+        background: var(--volt);
+        color: #0b0e11;
+      }
+      .btn-ghost {
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+      }
+      .log {
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        color: var(--text-dim);
+        margin-top: 10px;
+        max-height: 70px;
+        overflow: auto;
+      }
+      .pill-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      .pill {
+        flex: 1;
+        text-align: center;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 5px;
+      }
+      .pill img {
+        width: 34px;
+        height: 34px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      .pill.active {
+        background: var(--volt);
+        color: #0b0e11;
+        border-color: var(--volt);
+      }
+      .result {
+        display: none;
+      }
+      .result.show {
+        display: block;
+      }
+      .verify-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #16210c;
+        border: 1px solid var(--volt-dim);
+        color: var(--volt);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 10px;
+      }
+      .verify-tag.broken {
+        background: #210c0c;
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+      .checklist-hud {
+        position: absolute;
+        bottom: 14px;
+        left: 12px;
+        z-index: 5;
+        background: rgba(11, 14, 17, 0.75);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 8px 10px;
+        font-size: 10px;
+        min-width: 96px;
+      }
+      .checklist-hud .cl-title {
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        margin-bottom: 4px;
+      }
+      .checklist-hud .cl-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 0;
+      }
+      .checklist-hud .cl-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--danger);
+        flex-shrink: 0;
+      }
+      .checklist-hud .cl-row.ok .cl-dot {
+        background: var(--volt);
+      }
+      .checklist-hud .cl-row.ok span {
+        color: var(--text);
+      }
+      .checklist-hud .cl-row span {
+        color: var(--text-dim);
+      }
+      .state-msg.blocked {
+        color: var(--ember);
+      }
+      .flip-btn {
+        cursor: pointer;
+      }
+      .orientation-row {
+        position: absolute;
+        top: 46px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: center;
+        z-index: 5;
+      }
+      .orientation-row .badge {
+        background: rgba(11, 14, 17, 0.75);
+        backdrop-filter: blur(6px);
+        border: 1px solid var(--volt-dim);
+        color: var(--volt);
+      }
+      .orientation-row .badge.orientation-bad {
+        border-color: var(--danger);
+        color: var(--danger);
+        animation: pulse-warn 1s infinite;
+      }
+      @keyframes pulse-warn {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .target-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 14px;
+      }
+      .target-label {
+        font-size: 13px;
+        color: var(--text-dim);
+        font-weight: 600;
+      }
+      .target-stepper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .target-stepper span {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: 18px;
+        color: var(--volt);
+        min-width: 24px;
+        text-align: center;
+      }
+      .step-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--text);
+        font-size: 18px;
+        line-height: 1;
+        cursor: pointer;
+      }
+      .coach-toast {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 70px;
+        z-index: 6;
+        background: rgba(15, 20, 10, 0.9);
+        border: 1px solid var(--volt-dim);
+        border-radius: 14px;
+        padding: 10px 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--text);
+        animation: toastfade 0.3s ease;
+      }
+      .coach-toast .coach-ic {
+        flex-shrink: 0;
+        color: var(--volt);
+        display: flex;
+      }
+      svg {
+        display: block;
+      }
+      .badge svg,
+      .verify-tag svg,
+      .continuity-badge svg {
+        flex-shrink: 0;
+      }
+      @keyframes toastfade {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .continuity-badge {
+        position: absolute;
+        top: 76px;
+        right: 12px;
+        z-index: 5;
+        background: rgba(11, 14, 17, 0.75);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-dim);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .continuity-badge.broken {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <span class="eyebrow">Modo verificado</span>
+      <h1>Contá tus reps con la cámara</h1>
+      <p>
+        Visión por computadora corriendo en el dispositivo: detecta tu esqueleto en vivo y cuenta
+        cada repetición por ángulo articular real, no por movimiento del teléfono. Esto es lo que
+        hace que una sesión pueda competir en un ranking.
+      </p>
+
+      <div class="pill-row">
+        <div class="pill active" data-ex="squat">
+          <img src="icon-squat.png" alt="Sentadilla" />Sentadilla
+        </div>
+        <div class="pill" data-ex="pushup"><img src="icon-pushup.png" alt="Flexión" />Flexión</div>
+        <div class="pill" data-ex="situp">
+          <img src="icon-situp.png" alt="Abdominales" />Abdominales
+        </div>
+      </div>
+
+      <div class="target-row">
+        <span class="target-label">Meta de reps</span>
+        <div class="target-stepper">
+          <button class="step-btn" id="targetMinus">−</button>
+          <span id="targetValue">15</span>
+          <button class="step-btn" id="targetPlus">+</button>
+        </div>
+      </div>
+
+      <div class="video-wrap">
+        <video id="video" playsinline autoplay muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="hud">
+          <div class="badge">
+            <div class="dot" id="liveDot"></div>
+            <span id="statusText">Cámara apagada</span>
+          </div>
+          <div class="badge flip-btn" id="muteBtn"></div>
+          <div class="badge flip-btn" id="flipBtn">
+            <span id="flipIcon"></span><span id="facingLabel">Frontal</span>
+          </div>
+        </div>
+        <div class="orientation-row">
+          <div class="badge" id="orientationBadge" style="display: none">
+            <span id="orientationIcon"></span><span id="orientationText">Vertical</span>
+          </div>
+        </div>
+        <div class="state-msg" id="stateMsg" style="display: none"></div>
+        <div class="checklist-hud" id="checklistHud" style="display: none">
+          <div class="cl-title" id="clTitle">Cuerpo <span id="clCount">0/0</span></div>
+          <div id="clRows"></div>
+        </div>
+        <div class="rep-hud">
+          <div class="rep-count" id="repCount">0</div>
+          <div class="rep-label" id="repLabel">repeticiones</div>
+        </div>
+        <div class="coach-toast" id="coachToast" style="display: none">
+          <span class="coach-ic" id="coachIcon"></span><span id="coachText"></span>
+        </div>
+        <div class="continuity-badge" id="continuityBadge" style="display: none">
+          <span id="continuityIcon"></span><span id="continuityText">0:00</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="startBtn">Activar cámara</button>
+      <button class="btn btn-ghost" id="stopBtn" style="display: none">
+        Finalizar y verificar serie
+      </button>
+
+      <div class="card" id="sensorWarning" style="display: none; border-color: var(--danger)">
+        <b style="color: var(--danger); display: flex; align-items: center; gap: 6px"
+          ><span id="sensorWarnIcon"></span>No se pudo confirmar el sensor de orientación</b
+        >
+        <p>
+          El modo verificado (el que suma al ranking) exige poder chequear que el celular está
+          parado en vertical — sin ese sensor, no hay forma de descartar que estén filmando desde un
+          ángulo trucho. Revisá que le hayas dado permiso de "movimiento y orientación" a este sitio
+          en la configuración del navegador, y que estés en un celular real (no una notebook, que no
+          tiene este sensor). Después tocá "Reintentar".
+        </p>
+      </div>
+
+      <div class="card result" id="resultCard">
+        <span class="eyebrow">Resultado de la serie</span>
+        <h1 id="resultReps">0 reps</h1>
+        <p id="resultDetail"></p>
+        <div class="verify-tag" id="verifyTag">
+          <span id="verifyIcon"></span
+          ><span id="verifyText">Sesión con evidencia de pose — apta para ranking</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <b style="font-size: 13px">Cómo funciona (sin humo)</b>
+        <p>
+          Un modelo de pose estimation (MediaPipe Pose Landmarker, corre local en el
+          navegador/celular vía WASM) ubica 33 puntos del cuerpo por frame, cada uno con un puntaje
+          de confianza. En sentadilla, la cámara ve de frente y se exigen <b>las dos piernas</b> a
+          la vez. En flexiones y abdominales, la cámara filma de perfil: el sistema
+          <b>detecta automáticamente qué lado del cuerpo se ve</b>, sin que el usuario elija nada.
+          Antes de contar cualquier repetición se verifica <b>postura real</b> (que estés apoyado en
+          el piso, no de pie) y se <b>calibra el rango de movimiento de cada persona</b> al arrancar
+          — así se adapta solo a cualquier cuerpo, sin números fijos pensados para un adulto. En
+          flexiones además se chequea alineación de plancha. Y cada repetición se confirma durante
+          varios frames seguidos con un tiempo mínimo entre una y otra, para que el ruido del modelo
+          no duplique conteos.
+        </p>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <script type="module">
+      import {
+        PoseLandmarker,
+        FilesetResolver,
+        DrawingUtils,
+      } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('overlay');
+      const ctx = canvas.getContext('2d');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const repCountEl = document.getElementById('repCount');
+      const stateMsg = document.getElementById('stateMsg');
+      const statusText = document.getElementById('statusText');
+      const liveDot = document.getElementById('liveDot');
+      const logEl = document.getElementById('log');
+      const resultCard = document.getElementById('resultCard');
+      const checklistHud = document.getElementById('checklistHud');
+      const clTitle = document.getElementById('clTitle');
+      const clRows = document.getElementById('clRows');
+      const flipBtn = document.getElementById('flipBtn');
+      const flipIcon = document.getElementById('flipIcon');
+      const facingLabel = document.getElementById('facingLabel');
+      const muteBtn = document.getElementById('muteBtn');
+      const orientationBadge = document.getElementById('orientationBadge');
+      const orientationIcon = document.getElementById('orientationIcon');
+      const orientationText = document.getElementById('orientationText');
+      const sensorWarning = document.getElementById('sensorWarning');
+      const sensorWarnIcon = document.getElementById('sensorWarnIcon');
+      const targetValueEl = document.getElementById('targetValue');
+      const targetMinus = document.getElementById('targetMinus');
+      const targetPlus = document.getElementById('targetPlus');
+      const coachToast = document.getElementById('coachToast');
+      const coachIcon = document.getElementById('coachIcon');
+      const coachText = document.getElementById('coachText');
+      const continuityBadge = document.getElementById('continuityBadge');
+      const continuityIcon = document.getElementById('continuityIcon');
+      const continuityText = document.getElementById('continuityText');
+      const repLabel = document.getElementById('repLabel');
+      const verifyTag = document.getElementById('verifyTag');
+      const verifyIcon = document.getElementById('verifyIcon');
+      const verifyText = document.getElementById('verifyText');
+
+      let targetReps = 15;
+      targetMinus.onclick = () => {
+        targetReps = Math.max(1, targetReps - 1);
+        targetValueEl.textContent = targetReps;
+      };
+      targetPlus.onclick = () => {
+        targetReps = Math.min(100, targetReps + 1);
+        targetValueEl.textContent = targetReps;
+      };
+      let soundEnabled = true;
+      muteBtn.onclick = () => {
+        soundEnabled = !soundEnabled;
+        muteBtn.innerHTML = soundEnabled ? ICON.soundOn : ICON.soundOff;
+        if (soundEnabled) ensureAudio();
+      };
+
+      let currentFacing = 'user'; // 'user' = frontal, 'environment' = trasera
+      function applyMirror() {
+        if (currentFacing === 'user') {
+          video.classList.remove('no-mirror');
+          canvas.classList.remove('no-mirror');
+        } else {
+          video.classList.add('no-mirror');
+          canvas.classList.add('no-mirror');
+        }
+      }
+      flipBtn.onclick = async () => {
+        currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+        facingLabel.textContent = currentFacing === 'user' ? 'Frontal' : 'Trasera';
+        applyMirror();
+        if (running) {
+          const stream = video.srcObject;
+          if (stream) stream.getTracks().forEach((t) => t.stop());
+          try {
+            const newStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: currentFacing },
+              audio: false,
+            });
+            video.srcObject = newStream;
+            await video.play();
+            log('Cámara cambiada a: ' + (currentFacing === 'user' ? 'frontal' : 'trasera'));
+          } catch (e) {
+            log('No se pudo cambiar de cámara: ' + e.message);
+          }
+        }
+      };
+
+      function log(msg) {
+        logEl.textContent = '> ' + msg + '\n' + logEl.textContent;
+      }
+
+      // --- Íconos de línea (SVG, estilo consistente con el logo — nada de emoji) ---
+      const ICON = {
+        soundOn: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>`,
+        soundOff: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`,
+        flip: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>`,
+        device: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line></svg>`,
+        brain: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a3 3 0 0 0-3 3v.5A2.5 2.5 0 0 0 4.5 9 2.5 2.5 0 0 0 3 11.3 2.7 2.7 0 0 0 5 14a3 3 0 0 0 1 5.8A3 3 0 0 0 9 21a3 3 0 0 0 3-3V6a3 3 0 0 0-3-3Z"></path><path d="M15 3a3 3 0 0 1 3 3v.5A2.5 2.5 0 0 1 19.5 9 2.5 2.5 0 0 1 21 11.3 2.7 2.7 0 0 1 19 14a3 3 0 0 1-1 5.8A3 3 0 0 1 15 21a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z"></path></svg>`,
+        clock: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+        warning: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`,
+        checkCircle: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+        xCircle: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>`,
+        hand: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0"></path><path d="M14 10V4a2 2 0 0 0-4 0v2"></path><path d="M10 10.5V6a2 2 0 0 0-4 0v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>`,
+      };
+
+      // Iconografía fija que no cambia dinámicamente — se setea una sola vez.
+      muteBtn.innerHTML = ICON.soundOn;
+      flipIcon.innerHTML = ICON.flip;
+      coachIcon.innerHTML = ICON.brain;
+      sensorWarnIcon.innerHTML = ICON.warning;
+      orientationIcon.innerHTML = ICON.device;
+      continuityIcon.innerHTML = ICON.clock;
+      verifyIcon.innerHTML = ICON.checkCircle;
+
+      const EXERCISE_NAME = { squat: 'sentadillas', pushup: 'flexiones', situp: 'abdominales' };
+
+      let currentExercise = 'squat';
+      document.querySelectorAll('.pill').forEach((p) => {
+        p.onclick = () => {
+          document.querySelectorAll('.pill').forEach((x) => x.classList.remove('active'));
+          p.classList.add('active');
+          currentExercise = p.dataset.ex;
+          resetRepState();
+        };
+      });
+      let poseLandmarker = null;
+      let running = false;
+      let repCount = 0;
+      let repState = 'up'; // up | down
+      let leftAngleHistory = [];
+      let rightAngleHistory = [];
+      let angleHistory = []; // usado para ejercicios laterales (un solo lado)
+      let lineAngleHistory = []; // alineación cuerpo (plancha) para flexiones
+      let sideVotes = [];
+      let confirmedSide = null;
+
+      // squat: FRONTAL — cámara de frente, se ven las dos piernas, se exigen
+      // las dos a la vez (evita levantar una sola pierna sin agacharse).
+      //
+      // pushup / situp: LATERAL — la cámara filma de perfil (solo se ve un
+      // lado del cuerpo). El sistema detecta SOLO con los puntos de ESE lado,
+      // eligiendo automáticamente izquierda o derecha según cuál tiene mejor
+      // confianza de visibilidad — el usuario no tiene que elegir nada.
+      const EXERCISE_CONFIG = {
+        squat: {
+          type: 'frontal',
+          left: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+          right: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+          downThresh: 100,
+          upThresh: 160,
+          livenessType: 'hand',
+        },
+        pushup: {
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+              line: { a: 'left_shoulder', b: 'left_hip', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+              line: { a: 'right_shoulder', b: 'right_hip', c: 'right_ankle' },
+            },
+          },
+          downThresh: 95,
+          upThresh: 155, // valores de resguardo — se reemplazan por umbrales calibrados por persona
+          downDelta: 40,
+          upDelta: 12, // cuánto debe bajar el ángulo desde el reposo para contar "abajo"/"arriba"
+          livenessType: 'hold', // en flexiones no se puede levantar la mano (las dos están apoyadas) — se usa "aguantar abajo"
+          lineMin: 150, // hombro-cadera-tobillo casi recto (plancha real, no cadera arriba/abajo)
+          groundedMax: 0.9, // cadera debe estar casi a la misma altura que el tobillo (cuerpo horizontal/apoyado)
+          postureMsg: 'Ponete en posición de plancha horizontal para contar flexiones',
+          startMsg: 'Extendé los brazos en plancha, quieto un segundo, para calibrar el inicio',
+        },
+        situp: {
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downThresh: 110,
+          upThresh: 150, // valores de resguardo — se reemplazan por umbrales calibrados por persona
+          downDelta: 25,
+          upDelta: 10, // cuánto debe subir el torso desde el reposo para contar "abajo"/"arriba"
+          livenessType: 'hand', // acostado boca arriba sí se puede levantar una mano
+          standingKneeMargin: 0.45, // si la rodilla queda mucho más abajo que la cadera (parado), esto se dispara
+          restTorsoMax: 35, // el torso (hombro-cadera) debe estar casi horizontal para calibrar el reposo — evita calibrar sentado
+          postureMsg: 'Recostate en el piso para contar abdominales — te detectamos de pie',
+          startMsg: 'Recostate boca arriba, quieto un segundo, para calibrar el inicio',
+        },
+      };
+      const LANDMARK_IDX = {
+        nose: 0,
+        left_shoulder: 11,
+        right_shoulder: 12,
+        left_elbow: 13,
+        right_elbow: 14,
+        left_wrist: 15,
+        right_wrist: 16,
+        left_hip: 23,
+        right_hip: 24,
+        left_knee: 25,
+        right_knee: 26,
+        left_ankle: 27,
+        right_ankle: 28,
+      };
+      const LANDMARK_LABEL = {
+        nose: 'Cabeza',
+        left_shoulder: 'Hombro I',
+        right_shoulder: 'Hombro D',
+        left_elbow: 'Codo I',
+        right_elbow: 'Codo D',
+        left_wrist: 'Muñeca I',
+        right_wrist: 'Muñeca D',
+        left_hip: 'Cadera I',
+        right_hip: 'Cadera D',
+        left_knee: 'Rodilla I',
+        right_knee: 'Rodilla D',
+        left_ankle: 'Tobillo I',
+        right_ankle: 'Tobillo D',
+      };
+      // Para squat (frontal), los puntos requeridos son fijos (ambos lados).
+      // Para pushup/situp (lateral) se calculan dinámicamente según el lado detectado.
+      const REQUIRED_POINTS = {
+        squat: [
+          'left_shoulder',
+          'right_shoulder',
+          'left_hip',
+          'right_hip',
+          'left_knee',
+          'right_knee',
+          'left_ankle',
+          'right_ankle',
+        ],
+      };
+      const VISIBILITY_THRESHOLD = 0.65;
+      const SIDE_MIN_VISIBILITY = 0.4; // por debajo de esto, ese lado se considera "no visible en cuadro"
+      const SIDE_VOTE_WINDOW = 15; // frames para decidir el lado por mayoría, evita que titile
+      // exige N frames consecutivos con cuerpo completo antes de "confiar" en el estado,
+      // para no destrabar/trabar el conteo por un parpadeo del modelo
+      const CONFIRM_FRAMES = 4;
+      let bodyOkStreak = 0;
+
+      // --- Anti-ruido / anti-doble-conteo ---
+      // Una repetición solo se confirma si el ángulo se mantuvo del lado correcto
+      // del umbral durante varios frames seguidos (no un solo frame ruidoso), y
+      // además se exige un tiempo mínimo entre repeticiones consecutivas — un
+      // humano no puede completar una repetición real en menos de ese tiempo, así
+      // que si el ángulo "rebota" por jitter del modelo, no se cuenta dos veces.
+      const STATE_CONFIRM_FRAMES = 3;
+      const MIN_REP_INTERVAL_MS = 350;
+      let candidateState = null;
+      let candidateStreak = 0;
+      let lastRepTime = 0;
+      let repStateInitialized = false; // recién true cuando confirmamos una posición base estable
+
+      // --- Chequeo de postura real (evita contar de pie, sentado, etc.) ---
+      // En flexiones se usa el tobillo (cadera y tobillo a la misma altura =
+      // cuerpo horizontal apoyado). En abdominales el tobillo se pierde de
+      // cuadro muy seguido (las rodillas lo tapan al subir, o no entra en el
+      // encuadre), así que en su lugar se usa la RODILLA — se mantiene visible
+      // durante todo el movimiento y de todas formas ya es un punto requerido.
+      // Parado, la rodilla queda muy por debajo de la cadera (largo del muslo);
+      // acostado o sentado con rodillas flexionadas, queda a la altura de la
+      // cadera o por encima — esa diferencia es lo que dispara el bloqueo.
+      let groundedHistory = [];
+      function groundedRatio(hip, ankle, shoulder) {
+        const torsoLen = Math.hypot(shoulder.x - hip.x, shoulder.y - hip.y) || 0.0001;
+        return Math.abs(hip.y - ankle.y) / torsoLen;
+      }
+      function kneeStandingMargin(hip, knee, shoulder) {
+        const torsoLen = Math.hypot(shoulder.x - hip.x, shoulder.y - hip.y) || 0.0001;
+        return (knee.y - hip.y) / torsoLen; // positivo y grande = rodilla muy por debajo de la cadera (de pie)
+      }
+      // Ángulo del torso (hombro-cadera) respecto a la horizontal de la imagen:
+      // 0° = acostado, 90° = sentado/parado con torso vertical. A diferencia del
+      // ángulo hombro-cadera-rodilla, esto NO depende de las proporciones del
+      // cuerpo (torso vs. muslo) — sirve para confirmar "está acostado" de forma
+      // confiable sin importar la edad o el tamaño de la persona.
+      function torsoHorizontalAngle(shoulder, hip) {
+        const dx = shoulder.x - hip.x,
+          dy = shoulder.y - hip.y;
+        return (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
+      }
+
+      // --- Calibración por persona ---
+      // En vez de exigir que el ángulo cruce un número fijo (que no generaliza
+      // entre cuerpos de distinto tamaño/proporción — un chico de 13 años no
+      // tiene el mismo rango de ángulo que un adulto), la app mide el ángulo de
+      // reposo REAL de cada persona al arrancar (mientras se mantiene quieta en
+      // posición correcta) y calcula los umbrales de abajo/arriba como una resta
+      // relativa a ESE valor. Esto hace que el conteo se adapte automáticamente
+      // a cualquier tipo de cuerpo.
+      const CALIB_WINDOW = 10; // frames a analizar para confirmar que está quieto
+      const CALIB_RANGE_MAX = 9; // grados — variación máxima permitida dentro de la ventana para considerarlo "quieto"
+      let calibBuffer = [];
+      let dynamicDownThresh = null;
+      let dynamicUpThresh = null;
+      let restAngleCalibrated = null;
+
+      function attemptCalibration(angle, cfg) {
+        calibBuffer.push(angle);
+        if (calibBuffer.length > CALIB_WINDOW) calibBuffer.shift();
+        if (calibBuffer.length < CALIB_WINDOW) return false;
+        const mx = Math.max(...calibBuffer),
+          mn = Math.min(...calibBuffer);
+        if (mx - mn > CALIB_RANGE_MAX) return false; // todavía se está moviendo, no calibrar todavía
+        restAngleCalibrated = calibBuffer.reduce((a, b) => a + b, 0) / calibBuffer.length;
+        dynamicDownThresh = restAngleCalibrated - cfg.downDelta;
+        dynamicUpThresh = restAngleCalibrated - cfg.upDelta;
+        return true;
+      }
+
+      // --- Desafío de "prueba de vida" (anti-video pregrabado) ---
+      // Ningún chequeo geométrico anterior distingue una persona real entrenando
+      // en vivo de alguien reproduciendo un video de sí mismo (o de otra persona)
+      // frente a la cámara. La forma simple y efectiva de cerrar esa puerta: en
+      // un momento ALEATORIO de la sesión, pedirle algo que un video pregrabado
+      // no puede cumplir a demanda — levantar una mano — y pausar el conteo
+      // hasta que lo haga. Un video en loop no puede "reaccionar" a un pedido
+      // que no sabía que iba a llegar en ese momento exacto.
+      let livenessChallengeActive = false;
+      let livenessPassed = false;
+      let livenessNextTriggerAt = null;
+      let livenessConfirmFrames = 0;
+      let livenessHoldStartTime = null;
+      const LIVENESS_MIN_DELAY_MS = 4000;
+      const LIVENESS_MAX_DELAY_MS = 13000;
+      const LIVENESS_CONFIRM_FRAMES_NEEDED = 5;
+      const LIVENESS_HOLD_MS = 2000; // flexiones: cuánto tiempo hay que aguantar abajo
+
+      function scheduleLivenessChallenge() {
+        if (livenessPassed || livenessNextTriggerAt) return;
+        livenessNextTriggerAt =
+          performance.now() +
+          LIVENESS_MIN_DELAY_MS +
+          Math.random() * (LIVENESS_MAX_DELAY_MS - LIVENESS_MIN_DELAY_MS);
+      }
+
+      // Tipo "hand" (sentadilla, abdominales): pide levantar una mano.
+      // Devuelve true si el desafío está activo (hay que frenar el resto del
+      // procesamiento ese frame).
+      function checkLivenessChallenge(lm) {
+        if (livenessPassed) return false;
+        if (!livenessChallengeActive) {
+          if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
+          livenessChallengeActive = true;
+          livenessConfirmFrames = 0;
+          playLivenessAlertSound();
+          speak('Levantá una mano para confirmar que estás en vivo');
+        }
+
+        const rightWrist = lm[LANDMARK_IDX.right_wrist],
+          rightShoulder = lm[LANDMARK_IDX.right_shoulder];
+        const leftWrist = lm[LANDMARK_IDX.left_wrist],
+          leftShoulder = lm[LANDMARK_IDX.left_shoulder];
+        const rightRaised =
+          rightWrist &&
+          rightShoulder &&
+          (rightWrist.visibility ?? 0) > 0.5 &&
+          rightWrist.y < rightShoulder.y - 0.05;
+        const leftRaised =
+          leftWrist &&
+          leftShoulder &&
+          (leftWrist.visibility ?? 0) > 0.5 &&
+          leftWrist.y < leftShoulder.y - 0.05;
+
+        if (rightRaised || leftRaised) livenessConfirmFrames++;
+        else livenessConfirmFrames = 0;
+
+        checklistHud.style.display = 'none';
+        stateMsg.style.display = 'block';
+        stateMsg.className = 'state-msg blocked';
+        stateMsg.textContent = 'Levantá una mano para confirmar que estás en vivo';
+
+        if (livenessConfirmFrames >= LIVENESS_CONFIRM_FRAMES_NEEDED) {
+          livenessPassed = true;
+          livenessChallengeActive = false;
+          livenessNextTriggerAt = null;
+          log('Prueba de vida confirmada (mano)');
+          speak('Listo, gracias');
+        }
+        return true;
+      }
+
+      // Tipo "hold" (flexiones): las dos manos están apoyadas, así que en vez de
+      // levantar una se pide aguantar la posición de abajo un par de segundos
+      // seguidos — un video en loop no puede "elegir" pausarse justo cuando se
+      // le pide, en el momento exacto (aleatorio) en que se dispara el pedido.
+      function checkHoldLivenessChallenge(smoothedAngle, downThresh) {
+        if (livenessPassed) return false;
+        if (!livenessChallengeActive) {
+          if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
+          livenessChallengeActive = true;
+          livenessHoldStartTime = null;
+          playLivenessAlertSound();
+          speak('Bajá y quedate abajo unos segundos para confirmar que estás en vivo');
+        }
+
+        const inDown = smoothedAngle < downThresh;
+        checklistHud.style.display = 'none';
+        stateMsg.style.display = 'block';
+        stateMsg.className = 'state-msg blocked';
+
+        if (inDown) {
+          if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
+          const elapsed = performance.now() - livenessHoldStartTime;
+          const remaining = Math.max(0, LIVENESS_HOLD_MS - elapsed);
+          stateMsg.textContent = `⏱️ Aguantá abajo ${(remaining / 1000).toFixed(1)}s más`;
+          if (elapsed >= LIVENESS_HOLD_MS) {
+            livenessPassed = true;
+            livenessChallengeActive = false;
+            livenessNextTriggerAt = null;
+            log('Prueba de vida confirmada (aguantar abajo)');
+            speak('Listo, gracias');
+          }
+        } else {
+          livenessHoldStartTime = null; // se resetea si sube antes de completar el tiempo
+          stateMsg.textContent =
+            '⏱️ Bajá y quedate abajo unos segundos para confirmar que estás en vivo';
+        }
+        return true;
+      }
+
+      // --- Entrenador: checkpoints por progreso y ritmo (gancho para el LLM) ---
+      // Estos son los puntos donde, en la app nativa, se le pasaría contexto al
+      // modelo de lenguaje local (reps hechas, meta, ritmo) para que genere el
+      // comentario. Acá, sin LLM todavía, se usan mensajes de plantilla en los
+      // mismos disparadores — el mecanismo de "cuándo avisar y con qué datos"
+      // es exactamente el que se reutilizaría al conectar el modelo real.
+      let sessionStartTime = null;
+      let repTimestamps = [];
+      let sessionAnnounced = false;
+      let sessionFinishedAnnounced = false;
+      let lastCheckpointFraction = 0;
+
+      function coachSay(text) {
+        coachText.textContent = text;
+        coachToast.style.display = 'flex';
+        clearTimeout(coachSay._t);
+        coachSay._t = setTimeout(() => {
+          coachToast.style.display = 'none';
+        }, 4000);
+        speak(text);
+      }
+
+      function announceSessionStart() {
+        if (sessionAnnounced) return;
+        sessionAnnounced = true;
+        sessionStartTime = performance.now();
+        repLabel.textContent = `de ${targetReps}`;
+        coachSay(`Vamos con ${targetReps} ${EXERCISE_NAME[currentExercise]}. ¡Arrancamos!`);
+      }
+
+      function checkRepCheckpoints() {
+        if (!targetReps) return;
+        const fraction = repCount / targetReps;
+        if (repCount >= targetReps && !sessionFinishedAnnounced) {
+          sessionFinishedAnnounced = true;
+          coachSay(`¡Meta cumplida! ${repCount} de ${targetReps}`);
+        } else if (fraction >= 0.8 && lastCheckpointFraction < 0.8) {
+          lastCheckpointFraction = 0.8;
+          coachSay(`¡Ya casi! Te faltan ${Math.max(0, targetReps - repCount)}`);
+        } else if (fraction >= 0.5 && lastCheckpointFraction < 0.5) {
+          lastCheckpointFraction = 0.5;
+          coachSay('Vas por la mitad, buen ritmo');
+        }
+      }
+
+      // --- Anti-trampa por continuidad ---
+      // Si entre una repetición y la siguiente pasa demasiado tiempo (o desde el
+      // arranque de la sesión si todavía no hizo ninguna), es señal de que la
+      // persona se fue y volvió — eso invalida la serie para un ranking
+      // competitivo (arrancar, irse, volver y terminar no es lo mismo que
+      // hacerla de corrido), aunque el conteo en sí siga siendo válido para
+      // seguimiento personal.
+      let continuityBroken = false;
+      let paceWarnedForThisGap = false;
+      const MAX_GAP_BETWEEN_REPS_MS = 40000; // 40s sin reps = sesión no continua
+      const SLOW_PACE_WARN_MS = 18000; // 18s sin reps = aviso de ritmo (todavía no rompe continuidad)
+
+      function updateContinuityAndPace() {
+        if (!sessionStartTime || continuityBroken) return;
+        const now = performance.now();
+        const lastEventTime = repTimestamps.length
+          ? repTimestamps[repTimestamps.length - 1]
+          : sessionStartTime;
+        const gap = now - lastEventTime;
+        const totalElapsed = now - sessionStartTime;
+
+        continuityBadge.style.display = 'block';
+        const secs = Math.floor(totalElapsed / 1000);
+        continuityText.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+
+        if (gap > MAX_GAP_BETWEEN_REPS_MS) {
+          continuityBroken = true;
+          continuityBadge.classList.add('broken');
+          continuityIcon.innerHTML = ICON.warning;
+          continuityText.textContent = 'Serie no continua';
+          coachSay(
+            'Hubo una pausa larga — esta serie no cuenta para el ranking, pero tu progreso se guarda igual.',
+          );
+          log('Continuidad rota: ' + Math.round(gap / 1000) + 's sin repeticiones');
+          return;
+        }
+        if (
+          gap > SLOW_PACE_WARN_MS &&
+          !paceWarnedForThisGap &&
+          repStateInitialized &&
+          !sessionFinishedAnnounced
+        ) {
+          paceWarnedForThisGap = true;
+          coachSay('Dale que podés, un poco más de ritmo');
+        }
+      }
+      setInterval(updateContinuityAndPace, 2000);
+
+      function avgVisibility(lm, points) {
+        let sum = 0;
+        for (const key of points) {
+          const pt = lm[LANDMARK_IDX[key]];
+          sum += pt ? (pt.visibility ?? 0) : 0;
+        }
+        return sum / points.length;
+      }
+
+      // Elige automáticamente qué lado del cuerpo está de cara a la cámara,
+      // votando por mayoría en una ventana de frames para no titilar entre lados.
+      function updateSideVote(lm, sidesConfig) {
+        const leftAvg = avgVisibility(lm, sidesConfig.left.points);
+        const rightAvg = avgVisibility(lm, sidesConfig.right.points);
+        let vote = null;
+        if (leftAvg >= SIDE_MIN_VISIBILITY || rightAvg >= SIDE_MIN_VISIBILITY) {
+          vote = leftAvg >= rightAvg ? 'left' : 'right';
+        }
+        sideVotes.push(vote);
+        if (sideVotes.length > SIDE_VOTE_WINDOW) sideVotes.shift();
+        const counts = { left: 0, right: 0 };
+        sideVotes.forEach((v) => {
+          if (v) counts[v]++;
+        });
+        if (sideVotes.length >= 6 && (counts.left >= 8 || counts.right >= 8)) {
+          confirmedSide =
+            counts.left > counts.right
+              ? 'left'
+              : counts.right > counts.left
+                ? 'right'
+                : confirmedSide;
+        }
+        return confirmedSide;
+      }
+
+      function angleBetween(A, B, C) {
+        const v1 = { x: A.x - B.x, y: A.y - B.y };
+        const v2 = { x: C.x - B.x, y: C.y - B.y };
+        const dot = v1.x * v2.x + v1.y * v2.y;
+        const m1 = Math.hypot(v1.x, v1.y),
+          m2 = Math.hypot(v2.x, v2.y);
+        if (m1 === 0 || m2 === 0) return null;
+        const cos = Math.min(1, Math.max(-1, dot / (m1 * m2)));
+        return (Math.acos(cos) * 180) / Math.PI;
+      }
+
+      // Confirma un cambio de estado (abajo/arriba) solo tras varios frames
+      // consecutivos con la misma señal, y solo cuenta la repetición si pasó un
+      // tiempo mínimo desde la última — así el ruido del modelo no genera
+      // contactos dobles ni reps fantasma.
+      //
+      // Calibración de arranque: la sesión NO empieza a contar hasta confirmar
+      // específicamente la posición de DESCANSO del ejercicio (acostado boca
+      // arriba en abdominales, brazos extendidos en flexiones, parado en
+      // sentadilla) — no cualquier postura estable. Así, si te sentás primero y
+      // después te recostás para empezar abdominales, ese movimiento de
+      // acomodarte NO cuenta como repetición: recién cuando quedás acostado
+      // (posición de descanso real) arranca la sesión, y la primera repetición
+      // se cuenta cuando completás el primer ciclo completo desde ahí.
+      function evaluateTransition(candidate) {
+        if (candidate && candidate === candidateState) {
+          candidateStreak++;
+        } else {
+          candidateState = candidate;
+          candidateStreak = candidate ? 1 : 0;
+        }
+        if (!candidate || candidateStreak < STATE_CONFIRM_FRAMES) return;
+
+        if (!repStateInitialized) {
+          if (candidate === 'up') {
+            // 'up' = posición de descanso (usado por sentadilla, con umbrales fijos)
+            repState = 'up';
+            repStateInitialized = true;
+            scheduleLivenessChallenge();
+            announceSessionStart();
+          }
+          return;
+        }
+
+        if (candidate === 'down' && repState === 'up') {
+          repState = 'down';
+        } else if (candidate === 'up' && repState === 'down') {
+          repState = 'up';
+          const now = performance.now();
+          if (now - lastRepTime >= MIN_REP_INTERVAL_MS) {
+            lastRepTime = now;
+            registerRep();
+          }
+        }
+      }
+
+      // Versión usada por flexiones/abdominales: la calibración de la posición
+      // de reposo ya se resolvió antes (attemptCalibration), así que acá solo
+      // queda confirmar transiciones con anti-ruido — sin volver a esperar un
+      // "arriba" fijo.
+      function evaluateTransitionCalibrated(candidate) {
+        if (candidate && candidate === candidateState) {
+          candidateStreak++;
+        } else {
+          candidateState = candidate;
+          candidateStreak = candidate ? 1 : 0;
+        }
+        if (!candidate || candidateStreak < STATE_CONFIRM_FRAMES) return;
+
+        if (candidate === 'down' && repState === 'up') {
+          repState = 'down';
+        } else if (candidate === 'up' && repState === 'down') {
+          repState = 'up';
+          const now = performance.now();
+          if (now - lastRepTime >= MIN_REP_INTERVAL_MS) {
+            lastRepTime = now;
+            registerRep();
+          }
+        }
+      }
+
+      function resetRepState() {
+        repCount = 0;
+        repState = 'up';
+        leftAngleHistory = [];
+        rightAngleHistory = [];
+        angleHistory = [];
+        lineAngleHistory = [];
+        groundedHistory = [];
+        sideVotes = [];
+        confirmedSide = null;
+        bodyOkStreak = 0;
+        candidateState = null;
+        candidateStreak = 0;
+        repStateInitialized = false;
+        lastRepTime = 0;
+        calibBuffer = [];
+        dynamicDownThresh = null;
+        dynamicUpThresh = null;
+        restAngleCalibrated = null;
+        livenessChallengeActive = false;
+        livenessPassed = false;
+        livenessNextTriggerAt = null;
+        livenessConfirmFrames = 0;
+        livenessHoldStartTime = null;
+        sessionStartTime = null;
+        repTimestamps = [];
+        continuityBroken = false;
+        sessionAnnounced = false;
+        paceWarnedForThisGap = false;
+        lastCheckpointFraction = 0;
+        sessionFinishedAnnounced = false;
+        repCountEl.textContent = '0';
+        repLabel.textContent = 'repeticiones';
+        continuityBadge.style.display = 'none';
+        continuityBadge.classList.remove('broken');
+        continuityIcon.innerHTML = ICON.clock;
+        resultCard.classList.remove('show');
+      }
+
+      async function initModel() {
+        statusText.textContent = 'Cargando modelo…';
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+        );
+        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task',
+            delegate: 'GPU',
+          },
+          runningMode: 'VIDEO',
+          numPoses: 1,
+        });
+        log('Modelo de pose cargado (lite, on-device)');
+      }
+
+      async function startCamera() {
+        startBtn.disabled = true;
+        startBtn.textContent = 'Iniciando…';
+        ensureAudio(); // debe iniciarse en un gesto directo del usuario (este click)
+
+        startBtn.textContent = 'Confirmando sensor…';
+        const sensorOk = await ensureOrientationSensor();
+        if (!sensorOk) {
+          sensorWarning.style.display = 'block';
+          startBtn.disabled = false;
+          startBtn.textContent = 'Reintentar';
+          statusText.textContent = 'Sensor no confirmado';
+          log(
+            'No se pudo confirmar el sensor de orientación — el modo verificado no puede arrancar sin él (obligatorio para el ranking).',
+          );
+          return;
+        }
+        sensorWarning.style.display = 'none';
+        startBtn.textContent = 'Iniciando…';
+
+        try {
+          if (!poseLandmarker) await initModel();
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: currentFacing },
+            audio: false,
+          });
+          video.srcObject = stream;
+          await video.play();
+          canvas.width = video.videoWidth || 480;
+          canvas.height = video.videoHeight || 640;
+          running = true;
+          resetRepState();
+          startBtn.style.display = 'none';
+          stopBtn.style.display = 'block';
+          statusText.textContent = 'En vivo';
+          liveDot.classList.add('live');
+          log('Cámara activa · ejercicio: ' + currentExercise);
+          requestAnimationFrame(loop);
+        } catch (e) {
+          log('Error: ' + e.message);
+          const insecure = location.protocol === 'file:' || !window.isSecureContext;
+          statusText.textContent = insecure
+            ? 'Abrí este archivo desde el link, no descargado'
+            : 'Sin acceso a cámara';
+          if (insecure)
+            log(
+              'Este archivo se está sirviendo como file:// — la cámara solo funciona en HTTPS. Abrí el link directo, no el archivo descargado.',
+            );
+          startBtn.disabled = false;
+          startBtn.textContent = 'Activar cámara';
+        }
+      }
+
+      function stopCamera() {
+        running = false;
+        const stream = video.srcObject;
+        if (stream) stream.getTracks().forEach((t) => t.stop());
+        liveDot.classList.remove('live');
+        statusText.textContent = 'Detenido';
+        stopBtn.style.display = 'none';
+        startBtn.style.display = 'block';
+        startBtn.disabled = false;
+        startBtn.textContent = 'Activar cámara';
+        stateMsg.style.display = 'none';
+        checklistHud.style.display = 'none';
+
+        document.getElementById('resultReps').textContent = repCount + ' reps';
+        const totalSecs = sessionStartTime
+          ? Math.round((performance.now() - sessionStartTime) / 1000)
+          : 0;
+        const timeStr = `${Math.floor(totalSecs / 60)}:${String(totalSecs % 60).padStart(2, '0')}`;
+        const targetNote = targetReps ? ` (meta: ${targetReps})` : '';
+        if (continuityBroken) {
+          document.getElementById('resultDetail').textContent =
+            `${repCount} repeticiones${targetNote} en ${timeStr}. Se detectó una pausa larga durante la serie — no cuenta para el ranking competitivo, pero tu progreso personal se guardó igual.`;
+          verifyIcon.innerHTML = ICON.xCircle;
+          verifyText.textContent = 'Serie no continua — no apta para ranking';
+          verifyTag.classList.add('broken');
+        } else {
+          document.getElementById('resultDetail').textContent =
+            `${repCount} repeticiones${targetNote} en ${timeStr}, de corrido y verificadas con seguimiento de pose continuo. Apta para sumar a un ranking competitivo.`;
+          verifyIcon.innerHTML = ICON.checkCircle;
+          verifyText.textContent = 'Sesión con evidencia de pose — apta para ranking';
+          verifyTag.classList.remove('broken');
+        }
+        resultCard.classList.add('show');
+      }
+
+      let lastTime = -1;
+      function loop() {
+        if (!running) return;
+        if (video.currentTime !== lastTime) {
+          lastTime = video.currentTime;
+          const result = poseLandmarker.detectForVideo(video, performance.now());
+          draw(result);
+          processPose(result);
+        }
+        requestAnimationFrame(loop);
+      }
+
+      function draw(result) {
+        ctx.save();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (result.landmarks && result.landmarks.length) {
+          const du = new DrawingUtils(ctx);
+          const cfg = EXERCISE_CONFIG[currentExercise];
+          let pointsToMark = [];
+          if (cfg.type === 'frontal') pointsToMark = REQUIRED_POINTS[currentExercise];
+          else if (confirmedSide) pointsToMark = cfg.sides[confirmedSide].points;
+          for (const lm of result.landmarks) {
+            du.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, {
+              color: '#3A4552',
+              lineWidth: 2,
+            });
+            for (const key of pointsToMark) {
+              const idx = LANDMARK_IDX[key];
+              const pt = lm[idx];
+              if (!pt) continue;
+              const ok = (pt.visibility ?? 0) >= VISIBILITY_THRESHOLD;
+              ctx.beginPath();
+              ctx.arc(pt.x * canvas.width, pt.y * canvas.height, ok ? 5 : 6, 0, 2 * Math.PI);
+              ctx.fillStyle = ok ? '#C8FF3D' : '#FF5A5A';
+              ctx.fill();
+              if (!ok) {
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#FF5A5A';
+                ctx.beginPath();
+                ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 10, 0, 2 * Math.PI);
+                ctx.stroke();
+              }
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      function checkBodyComplete(lm, required) {
+        const missing = [];
+        for (const key of required) {
+          const idx = LANDMARK_IDX[key];
+          const pt = lm[idx];
+          const vis = pt ? (pt.visibility ?? 0) : 0;
+          if (vis < VISIBILITY_THRESHOLD) missing.push(key);
+        }
+        return { complete: missing.length === 0, missing };
+      }
+
+      function renderChecklist(title, required, missing) {
+        checklistHud.style.display = 'block';
+        clTitle.innerHTML = `${title} <span id="clCount">${required.length - missing.length}/${required.length}</span>`;
+        clRows.innerHTML = required
+          .map((key) => {
+            const ok = !missing.includes(key);
+            return `<div class="cl-row ${ok ? 'ok' : ''}"><div class="cl-dot"></div><span>${LANDMARK_LABEL[key]}</span></div>`;
+          })
+          .join('');
+      }
+
+      function processPose(result) {
+        const cfg = EXERCISE_CONFIG[currentExercise];
+
+        // Gate universal: si tenemos lectura del sensor y el celular NO está
+        // vertical, se bloquea todo antes de mirar siquiera la pose — cierra la
+        // trampa de acostar el celular apuntando hacia abajo.
+        if (orientationSupported && !deviceIsVertical) {
+          bodyOkStreak = 0;
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          checklistHud.style.display = 'none';
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = 'Poné el celular parado en vertical, no acostado';
+          return;
+        }
+
+        if (!result.landmarks || !result.landmarks.length) {
+          bodyOkStreak = 0;
+          sideVotes = [];
+          confirmedSide = null;
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          checklistHud.style.display = 'none';
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg nobody';
+          stateMsg.textContent = 'No se detecta cuerpo — pausado';
+          livenessChallengeActive = false; // se vuelve a evaluar cuando reaparezca el cuerpo
+          return;
+        }
+        const lm = result.landmarks[0];
+
+        // Gate universal 2: desafío aleatorio de "prueba de vida" — cierra la
+        // trampa de reproducir un video pregrabado en vez de entrenar en vivo.
+        if (repStateInitialized && cfg.livenessType === 'hand' && checkLivenessChallenge(lm))
+          return;
+
+        if (cfg.type === 'frontal') return processFrontal(lm, cfg);
+        return processLateral(lm, cfg);
+      }
+
+      function processFrontal(lm, cfg) {
+        const required = REQUIRED_POINTS[currentExercise];
+        const { complete, missing } = checkBodyComplete(lm, required);
+        renderChecklist('Cuerpo', required, missing);
+
+        if (!complete) {
+          bodyOkStreak = 0;
+          leftAngleHistory = [];
+          rightAngleHistory = [];
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = `Falta ver: ${missing.map((m) => LANDMARK_LABEL[m]).join(', ')}`;
+          return;
+        }
+        bodyOkStreak = Math.min(bodyOkStreak + 1, CONFIRM_FRAMES);
+        if (bodyOkStreak < CONFIRM_FRAMES) {
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = 'Confirmando cuerpo completo…';
+          return;
+        }
+
+        const leftA = lm[LANDMARK_IDX[cfg.left.a]],
+          leftB = lm[LANDMARK_IDX[cfg.left.b]],
+          leftC = lm[LANDMARK_IDX[cfg.left.c]];
+        const rightA = lm[LANDMARK_IDX[cfg.right.a]],
+          rightB = lm[LANDMARK_IDX[cfg.right.b]],
+          rightC = lm[LANDMARK_IDX[cfg.right.c]];
+        const leftAngle = angleBetween(leftA, leftB, leftC);
+        const rightAngle = angleBetween(rightA, rightB, rightC);
+        if (leftAngle == null || rightAngle == null) return;
+
+        leftAngleHistory.push(leftAngle);
+        if (leftAngleHistory.length > 5) leftAngleHistory.shift();
+        rightAngleHistory.push(rightAngle);
+        if (rightAngleHistory.length > 5) rightAngleHistory.shift();
+        const smoothedLeft = leftAngleHistory.reduce((a, b) => a + b, 0) / leftAngleHistory.length;
+        const smoothedRight =
+          rightAngleHistory.reduce((a, b) => a + b, 0) / rightAngleHistory.length;
+
+        const bothDown = Math.max(smoothedLeft, smoothedRight) < cfg.downThresh;
+        const bothUp = Math.min(smoothedLeft, smoothedRight) > cfg.upThresh;
+        const asymmetric = Math.abs(smoothedLeft - smoothedRight) > 35;
+
+        let candidate = null;
+        if (!(asymmetric && !bothDown)) {
+          if (bothDown) candidate = 'down';
+          else if (bothUp) candidate = 'up';
+        }
+        evaluateTransition(candidate);
+
+        stateMsg.style.display = 'block';
+        if (asymmetric && !bothDown) {
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = 'Movimiento asimétrico — usá ambos lados';
+        } else if (!repStateInitialized) {
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent =
+            candidate === 'up' ? 'Calibrando inicio…' : 'Parate derecho para calibrar el inicio';
+        } else if (candidate === 'down') {
+          stateMsg.className = 'state-msg down';
+          stateMsg.textContent = 'ABAJO';
+        } else if (candidate === 'up') {
+          stateMsg.className = 'state-msg up';
+          stateMsg.textContent = 'ARRIBA';
+        }
+      }
+
+      function processLateral(lm, cfg) {
+        const side = updateSideVote(lm, cfg.sides);
+        if (!side) {
+          checklistHud.style.display = 'none';
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = 'Ubicá el celular de perfil, mostrando un costado del cuerpo';
+          return;
+        }
+        const sideCfg = cfg.sides[side];
+        const sideLabel = side === 'left' ? 'Izquierdo' : 'Derecho';
+        const { complete, missing } = checkBodyComplete(lm, sideCfg.points);
+        renderChecklist(`Lado ${sideLabel}`, sideCfg.points, missing);
+
+        if (!complete) {
+          bodyOkStreak = 0;
+          angleHistory = [];
+          lineAngleHistory = [];
+          groundedHistory = [];
+          candidateState = null;
+          candidateStreak = 0;
+          repStateInitialized = false;
+          calibBuffer = [];
+          dynamicDownThresh = null;
+          dynamicUpThresh = null;
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = `Falta ver: ${missing.map((m) => LANDMARK_LABEL[m]).join(', ')}`;
+          return;
+        }
+        bodyOkStreak = Math.min(bodyOkStreak + 1, CONFIRM_FRAMES);
+        if (bodyOkStreak < CONFIRM_FRAMES) {
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          stateMsg.textContent = 'Confirmando lado del cuerpo…';
+          return;
+        }
+
+        // --- Chequeo de postura real: ¿el cuerpo está apoyado en el piso? ---
+        // Esto es lo que evita que pararse (por ejemplo para agarrar el celular)
+        // se cuente como repetición. En flexiones usa tobillo; en abdominales usa
+        // rodilla (más confiable, ver comentario en kneeStandingMargin).
+        if (cfg.groundedMax) {
+          const hip = lm[LANDMARK_IDX[side + '_hip']];
+          const ankle = lm[LANDMARK_IDX[side + '_ankle']];
+          const shoulder = lm[LANDMARK_IDX[side + '_shoulder']];
+          const ratio = groundedRatio(hip, ankle, shoulder);
+          groundedHistory.push(ratio);
+          if (groundedHistory.length > 5) groundedHistory.shift();
+          const smoothedRatio = groundedHistory.reduce((a, b) => a + b, 0) / groundedHistory.length;
+          if (smoothedRatio > cfg.groundedMax) {
+            candidateState = null;
+            candidateStreak = 0;
+            repStateInitialized = false;
+            calibBuffer = [];
+            dynamicDownThresh = null;
+            dynamicUpThresh = null;
+            stateMsg.style.display = 'block';
+            stateMsg.className = 'state-msg blocked';
+            stateMsg.textContent = cfg.postureMsg;
+            return;
+          }
+        }
+        if (cfg.standingKneeMargin) {
+          const hip = lm[LANDMARK_IDX[side + '_hip']];
+          const knee = lm[LANDMARK_IDX[side + '_knee']];
+          const shoulder = lm[LANDMARK_IDX[side + '_shoulder']];
+          const margin = kneeStandingMargin(hip, knee, shoulder);
+          groundedHistory.push(margin);
+          if (groundedHistory.length > 5) groundedHistory.shift();
+          const smoothedMargin =
+            groundedHistory.reduce((a, b) => a + b, 0) / groundedHistory.length;
+          if (smoothedMargin > cfg.standingKneeMargin) {
+            candidateState = null;
+            candidateStreak = 0;
+            repStateInitialized = false;
+            calibBuffer = [];
+            dynamicDownThresh = null;
+            dynamicUpThresh = null;
+            stateMsg.style.display = 'block';
+            stateMsg.className = 'state-msg blocked';
+            stateMsg.textContent = cfg.postureMsg;
+            return;
+          }
+        }
+
+        // chequeo de alineación (plancha real en flexiones — no cadera arriba/abajo)
+        if (sideCfg.line) {
+          const A = lm[LANDMARK_IDX[sideCfg.line.a]],
+            B = lm[LANDMARK_IDX[sideCfg.line.b]],
+            C = lm[LANDMARK_IDX[sideCfg.line.c]];
+          const lineAngle = angleBetween(A, B, C);
+          if (lineAngle != null) {
+            lineAngleHistory.push(lineAngle);
+            if (lineAngleHistory.length > 5) lineAngleHistory.shift();
+            const smoothedLine =
+              lineAngleHistory.reduce((a, b) => a + b, 0) / lineAngleHistory.length;
+            if (smoothedLine < cfg.lineMin) {
+              candidateState = null;
+              candidateStreak = 0;
+              repStateInitialized = false;
+              calibBuffer = [];
+              dynamicDownThresh = null;
+              dynamicUpThresh = null;
+              stateMsg.style.display = 'block';
+              stateMsg.className = 'state-msg blocked';
+              stateMsg.textContent = 'Alineá el cuerpo (cadera muy alta o hundida)';
+              return;
+            }
+          }
+        }
+
+        const A = lm[LANDMARK_IDX[sideCfg.angle.a]],
+          B = lm[LANDMARK_IDX[sideCfg.angle.b]],
+          C = lm[LANDMARK_IDX[sideCfg.angle.c]];
+        const angle = angleBetween(A, B, C);
+        if (angle == null) return;
+
+        angleHistory.push(angle);
+        if (angleHistory.length > 7) angleHistory.shift();
+        const smoothed = angleHistory.reduce((a, b) => a + b, 0) / angleHistory.length;
+
+        // --- Fase de calibración: todavía no arrancó la sesión ---
+        if (!repStateInitialized) {
+          // en abdominales, además exigimos que el torso esté horizontal (acostado)
+          // antes de siquiera intentar calibrar — así no calibra estando sentado
+          if (cfg.restTorsoMax) {
+            const shoulder = lm[LANDMARK_IDX[side + '_shoulder']];
+            const hip = lm[LANDMARK_IDX[side + '_hip']];
+            const torsoAngle = torsoHorizontalAngle(shoulder, hip);
+            if (torsoAngle > cfg.restTorsoMax) {
+              calibBuffer = []; // no está acostado todavía, no acumular muestras de calibración
+              stateMsg.style.display = 'block';
+              stateMsg.className = 'state-msg blocked';
+              stateMsg.textContent = cfg.startMsg;
+              return;
+            }
+          }
+          const calibrated = attemptCalibration(smoothed, cfg);
+          stateMsg.style.display = 'block';
+          stateMsg.className = 'state-msg blocked';
+          if (calibrated) {
+            repState = 'up';
+            repStateInitialized = true;
+            scheduleLivenessChallenge();
+            announceSessionStart();
+            stateMsg.textContent = '¡Listo! Empezá cuando quieras';
+          } else {
+            stateMsg.textContent = cfg.startMsg + ' (quedate quieto medio segundo)';
+          }
+          return;
+        }
+
+        // --- Sesión calibrada: contar con los umbrales de ESTA persona ---
+        if (cfg.livenessType === 'hold' && checkHoldLivenessChallenge(smoothed, dynamicDownThresh))
+          return;
+
+        let candidate = null;
+        if (smoothed < dynamicDownThresh) candidate = 'down';
+        else if (smoothed > dynamicUpThresh) candidate = 'up';
+        evaluateTransitionCalibrated(candidate);
+
+        stateMsg.style.display = 'block';
+        const angleTag = ` (${Math.round(smoothed)}°)`;
+        if (candidate === 'down') {
+          stateMsg.className = 'state-msg down';
+          stateMsg.textContent = 'ABAJO' + angleTag;
+        } else if (candidate === 'up') {
+          stateMsg.className = 'state-msg up';
+          stateMsg.textContent = 'ARRIBA' + angleTag;
+        }
+      }
+
+      function registerRep() {
+        repCount++;
+        repCountEl.textContent = repCount;
+        repCountEl.style.transform = 'scale(1.15)';
+        setTimeout(() => (repCountEl.style.transform = 'scale(1)'), 150);
+        playRepSound(repCount);
+        repTimestamps.push(performance.now());
+        paceWarnedForThisGap = false; // se resetea: hubo una rep nueva, no está "trabado"
+        checkRepCheckpoints();
+      }
+
+      // --- Sonido por repetición (Web Audio, sin archivos externos) ---
+      // Permite entrenar sin mirar la pantalla, incluso con música de fondo:
+      // onda cuadrada (más "cortante" que un tono senoidal puro, se filtra mejor
+      // a través de graves de música) + compresor para llevar el volumen al
+      // máximo posible sin distorsionar.
+      let audioCtx = null;
+      let masterGain = null;
+      function ensureAudio() {
+        if (!audioCtx) {
+          try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const compressor = audioCtx.createDynamicsCompressor();
+            compressor.threshold.value = -12;
+            compressor.knee.value = 6;
+            compressor.ratio.value = 12;
+            compressor.attack.value = 0.001;
+            compressor.release.value = 0.15;
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 1.0;
+            masterGain.connect(compressor).connect(audioCtx.destination);
+          } catch (e) {
+            log('Audio no disponible: ' + e.message);
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      }
+      function beep({ freq = 1300, duration = 0.11, delay = 0, type = 'square', gain = 0.9 }) {
+        if (!audioCtx || !masterGain) return;
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        const t0 = audioCtx.currentTime + delay;
+        gainNode.gain.setValueAtTime(0, t0);
+        gainNode.gain.linearRampToValueAtTime(gain, t0 + 0.006);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+        osc.connect(gainNode).connect(masterGain);
+        osc.start(t0);
+        osc.stop(t0 + duration + 0.02);
+      }
+      function playRepSound(count) {
+        if (!audioCtx || !soundEnabled) return;
+        if (count % 10 === 0) {
+          // cada 10 repeticiones: sonido de hito tipo silbato, barrido de frecuencia ascendente
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          osc.type = 'square';
+          const t0 = audioCtx.currentTime;
+          osc.frequency.setValueAtTime(700, t0);
+          osc.frequency.exponentialRampToValueAtTime(1900, t0 + 0.22);
+          gainNode.gain.setValueAtTime(0, t0);
+          gainNode.gain.linearRampToValueAtTime(0.9, t0 + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+          osc.connect(gainNode).connect(masterGain);
+          osc.start(t0);
+          osc.stop(t0 + 0.3);
+        } else {
+          // doble golpe corto (más perceptible que un tono único de la misma duración)
+          beep({ freq: 1300, duration: 0.09, delay: 0 });
+          beep({ freq: 1300, duration: 0.09, delay: 0.1 });
+        }
+      }
+
+      // Sonido del desafío de "prueba de vida": completamente distinto a los
+      // beeps de conteo (tono senoidal grave-a-medio, tipo timbre de aviso) para
+      // que se note de inmediato que es un pedido especial, no una repetición.
+      function playLivenessAlertSound() {
+        if (!audioCtx || !masterGain || !soundEnabled) return;
+        beep({ freq: 500, duration: 0.16, delay: 0, type: 'sine', gain: 0.75 });
+        beep({ freq: 740, duration: 0.24, delay: 0.17, type: 'sine', gain: 0.75 });
+      }
+
+      // --- Voz (síntesis de voz del navegador, 100% local, sin IA) ---
+      // Da avisos hablados para no depender de mirar la pantalla: calibración
+      // lista, el pedido del desafío de vida, y confirmaciones. No es un
+      // asistente conversacional — es texto fijo, elegido por la propia app
+      // según lo que ya está midiendo (no inventa nada ni entiende preguntas).
+      // Se silencia con el mismo botón 🔊/🔇 que los beeps de conteo.
+      let voiceLastSpokenAt = 0;
+      const VOICE_MIN_GAP_MS = 1200; // evita que se pisen mensajes hablados muy seguidos
+      function speak(text) {
+        if (!soundEnabled) return;
+        if (typeof window.speechSynthesis === 'undefined') return;
+        const now = performance.now();
+        if (now - voiceLastSpokenAt < VOICE_MIN_GAP_MS) return;
+        voiceLastSpokenAt = now;
+        try {
+          window.speechSynthesis.cancel(); // no acumular cola si se dispara seguido
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = 'es-ES';
+          utter.rate = 1.05;
+          window.speechSynthesis.speak(utter);
+        } catch (e) {
+          log('Voz no disponible: ' + e.message);
+        }
+      }
+
+      // --- Chequeo de orientación del celular (anti-trampa de encuadre) ---
+      // Usa el sensor de orientación del dispositivo (el mismo del acelerómetro/
+      // brújula) para exigir que el celular esté PARADO EN VERTICAL, filmando
+      // horizontalmente — no acostado plano en el piso o una repisa apuntando
+      // hacia abajo. Esto cierra una trampa evidente: acostarse en el piso y
+      // poner el celular arriba mirando hacia abajo para simular sentadillas o
+      // abdominales desde un ángulo que no corresponde.
+      //
+      // beta (grados, eje frente-atrás del celular): ≈0° = acostado plano con
+      // pantalla hacia arriba (cámara trasera apuntando derecho hacia abajo);
+      // ≈90° = parado en vertical, cámara apuntando horizontal — la posición
+      // correcta para filmar a alguien de perfil o de frente a su altura.
+      //
+      // OBLIGATORIO: como esto alimenta un ranking, no hay modo "sin verificar".
+      // Si no se puede confirmar el sensor (no soportado, permiso denegado, o no
+      // llegan datos reales en unos segundos), la sesión NO arranca — no existe
+      // una versión "de confianza" sin este chequeo.
+      let orientationSupported = false;
+      let deviceIsVertical = true;
+      let betaHistory = [];
+      const VERTICAL_TOLERANCE = 35; // grados de margen alrededor de 90° que se consideran "vertical"
+      const SENSOR_CONFIRM_TIMEOUT_MS = 3000;
+
+      async function ensureOrientationSensor() {
+        if (typeof DeviceOrientationEvent === 'undefined') return false;
+        try {
+          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            const perm = await DeviceOrientationEvent.requestPermission();
+            if (perm !== 'granted') return false;
+          }
+        } catch (e) {
+          log('No se pudo pedir permiso de sensor de orientación: ' + e.message);
+          return false;
+        }
+
+        window.addEventListener('deviceorientation', onDeviceOrientation);
+
+        // Esperar confirmación real de datos del sensor (no alcanza con que el
+        // permiso se haya concedido — algunos navegadores/dispositivos no emiten
+        // eventos aunque el permiso esté OK).
+        return new Promise((resolve) => {
+          const start = performance.now();
+          function check() {
+            if (orientationSupported) {
+              resolve(true);
+              return;
+            }
+            if (performance.now() - start > SENSOR_CONFIRM_TIMEOUT_MS) {
+              resolve(false);
+              return;
+            }
+            requestAnimationFrame(check);
+          }
+          check();
+        });
+      }
+
+      function onDeviceOrientation(ev) {
+        if (ev.beta == null) return;
+        orientationSupported = true;
+        betaHistory.push(ev.beta);
+        if (betaHistory.length > 8) betaHistory.shift();
+        const avgBeta = betaHistory.reduce((a, b) => a + b, 0) / betaHistory.length;
+        const deviationFromVertical = Math.abs(90 - Math.abs(avgBeta));
+        deviceIsVertical = deviationFromVertical <= VERTICAL_TOLERANCE;
+        orientationBadge.style.display = 'flex';
+        orientationBadge.className = 'badge ' + (deviceIsVertical ? '' : 'orientation-bad');
+        orientationIcon.innerHTML = deviceIsVertical ? ICON.checkCircle : ICON.warning;
+        orientationText.textContent = deviceIsVertical ? 'Vertical' : '¡Poné el celular vertical!';
+      }
+
+      startBtn.onclick = startCamera;
+      stopBtn.onclick = stopCamera;
+    </script>
+  </body>
+</html>

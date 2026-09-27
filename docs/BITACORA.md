@@ -239,6 +239,11 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 - **PO: aplicar `0008` en Supabase** (SQL Editor) para que el ranking de reps funcione en la nube.
 - Validación en dispositivo del flujo completo: armar meta → ranking ON → mano arriba de la cabeza → countdown → cadencia → resultado y aparición en Progreso (Racha/Reps/Total).
 
+**Archivo del material del Escritorio (2026-09-27)**
+
+- Se consolidó en el repo lo que servía de `C:\Users\Anibal\OneDrive\Escritorio\App Retos GYM 1`: `docs/equipo/` (17 perfiles + DER, actas, market, `estado.md`, `EQUIPO.md`), `docs/plan/` (PLAN_COMPLETO, PRODUCT_SPEC, ROADMAP, DATABASE, IA_ENTRENADOR), `docs/prototipo/` (HTMLs viejos + referencias) y branding en `apps/mobile/assets/brand/`.
+- Se creó **`AGENTS.md` en la raíz** con el rol del asistente, el DER y los 17 roles siempre presentes + reglas del juego (convención `[TAG]`, entregables reales, cero simulación). La carpeta original se eliminó (papelera).
+
 **Reemplazo del gesto (2026-09-22): la palma → "levantar la mano arriba de la cabeza" (v9)**
 
 - El PO reportó que la **palma abierta no se detectaba de lejos** (el modelo de mano requiere la mano grande/cerca). Decision: eliminar `HandLandmarker` y usar el **pose** (que ya se usa para toda la verificación y funciona a la distancia del cuerpo).

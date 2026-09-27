@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>FitChallenge — MVP</title>
+    <style>
+      :root {
+        --bg: #0b0e11;
+        --surface: #151a20;
+        --surface-2: #1d242c;
+        --line: #262e37;
+        --text: #edf1f5;
+        --text-dim: #8a95a3;
+        --volt: #c8ff3d;
+        --volt-dim: #8fb82a;
+        --ember: #ff5a36;
+        --blue: #3db4ff;
+        --danger: #ff5a5a;
+        --radius: 18px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      body {
+        background: radial-gradient(1200px 800px at 50% -10%, #1a2129 0%, var(--bg) 55%);
+        color: var(--text);
+        font-family:
+          'Inter',
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        display: flex;
+        justify-content: center;
+        min-height: 100vh;
+      }
+      #app {
+        width: 100%;
+        max-width: 430px;
+        min-height: 100vh;
+        background: var(--bg);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+      }
+      .screen {
+        padding: 24px 20px 100px;
+        flex: 1;
+        animation: fadein 0.25s ease;
+      }
+      @keyframes fadein {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: 'Archivo Black', 'Arial Black', sans-serif;
+        letter-spacing: -0.5px;
+        margin: 0;
+      }
+      h1 {
+        font-size: 28px;
+        line-height: 1.15;
+      }
+      h2 {
+        font-size: 20px;
+      }
+      h3 {
+        font-size: 15px;
+      }
+      p {
+        color: var(--text-dim);
+        line-height: 1.5;
+        margin: 8px 0 0;
+        font-size: 14px;
+      }
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--volt);
+        font-weight: 700;
+        margin-bottom: 6px;
+        display: block;
+      }
+      .btn {
+        display: block;
+        width: 100%;
+        text-align: center;
+        border: none;
+        border-radius: 14px;
+        padding: 16px;
+        font-family: 'Archivo Black', 'Arial Black', sans-serif;
+        font-size: 15px;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+        transition:
+          transform 0.12s ease,
+          filter 0.12s ease;
+      }
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-primary {
+        background: var(--volt);
+        color: #0b0e11;
+      }
+      .btn-primary:hover {
+        filter: brightness(1.08);
+      }
+      .btn-ghost {
+        background: var(--surface-2);
+        color: var(--text);
+        border: 1px solid var(--line);
+      }
+      .btn-danger {
+        background: transparent;
+        color: var(--danger);
+        border: 1px solid #3a2426;
+      }
+      .btn-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .btn-row .btn {
+        flex: 1;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px;
+        margin-top: 16px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .pill.selected {
+        background: var(--volt);
+        color: #0b0e11;
+        border-color: var(--volt);
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .option-card {
+        background: var(--surface);
+        border: 1.5px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .option-card.selected {
+        border-color: var(--volt);
+        background: #171e14;
+      }
+      .option-card b {
+        display: block;
+        font-size: 15px;
+        margin-bottom: 2px;
+      }
+      .option-card span {
+        font-size: 12px;
+        color: var(--text-dim);
+      }
+      .progress-dots {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 20px;
+      }
+      .progress-dots div {
+        height: 4px;
+        flex: 1;
+        border-radius: 2px;
+        background: var(--line);
+      }
+      .progress-dots div.done {
+        background: var(--volt);
+      }
+      /* HOME */
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--volt), var(--blue));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        color: #0b0e11;
+        font-size: 16px;
+      }
+      .stat-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+      .stat-box {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px;
+        text-align: center;
+      }
+      .stat-box .num {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: 20px;
+        color: var(--volt);
+      }
+      .stat-box .lbl {
+        font-size: 11px;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .xp-bar-track {
+        height: 8px;
+        border-radius: 4px;
+        background: var(--surface-2);
+        margin-top: 8px;
+        overflow: hidden;
+      }
+      .xp-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--volt-dim), var(--volt));
+        border-radius: 4px;
+        transition: width 0.4s ease;
+      }
+      .today-card {
+        margin-top: 20px;
+        border-radius: 20px;
+        padding: 22px;
+        background: linear-gradient(160deg, #1a2410 0%, #151a20 55%);
+        border: 1px solid #2c3a16;
+        position: relative;
+        overflow: hidden;
+      }
+      .today-card .flame {
+        position: absolute;
+        right: -10px;
+        top: -10px;
+        font-size: 80px;
+        opacity: 0.08;
+      }
+      .ex-list {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .ex-row {
+        display: flex;
+        justify-content: space-between;
+        background: var(--surface-2);
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+      }
+      .ex-row b {
+        color: var(--volt);
+      }
+      .nav {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 430px;
+        background: #0e1216;
+        border-top: 1px solid var(--line);
+        display: flex;
+        justify-content: space-around;
+        padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        color: var(--text-dim);
+        font-size: 10px;
+        cursor: pointer;
+      }
+      .nav-item.active {
+        color: var(--volt);
+      }
+      .nav-item .ic {
+        font-size: 20px;
+      }
+      /* workout */
+      .exercise-hero {
+        text-align: center;
+        padding: 30px 0 10px;
+      }
+      .exercise-hero .count {
+        font-family: 'Archivo Black', sans-serif;
+        font-size: 64px;
+        color: var(--volt);
+        line-height: 1;
+      }
+      .exercise-hero .of {
+        color: var(--text-dim);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .timer {
+        width: 100%;
+        height: 6px;
+        background: var(--surface-2);
+        border-radius: 3px;
+        margin-top: 26px;
+        overflow: hidden;
+      }
+      .timer div {
+        height: 100%;
+        background: var(--blue);
+      }
+      /* calendar path */
+      .path-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      .node {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--surface-2);
+        color: var(--text-dim);
+        border: 1px solid var(--line);
+      }
+      .node.done {
+        background: var(--volt);
+        color: #0b0e11;
+        border-color: var(--volt);
+      }
+      .node.today {
+        border-color: var(--volt);
+        color: var(--volt);
+      }
+      .node.rest {
+        background: transparent;
+        border: 1px dashed var(--line);
+      }
+      /* achievements */
+      .ach-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .ach {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        text-align: center;
+        opacity: 0.35;
+      }
+      .ach.unlocked {
+        opacity: 1;
+        border-color: var(--volt);
+      }
+      .ach .ic {
+        font-size: 26px;
+      }
+      .ach b {
+        display: block;
+        font-size: 12px;
+        margin-top: 6px;
+      }
+      .toast {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--surface-2);
+        border: 1px solid var(--volt);
+        color: var(--text);
+        padding: 10px 18px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 50;
+        animation: toastin 0.3s ease;
+      }
+      @keyframes toastin {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -10px);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, 0);
+        }
+      }
+      .center-cta {
+        text-align: center;
+        padding: 50px 0;
+      }
+      .big-emoji {
+        font-size: 64px;
+      }
+      .offline-badge {
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2a1e10;
+        color: #ffc46b;
+        border: 1px solid #4a3a1a;
+        font-size: 11px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        z-index: 40;
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+      .offline-badge.show {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="offline-badge" id="offlineBadge">● Guardado localmente — sin conexión</div>
+      <div id="root"></div>
+    </div>
+
+    <script>
+      /* =========================================================
+   FitChallenge — MVP Fase 1
+   Offline-first: todo el estado vive en localStorage.
+   Motor de progresión y racha desacoplados de la UI (ver
+   ProgressionEngine / applyStreak) para que la lógica migre
+   1:1 a la futura app React Native.
+   ========================================================= */
+
+      const STORAGE_KEY = 'fitchallenge_state_v1';
+
+      function todayISO(d = new Date()) {
+        return d.toISOString().slice(0, 10);
+      }
+      function daysBetween(a, b) {
+        const d1 = new Date(a + 'T00:00:00'),
+          d2 = new Date(b + 'T00:00:00');
+        return Math.round((d2 - d1) / 86400000);
+      }
+
+      const LEVELS = [0, 50, 120, 220, 360, 550, 800, 1150, 1600, 2200, 3000];
+      function levelForXp(xp) {
+        let lvl = 1;
+        for (let i = 0; i < LEVELS.length; i++) {
+          if (xp >= LEVELS[i]) lvl = i + 1;
+        }
+        return lvl;
+      }
+      function xpForNextLevel(xp) {
+        const lvl = levelForXp(xp);
+        const next = LEVELS[lvl] ?? LEVELS[LEVELS.length - 1] + 1000;
+        const prev = LEVELS[lvl - 1] ?? 0;
+        return { prev, next, lvl };
+      }
+
+      const ACHIEVEMENTS = [
+        {
+          code: 'first_workout',
+          name: 'Primer paso',
+          ic: '🎯',
+          test: (s) => s.history.length >= 1,
+        },
+        { code: 'streak_3', name: '3 días', ic: '🔥', test: (s) => s.streak.best >= 3 },
+        { code: 'streak_7', name: '7 días', ic: '⚡', test: (s) => s.streak.best >= 7 },
+        { code: 'streak_30', name: '30 días', ic: '🏆', test: (s) => s.streak.best >= 30 },
+        { code: 'reps_100', name: '100 reps', ic: '💪', test: (s) => totalReps(s) >= 100 },
+        { code: 'reps_1000', name: '1.000 reps', ic: '👑', test: (s) => totalReps(s) >= 1000 },
+        { code: 'level_5', name: 'Nivel 5', ic: '⭐', test: (s) => levelForXp(s.xp) >= 5 },
+        { code: 'comeback', name: 'Volviste', ic: '🌱', test: (s) => s.hadComeback === true },
+      ];
+      function totalReps(s) {
+        return s.history.reduce((a, h) => a + h.totalReps, 0);
+      }
+
+      /* ---------- ProgressionEngine (desacoplado de UI) ---------- */
+      const ProgressionEngine = {
+        // Genera el reto del día según perfil + historial. Progresión lineal
+        // simple con techo de incremento (SafetyEngine) y readaptación tras
+        // inactividad prolongada.
+        nextChallenge(state) {
+          const base = state.profile.exercises; // {pushups:1, squats:1, situps:1}
+          const daysSinceLast = state.history.length
+            ? daysBetween(state.history[state.history.length - 1].date, todayISO())
+            : 0;
+
+          let mult = 1;
+          if (daysSinceLast >= 14) {
+            mult = 0.5;
+            state.hadComeback = true;
+          } // readaptación fuerte
+          else if (daysSinceLast >= 7) {
+            mult = 0.7;
+            state.hadComeback = true;
+          } // readaptación moderada
+
+          const day = state.history.length + 1;
+          const raw = {};
+          for (const ex in base) {
+            let val = base[ex] + (day - 1); // progresión lineal +1/día
+            val = Math.round(val * mult);
+            // SafetyEngine: tope de incremento diario respecto a la última sesión real
+            const last = state.history.length
+              ? state.history[state.history.length - 1].targets[ex]
+              : base[ex];
+            const maxAllowed = last + 3; // no permitir saltos absurdos
+            val = Math.min(val, maxAllowed);
+            raw[ex] = Math.max(1, val);
+          }
+          return { day, targets: raw, isComeback: mult < 1 };
+        },
+      };
+
+      function applyStreak(state) {
+        const last = state.streak.lastDate;
+        if (!last) {
+          state.streak.current = 1;
+        } else {
+          const gap = daysBetween(last, todayISO());
+          if (gap === 1) state.streak.current += 1;
+          else if (gap === 0) {
+            /* mismo día, no cambia */
+          } else state.streak.current = 1; // se rompió, reinicia (descansos planificados: fuera de MVP)
+        }
+        state.streak.lastDate = todayISO();
+        state.streak.best = Math.max(state.streak.best, state.streak.current);
+      }
+
+      /* ---------- Persistencia (offline-first) ---------- */
+      function loadState() {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+        return null;
+      }
+      function saveState(state) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        flashOffline();
+      }
+      function freshState() {
+        return {
+          onboarded: false,
+          profile: {
+            name: '',
+            mode: 'home',
+            experience: 'beginner',
+            goal: 'habit',
+            exercises: { pushups: 1, squats: 1, situps: 1 },
+          },
+          xp: 0,
+          streak: { current: 0, best: 0, lastDate: null },
+          history: [], // {date, day, targets, totalReps, felt}
+          unlocked: [],
+          hadComeback: false,
+        };
+      }
+
+      let state = loadState() || freshState();
+      let route = state.onboarded ? 'home' : 'onboard';
+      let onboardStep = 0;
+      const onboardData = { name: '', mode: 'home', experience: null, goal: null };
+
+      function flashOffline() {
+        const el = document.getElementById('offlineBadge');
+        el.classList.add('show');
+        clearTimeout(flashOffline._t);
+        flashOffline._t = setTimeout(() => el.classList.remove('show'), 1600);
+      }
+      function toast(msg) {
+        const t = document.createElement('div');
+        t.className = 'toast';
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 1800);
+      }
+
+      function go(r) {
+        route = r;
+        render();
+        window.scrollTo(0, 0);
+      }
+
+      /* ================= RENDER ================= */
+      const root = document.getElementById('root');
+      function render() {
+        if (route === 'onboard') return renderOnboard();
+        root.innerHTML = screenShell();
+        fillScreen();
+        attachNav();
+      }
+
+      function screenShell() {
+        return `<div class="screen" id="screenContent"></div>
+  <div class="nav">
+    <div class="nav-item ${route === 'home' ? 'active' : ''}" data-r="home"><div class="ic">🏠</div>Home</div>
+    <div class="nav-item ${route === 'calendar' ? 'active' : ''}" data-r="calendar"><div class="ic">📅</div>Calendario</div>
+    <div class="nav-item ${route === 'achievements' ? 'active' : ''}" data-r="achievements"><div class="ic">🏅</div>Logros</div>
+    <div class="nav-item ${route === 'profile' ? 'active' : ''}" data-r="profile"><div class="ic">👤</div>Perfil</div>
+  </div>`;
+      }
+      function attachNav() {
+        document.querySelectorAll('.nav-item').forEach((el) => {
+          el.onclick = () => go(el.dataset.r);
+        });
+      }
+
+      function fillScreen() {
+        const c = document.getElementById('screenContent');
+        if (route === 'home') c.innerHTML = viewHome();
+        else if (route === 'calendar') c.innerHTML = viewCalendar();
+        else if (route === 'achievements') c.innerHTML = viewAchievements();
+        else if (route === 'profile') c.innerHTML = viewProfile();
+        else if (route === 'workout') c.innerHTML = viewWorkout();
+        else if (route === 'done') c.innerHTML = viewDone();
+        bindScreenEvents();
+      }
+
+      /* ---------- ONBOARDING ---------- */
+      const ONBOARD_STEPS = 5;
+      function renderOnboard() {
+        root.innerHTML = `<div class="screen">
+    <div class="progress-dots">
+      ${Array.from({ length: ONBOARD_STEPS })
+        .map((_, i) => `<div class="${i <= onboardStep ? 'done' : ''}"></div>`)
+        .join('')}
+    </div>
+    ${onboardStepView()}
+  </div>`;
+        bindOnboardEvents();
+      }
+      function onboardStepView() {
+        if (onboardStep === 0)
+          return `
+    <span class="eyebrow">Bienvenido</span>
+    <h1>Empecemos con lo mínimo.</h1>
+    <p>Un reto, un poco cada día. Nosotros recordamos el resto.</p>
+    <div class="card">
+      <h3>¿Cómo te llamamos?</h3>
+      <input id="nameInput" placeholder="Tu nombre" value="${onboardData.name}"
+        style="width:100%;margin-top:10px;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);font-size:15px;">
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px" id="ob0next">Continuar</button>`;
+        if (onboardStep === 1)
+          return `
+    <span class="eyebrow">Dónde entrenás</span>
+    <h1>¿Casa, gimnasio o ambos?</h1>
+    <div class="grid-2" style="margin-top:16px;grid-template-columns:1fr;gap:10px;">
+      ${optCard('home', '🏠 Casa', 'Peso corporal, poco equipo')}
+      ${optCard('gym', '🏋️ Gimnasio', 'Fuerza, máquinas, peso libre')}
+      ${optCard('both', '🔄 Ambos', 'Combino los dos mundos')}
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px" id="ob1next" ${onboardData.mode ? '' : 'disabled'}>Continuar</button>`;
+        if (onboardStep === 2)
+          return `
+    <span class="eyebrow">Tu punto de partida</span>
+    <h1>¿Entrenás actualmente?</h1>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+      ${optCard('beginner', 'Recién empiezo', 'Nunca entrené con constancia')}
+      ${optCard('returning', 'Vuelvo después de una pausa', 'Entrené antes, hace tiempo no')}
+      ${optCard('active', 'Entreno actualmente', 'Quiero sumar estructura y reto')}
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px" id="ob2next" ${onboardData.experience ? '' : 'disabled'}>Continuar</button>`;
+        if (onboardStep === 3)
+          return `
+    <span class="eyebrow">Tu objetivo</span>
+    <h1>¿Qué querés lograr?</h1>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px;">
+      ${optCard('habit', 'Crear el hábito', 'Lo más importante: no cortar la racha')}
+      ${optCard('strength', 'Ganar fuerza', 'Progresar en repeticiones y carga')}
+      ${optCard('endurance', 'Mejorar resistencia', 'Aguantar más, sentirme mejor')}
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px" id="ob3next" ${onboardData.goal ? '' : 'disabled'}>Continuar</button>`;
+        if (onboardStep === 4)
+          return `
+    <span class="eyebrow">Listo</span>
+    <h1>${onboardData.name || 'Todo listo'}, armamos tu primer reto.</h1>
+    <p>Empezás simple. Nosotros ajustamos el ritmo según cómo te vaya.</p>
+    <div class="card">
+      <h3>Día 1</h3>
+      <div class="ex-list">
+        <div class="ex-row">Flexiones <b>1</b></div>
+        <div class="ex-row">Sentadillas <b>1</b></div>
+        <div class="ex-row">Abdominales <b>1</b></div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:20px" id="obFinish">Comenzar mi reto</button>`;
+      }
+      function optCard(val, title, sub) {
+        const key = onboardStep === 1 ? 'mode' : onboardStep === 2 ? 'experience' : 'goal';
+        const selected = onboardData[key] === val;
+        return `<div class="option-card ${selected ? 'selected' : ''}" data-val="${val}" data-key="${key}">
+    <b>${title}</b><span>${sub}</span></div>`;
+      }
+      function bindOnboardEvents() {
+        document.querySelectorAll('.option-card').forEach((el) => {
+          el.onclick = () => {
+            onboardData[el.dataset.key] = el.dataset.val;
+            renderOnboard();
+          };
+        });
+        const n0 = document.getElementById('ob0next');
+        if (n0)
+          n0.onclick = () => {
+            onboardData.name = document.getElementById('nameInput').value.trim() || 'Atleta';
+            onboardStep = 1;
+            renderOnboard();
+          };
+        const n1 = document.getElementById('ob1next');
+        if (n1)
+          n1.onclick = () => {
+            onboardStep = 2;
+            renderOnboard();
+          };
+        const n2 = document.getElementById('ob2next');
+        if (n2)
+          n2.onclick = () => {
+            onboardStep = 3;
+            renderOnboard();
+          };
+        const n3 = document.getElementById('ob3next');
+        if (n3)
+          n3.onclick = () => {
+            onboardStep = 4;
+            renderOnboard();
+          };
+        const nf = document.getElementById('obFinish');
+        if (nf)
+          nf.onclick = () => {
+            state = freshState();
+            state.onboarded = true;
+            state.profile.name = onboardData.name;
+            state.profile.mode = onboardData.mode;
+            state.profile.experience = onboardData.experience;
+            state.profile.goal = onboardData.goal;
+            saveState(state);
+            go('home');
+          };
+      }
+
+      /* ---------- HOME ---------- */
+      function viewHome() {
+        const { lvl } = xpForNextLevel(state.xp);
+        const { prev, next } = xpForNextLevel(state.xp);
+        const pct = Math.round(((state.xp - prev) / (next - prev)) * 100);
+        const doneToday =
+          state.history.length && state.history[state.history.length - 1].date === todayISO();
+        const challenge = doneToday
+          ? state.history[state.history.length - 1]
+          : ProgressionEngine.nextChallenge(state);
+
+        return `
+  <div class="topbar">
+    <div>
+      <span class="eyebrow">${greeting()}</span>
+      <h1>${state.profile.name}</h1>
+    </div>
+    <div class="avatar">${(state.profile.name || 'A').slice(0, 1).toUpperCase()}</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="num">${lvl}</div><div class="lbl">Nivel</div></div>
+    <div class="stat-box"><div class="num">${state.streak.current}🔥</div><div class="lbl">Racha</div></div>
+    <div class="stat-box"><div class="num">${state.xp}</div><div class="lbl">XP</div></div>
+  </div>
+  <div class="xp-bar-track"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
+
+  <div class="today-card">
+    <div class="flame">🔥</div>
+    <span class="eyebrow">${doneToday ? 'Reto de hoy — completado' : 'Reto de hoy · Día ' + challenge.day}</span>
+    <h2>${challenge.isComeback ? 'Volvamos progresivamente' : 'A tu ritmo, un poco más que ayer'}</h2>
+    <div class="ex-list">
+      ${Object.entries(challenge.targets)
+        .map(([k, v]) => `<div class="ex-row">${exLabel(k)} <b>${v}</b></div>`)
+        .join('')}
+    </div>
+    ${
+      doneToday
+        ? `<button class="btn btn-ghost" style="margin-top:16px" disabled>✓ Completado hoy</button>`
+        : `<button class="btn btn-primary" style="margin-top:16px" id="startWorkout">Comenzar reto</button>`
+    }
+  </div>
+  `;
+      }
+      function greeting() {
+        const h = new Date().getHours();
+        if (h < 12) return 'Buen día';
+        if (h < 19) return 'Buenas tardes';
+        return 'Buenas noches';
+      }
+      function exLabel(k) {
+        return { pushups: 'Flexiones', squats: 'Sentadillas', situps: 'Abdominales' }[k] || k;
+      }
+
+      /* ---------- WORKOUT ---------- */
+      let workoutState = null;
+      function startWorkoutFlow() {
+        const challenge = ProgressionEngine.nextChallenge(state);
+        workoutState = {
+          challenge,
+          order: Object.keys(challenge.targets),
+          idx: 0,
+          resting: false,
+        };
+        go('workout');
+      }
+      function viewWorkout() {
+        const ex = workoutState.order[workoutState.idx];
+        const target = workoutState.challenge.targets[ex];
+        const isLast = workoutState.idx === workoutState.order.length - 1;
+        return `
+  <span class="eyebrow">Ejercicio ${workoutState.idx + 1} de ${workoutState.order.length}</span>
+  <h1>${exLabel(ex)}</h1>
+  <div class="exercise-hero">
+    <div class="count">${target}</div>
+    <div class="of">repeticiones objetivo</div>
+  </div>
+  <div class="card">
+    <p>Hacé las repeticiones a tu ritmo. Cuando termines, marcá el ejercicio como hecho.</p>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-ghost" id="pauseBtn">Pausar</button>
+    <button class="btn btn-primary" id="nextEx">${isLast ? 'Finalizar reto' : 'Siguiente ejercicio'}</button>
+  </div>
+  <button class="btn" style="margin-top:10px;background:transparent;color:var(--text-dim);font-size:12px;" id="cancelWorkout">Cancelar entrenamiento</button>
+  `;
+      }
+      function bindScreenEvents() {
+        const sw = document.getElementById('startWorkout');
+        if (sw) sw.onclick = startWorkoutFlow;
+
+        const nx = document.getElementById('nextEx');
+        if (nx)
+          nx.onclick = () => {
+            if (workoutState.idx < workoutState.order.length - 1) {
+              workoutState.idx++;
+              go('workout');
+            } else finishWorkout();
+          };
+        const cw = document.getElementById('cancelWorkout');
+        if (cw) cw.onclick = () => go('home');
+
+        const restart = document.getElementById('backHome');
+        if (restart) restart.onclick = () => go('home');
+
+        // profile
+        const del = document.getElementById('resetData');
+        if (del)
+          del.onclick = () => {
+            if (confirm('¿Borrar todo tu progreso guardado localmente?')) {
+              localStorage.removeItem(STORAGE_KEY);
+              state = freshState();
+              route = 'onboard';
+              onboardStep = 0;
+              Object.assign(onboardData, { name: '', mode: 'home', experience: null, goal: null });
+              render();
+            }
+          };
+      }
+      function finishWorkout() {
+        const challenge = workoutState.challenge;
+        const totalReps = Object.values(challenge.targets).reduce((a, b) => a + b, 0);
+        const entry = {
+          date: todayISO(),
+          day: challenge.day,
+          targets: challenge.targets,
+          totalReps,
+          felt: null,
+        };
+        state.history.push(entry);
+        applyStreak(state);
+        const xpGain = 10 + totalReps;
+        state.xp += xpGain;
+
+        const before = new Set(state.unlocked);
+        ACHIEVEMENTS.forEach((a) => {
+          if (!state.unlocked.includes(a.code) && a.test(state)) state.unlocked.push(a.code);
+        });
+        const newlyUnlocked = ACHIEVEMENTS.filter(
+          (a) => !before.has(a.code) && state.unlocked.includes(a.code),
+        );
+
+        saveState(state);
+        workoutState.result = { xpGain, newlyUnlocked, entry };
+        go('done');
+      }
+      function viewDone() {
+        const r = workoutState.result;
+        return `
+  <div class="center-cta">
+    <div class="big-emoji">🎉</div>
+    <h1>¡Reto completado!</h1>
+    <p>Guardado en tu dispositivo, incluso sin conexión.</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box"><div class="num">+${r.xpGain}</div><div class="lbl">XP ganado</div></div>
+    <div class="stat-box"><div class="num">${state.streak.current}🔥</div><div class="lbl">Racha</div></div>
+    <div class="stat-box"><div class="num">${r.entry.totalReps}</div><div class="lbl">Reps totales</div></div>
+  </div>
+  ${
+    r.newlyUnlocked.length
+      ? `
+  <div class="card">
+    <h3>Nuevo logro desbloqueado</h3>
+    <div class="ach-grid">
+      ${r.newlyUnlocked.map((a) => `<div class="ach unlocked"><div class="ic">${a.ic}</div><b>${a.name}</b></div>`).join('')}
+    </div>
+  </div>`
+      : ''
+  }
+  <button class="btn btn-primary" style="margin-top:20px" id="backHome">Volver al inicio</button>
+  `;
+      }
+
+      /* ---------- CALENDAR (camino de progreso) ---------- */
+      function viewCalendar() {
+        const byDate = {};
+        state.history.forEach((h) => (byDate[h.date] = h));
+        const today = new Date();
+        const nodes = [];
+        for (let i = 27; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          const iso = todayISO(d);
+          const done = !!byDate[iso];
+          const isToday = iso === todayISO();
+          nodes.push(
+            `<div class="node ${done ? 'done' : ''} ${isToday && !done ? 'today' : ''}" title="${iso}">${d.getDate()}</div>`,
+          );
+        }
+        return `
+  <span class="eyebrow">Tu camino</span>
+  <h1>Últimos 28 días</h1>
+  <p>Cada punto iluminado es un reto completado. Así se construye una racha.</p>
+  <div class="path-wrap">${nodes.join('')}</div>
+  <div class="card">
+    <h3>Mi historia</h3>
+    <p>Empezaste con ${state.profile.exercises.pushups} flexión${state.profile.exercises.pushups > 1 ? 'es' : ''} el día 1.
+    ${state.history.length ? `Hoy vas por el día ${state.history[state.history.length - 1].day}, con ${state.history[state.history.length - 1].targets.pushups} en el reto.` : 'Todavía no completaste tu primer reto.'}</p>
+  </div>
+  `;
+      }
+
+      /* ---------- ACHIEVEMENTS ---------- */
+      function viewAchievements() {
+        return `
+  <span class="eyebrow">Logros</span>
+  <h1>${state.unlocked.length} / ${ACHIEVEMENTS.length} desbloqueados</h1>
+  <div class="ach-grid">
+    ${ACHIEVEMENTS.map(
+      (a) => `
+      <div class="ach ${state.unlocked.includes(a.code) ? 'unlocked' : ''}">
+        <div class="ic">${a.ic}</div><b>${a.name}</b>
+      </div>`,
+    ).join('')}
+  </div>
+  `;
+      }
+
+      /* ---------- PROFILE ---------- */
+      function viewProfile() {
+        return `
+  <div class="topbar">
+    <div><span class="eyebrow">Perfil</span><h1>${state.profile.name}</h1></div>
+    <div class="avatar">${(state.profile.name || 'A').slice(0, 1).toUpperCase()}</div>
+  </div>
+  <div class="card">
+    <h3>Preferencia</h3>
+    <p>Modo: ${{ home: 'Casa', gym: 'Gimnasio', both: 'Ambos' }[state.profile.mode]} · Objetivo: ${{ habit: 'Crear hábito', strength: 'Ganar fuerza', endurance: 'Mejorar resistencia' }[state.profile.goal]}</p>
+  </div>
+  <div class="card">
+    <h3>Estadísticas</h3>
+    <div class="stat-row" style="margin-top:0">
+      <div class="stat-box"><div class="num">${state.history.length}</div><div class="lbl">Entrenos</div></div>
+      <div class="stat-box"><div class="num">${totalReps(state)}</div><div class="lbl">Reps</div></div>
+      <div class="stat-box"><div class="num">${state.streak.best}</div><div class="lbl">Mejor racha</div></div>
+    </div>
+  </div>
+  <div class="card" style="border-color:#3A2426;">
+    <h3>Datos locales</h3>
+    <p>Tu progreso se guarda solo en este dispositivo (localStorage). En la versión con backend se sincroniza automáticamente.</p>
+    <button class="btn btn-danger" style="margin-top:12px" id="resetData">Borrar progreso</button>
+  </div>
+  `;
+      }
+
+      render();
+    </script>
+  </body>
+</html>
