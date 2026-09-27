@@ -10,6 +10,7 @@ export interface FreeSession {
   target: number;
   ranked: boolean;
   seriesOk: boolean;
+  livenessOk?: boolean;
   clientOpId?: string;
 }
 

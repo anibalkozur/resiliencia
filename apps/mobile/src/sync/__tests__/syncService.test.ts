@@ -32,14 +32,21 @@ interface InsertCall {
   rows: Record<string, unknown>[];
 }
 
+interface InvokeCall {
+  name: string;
+  options: unknown;
+}
+
 function fakeClient() {
   const calls: {
     upsert: UpsertCall | null;
     insert: InsertCall | null;
+    invoke: InvokeCall | null;
     rpc: { name: string; args: unknown } | null;
   } = {
     upsert: null,
     insert: null,
+    invoke: null,
     rpc: null,
   };
   let rpcError: unknown = null;
@@ -65,6 +72,15 @@ function fakeClient() {
           return { error: null };
         },
       };
+    },
+    functions: {
+      invoke: async (name: string, options: unknown) => {
+        calls.invoke = { name, options };
+        return {
+          data: { received: 2, pending: 1, rejected: 0, verified: 0 },
+          error: null,
+        };
+      },
     },
     rpc: async (name: string, args: unknown) => {
       calls.rpc = { name, args };
@@ -158,7 +174,7 @@ describe('fetchRanking', () => {
 });
 
 describe('uploadSessions', () => {
-  it('upserts one row per free session with ranked flags', async () => {
+  it('submits one row per free session to the server validator', async () => {
     const { client, calls } = fakeClient();
 
     const count = await uploadSessions(client, 'user-1', [
@@ -183,31 +199,38 @@ describe('uploadSessions', () => {
     ]);
 
     expect(count).toBe(2);
-    expect(calls.upsert?.rows).toEqual([
-      {
-        user_id: 'user-1',
-        exercise_code: 'sentadillas',
-        value: 25,
-        target: 20,
-        source: 'libre',
-        ranked: true,
-        series_ok: true,
-        session_date: '2026-09-22',
-        client_op_id: 'op-1',
+    expect(calls.invoke).toEqual({
+      name: 'validate_workout',
+      options: {
+        body: {
+          sessions: [
+            {
+              clientOpId: 'op-1',
+              exerciseCode: 'sentadillas',
+              value: 25,
+              target: 20,
+              source: 'libre',
+              ranked: true,
+              seriesOk: true,
+              livenessOk: false,
+              sessionDate: '2026-09-22',
+            },
+            {
+              clientOpId: 'op-2',
+              exerciseCode: 'flexiones',
+              value: 8,
+              target: 10,
+              source: 'libre',
+              ranked: false,
+              seriesOk: false,
+              livenessOk: false,
+              sessionDate: '2026-09-22',
+            },
+          ],
+        },
       },
-      {
-        user_id: 'user-1',
-        exercise_code: 'flexiones',
-        value: 8,
-        target: 10,
-        source: 'libre',
-        ranked: false,
-        series_ok: false,
-        session_date: '2026-09-22',
-        client_op_id: 'op-2',
-      },
-    ]);
-    expect(calls.upsert?.options).toEqual({ onConflict: 'user_id,client_op_id' });
+    });
+    expect(calls.upsert).toBeNull();
   });
 
   it('generates a client_op_id when the queued session lacks one', async () => {
@@ -224,15 +247,17 @@ describe('uploadSessions', () => {
       },
     ]);
 
-    expect(typeof calls.upsert?.rows[0]?.['client_op_id']).toBe('string');
-    expect(String(calls.upsert?.rows[0]?.['client_op_id']).length).toBeGreaterThan(0);
+    const submitted = (calls.invoke?.options as { body: { sessions: Record<string, unknown>[] } })
+      .body.sessions[0];
+    expect(typeof submitted.clientOpId).toBe('string');
+    expect(String(submitted.clientOpId).length).toBeGreaterThan(0);
   });
 
   it('returns 0 and skips upsert for empty sessions', async () => {
     const { client, calls } = fakeClient();
 
     expect(await uploadSessions(client, 'user-1', [])).toBe(0);
-    expect(calls.upsert).toBeNull();
+    expect(calls.invoke).toBeNull();
   });
 });
 

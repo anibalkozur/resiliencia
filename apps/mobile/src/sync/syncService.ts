@@ -43,15 +43,16 @@ interface DailyChallengeRow {
 }
 
 export interface WorkoutSessionRow {
-  user_id: string;
-  exercise_code: string;
+  clientOpId: string;
+  exerciseCode: string;
   value: number;
   target: number;
   source: 'reto_diario' | 'libre';
   ranked: boolean;
-  series_ok: boolean;
-  session_date: string;
-  client_op_id?: string;
+  seriesOk: boolean;
+  livenessOk: boolean;
+  sessionDate: string;
+  evidence?: Record<string, unknown>;
 }
 
 async function fetchExerciseIds(client: SupabaseClient): Promise<Map<string, string>> {
@@ -114,33 +115,37 @@ export async function fetchRanking(client: SupabaseClient, maxRows = 50): Promis
 
 export async function uploadSessions(
   client: SupabaseClient,
-  userId: string,
+  _userId: string,
   sessions: FreeSession[],
 ): Promise<number> {
   if (sessions.length === 0) {
     return 0;
   }
   const rows: WorkoutSessionRow[] = sessions.map((s) => ({
-    user_id: userId,
-    exercise_code: s.exerciseId,
+    clientOpId:
+      s.clientOpId != null && s.clientOpId.length > 0
+        ? s.clientOpId
+        : Math.random().toString(36).slice(2) + Date.now().toString(36),
+    exerciseCode: s.exerciseId,
     value: s.value,
     target: s.target,
     source: 'libre',
     ranked: s.ranked,
-    series_ok: s.seriesOk,
-    session_date: s.date,
-    client_op_id:
-      s.clientOpId != null && s.clientOpId.length > 0
-        ? s.clientOpId
-        : Math.random().toString(36).slice(2) + Date.now().toString(36),
+    seriesOk: s.seriesOk,
+    livenessOk: s.livenessOk === true,
+    sessionDate: s.date,
   }));
-  const { error } = await client
-    .from('workout_sessions')
-    .upsert(rows, { onConflict: 'user_id,client_op_id' });
+  const { data, error } = await client.functions.invoke('validate_workout', {
+    body: { sessions: rows },
+  });
   if (error) {
     throw error;
   }
-  return rows.length;
+  const received = Number(data?.received ?? 0);
+  if (!Number.isFinite(received) || received < 0) {
+    throw new Error('validate_workout returned an invalid response');
+  }
+  return received;
 }
 
 export async function fetchRepsRanking(

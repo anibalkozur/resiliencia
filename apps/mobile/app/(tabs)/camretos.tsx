@@ -50,7 +50,7 @@ export default function LibreScreen() {
       const value = Number(data.value ?? data.reps) || 0;
       const ranked = data.ranked === true;
       const seriesOk = data.seriesOk === true;
-      const livenessOk = data.livenessOk !== false;
+      const livenessOk = data.livenessOk === true;
       const unitLabel = translate(lang, freeUnit === 'reps' ? 'unit.reps' : 'unit.seconds');
       setSessionOpen(false);
       if (ranked) {
@@ -58,7 +58,7 @@ export default function LibreScreen() {
         setResult({
           tone: eligible ? 'ok' : 'bad',
           text: eligible
-            ? translate(lang, 'cam.free_ranked_ok', { n: value, unit: unitLabel })
+            ? translate(lang, 'cam.free_ranked_pending', { n: value, unit: unitLabel })
             : translate(lang, 'cam.free_ranked_bad'),
         });
       } else {
@@ -74,6 +74,7 @@ export default function LibreScreen() {
         target: libreTarget,
         ranked,
         seriesOk,
+        livenessOk,
       })
         .then(() => {
           if (session) {
