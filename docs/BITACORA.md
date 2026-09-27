@@ -269,3 +269,49 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
   6. **Cámara en build real:** `onPermissionRequest` en ambos WebView + `android.permissions.CAMERA` + `NSCameraUsageDescription` en `app.json`.
 - **Migraciones:** `0008` corregida (filtro `measurement_type='reps'` en `get_reps_ranking` + índice alineado con `source='libre'`) y nueva **`0009_reset_own_progress.sql`** (columna `client_op_id` + índice único + RPC de reset con grants `authenticated`). **AMBAS PENDIENTES DE APLICAR por el PO** en el SQL Editor de Supabase (aplicar 0008 y 0009 en orden).
 - `VERIFY_VERSION` → **11**. Tests: 139 en verde, typecheck, lint y prettier OK.
+
+**Ranking server-authoritative — paquete del equipo auditor (2026-09-27)**
+
+- El PO encargó al equipo auditor implementar el plan del informe ("rechazar datos
+  falsificables: cambiar la arquitectura, no agregar más campos al cliente"). Llegó
+  un paquete de servidor + móvil que el equipo **revisó con evidencia (archivo:línea)**:
+  1. **Migración `0010_server_authoritative_workouts.sql`**: revoca `insert/update/delete`
+     al cliente sobre `workout_sessions` (drop de `session_insert_own`/`session_update_own`
+     de 0001), vuelca las sesiones legacy a `manual_review` (`verification_source='legacy'`)
+     y crea **`workout_submissions`** (bandeja de propuestas, solo `select` propio) con
+     `unique(user_id, client_op_id)`. Los rankings de reps pasan a leer únicamente
+     `status='verified'` + `verification_source='server'` + `server_value/server_target`
+     (dejando de confiar en `value/ranked/series_ok` del cliente).
+  2. **Edge Function `validate_workout`** (`supabase/functions/validate_workout/index.ts`):
+     autentica por token de usuario, valida catálogo, límites (`value`/`target` 1..7200),
+     fecha, tamaño de evidencia (≤64 KB), dedupe por `client_op_id` dentro del batch y
+     guarda las propuestas como **`pending`**; devuelve `received/pending/rejected/verified`.
+     La `service_role_key` queda solo en el servidor (nunca en la app).
+  3. **Móvil**: `uploadSessions` dejó de escribir directo y ahora invoca la Edge Function
+     (`client.functions.invoke`); `FreeSession.livenessOk` agregado; en `camretos` se usa
+     `livenessOk === true` (estricto, antes `!== false` aceptaba ausencia) y la etiqueta
+     cambió a **"Sesión enviada para validación"** (`cam.free_ranked_pending` es/en/pt). El
+     test de `uploadSessions` ahora verifica que se invoque `validate_workout` y que **no**
+     haya upsert directo.
+- **Dictamen del equipo:** el enfoque es correcto para el leaderboard de reps; se eliminó la
+  vía directa cliente → `workout_sessions` y el ranking queda server-authoritative.
+- **HALLAZGO CRÍTICO (pendiente de resolver):** la implementación **no cerró el punto 8** de
+  la auditoría. El ranking de **Racha** (`get_ranking`, pestaña Progreso) sigue alimentándose
+  de `daily_challenges.status='completed'`, que el cliente escribe directo (`uploadCompletions`,
+  `syncService.ts:89-100`) con las políticas `challenge_insert_own`/`challenge_update_own`
+  (0001) **intactas**. Un usuario puede seguir falsificando retos/rachas sin cámara. Falta que
+  el servidor pase el reto a `completed` recién tras validar la sesión y que se revoquen las
+  escrituras del cliente sobre `daily_challenges`.
+- **Nota de consistencia (menor):** la Edge Function hoy **no tiene camino a `verified`**
+  (`verified: 0` siempre, todo queda `pending`) → el ranking de reps queda **vacío** hasta que
+  exista el validador de evidencia real (versión del verificador, hash de modelo, secuencia de
+  eventos, tiempos, cadencia). Cumple la recomendación "desactivar el ranking hasta validar",
+  pero el WebView de cámara **sigue mostrando "Sesión verificada en el dispositivo — apta para
+  ranking"** (`camera-verification.html:1146/1866`), contradiciendo el nuevo "Sesión enviada
+  para validación". Queda para el PO: corregir copy + `VERIFY_VERSION` y redeploy gh-pages.
+- **Decisión de producto a confirmar:** el volcado de sesiones legacy a `manual_review` vacía
+  los rankings existentes de golpe (por diseño: no confiar en datos viejos del cliente).
+- **Pendiente del PO:** aplicar `0008` → `0009` → **`0010`** en orden (SQL Editor) y deployar la
+  Edge Function (`supabase functions deploy validate_workout`, con `SUPABASE_SERVICE_ROLE_KEY`).
+- Tests: 139 en verde (12 suites), typecheck y lint OK. La clave `cam.free_ranked_pending`
+  quedó con indentación desigual en `en`/`pt`; prettier la normaliza en el pre-commit.
