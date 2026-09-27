@@ -4,15 +4,54 @@ function dateKey(date: string): string {
   return `completed:${date}`;
 }
 
+function metaKey(date: string): string {
+  return `completedMeta:${date}`;
+}
+
 const COUNT_KEY = 'completed:count';
 
-export async function markCompleted(repo: IRepo, date: string): Promise<void> {
+export interface CompletionMeta {
+  value: number;
+  unit: 'reps' | 'seconds';
+  target: number;
+  evidence?: Record<string, unknown>;
+}
+
+export async function markCompleted(
+  repo: IRepo,
+  date: string,
+  meta?: CompletionMeta,
+): Promise<void> {
   const existing = await repo.getSetting(dateKey(date));
   if (existing === '1') return;
   await repo.setSetting(dateKey(date), '1');
+  if (meta) {
+    await repo.setSetting(metaKey(date), JSON.stringify(meta));
+  }
   const raw = await repo.getSetting(COUNT_KEY);
   const count = raw ? parseInt(raw, 10) : 0;
   await repo.setSetting(COUNT_KEY, String(count + 1));
+}
+
+export async function getCompletionMeta(repo: IRepo, date: string): Promise<CompletionMeta | null> {
+  const raw = await repo.getSetting(metaKey(date));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<CompletionMeta>;
+    if (
+      typeof parsed.value === 'number' &&
+      Number.isInteger(parsed.value) &&
+      parsed.value > 0 &&
+      (parsed.unit === 'reps' || parsed.unit === 'seconds') &&
+      typeof parsed.target === 'number' &&
+      parsed.target > 0
+    ) {
+      return parsed as CompletionMeta;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export async function isCompleted(repo: IRepo, date: string): Promise<boolean> {

@@ -482,6 +482,9 @@
       const MODE_RANKED = qs.get('ranked') === '1';
       const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '5', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
+      const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
+        ? Math.max(1, parseInt(qs.get('v') || '1', 10))
+        : 1;
 
       const video = document.getElementById('video');
       const canvas = document.getElementById('overlay');
@@ -1109,6 +1112,9 @@
       }
       function completePayload(detail) {
         const value = currentValue();
+        const startedAt = sessionStartTime ? Math.trunc(sessionStartTime) : 0;
+        const finishedAt = Math.trunc(performance.now());
+        const durationMs = startedAt > 0 ? Math.max(0, finishedAt - startedAt) : 0;
         return {
           reps: value,
           detail,
@@ -1118,6 +1124,18 @@
           cadence: MODE_RANKED && targetUnit === 'reps' ? CADENCE_SEC : 0,
           unit: cfg.unit,
           value,
+          evidence: {
+            verifyVersion: VERIFY_VERSION,
+            model: 'mediapipe_pose',
+            startedAt,
+            finishedAt,
+            durationMs,
+            cadenceSec: MODE_RANKED && targetUnit === 'reps' ? CADENCE_SEC : 0,
+            livenessRequired: !!livenessEnabled,
+            livenessPassed: livenessEnabled ? !!livenessPassed : undefined,
+            targetVal,
+            targetMet: value >= targetVal,
+          },
         };
       }
       function qualifiedNow() {
@@ -1143,7 +1161,7 @@
         resultCard.classList.add('show');
         verifyText.textContent = MODE_RANKED
           ? qualifiedNow()
-            ? 'Sesión verificada en el dispositivo — apta para ranking'
+            ? 'Sesión enviada para validación — pendiente de ranking'
             : 'No califica para ranking'
           : 'Verificado por pose';
         post('complete', completePayload(detail || 'Completado'));
@@ -1863,7 +1881,7 @@
             value >= targetVal &&
             (livenessPassed || !livenessEnabled);
           verifyText.textContent = qualified
-            ? 'Sesión verificada en el dispositivo — apta para ranking'
+            ? 'Sesión enviada para validación — pendiente de ranking'
             : 'No califica para ranking';
           tagEl.classList.toggle('broken', !qualified);
         } else {

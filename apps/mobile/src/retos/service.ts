@@ -54,20 +54,34 @@ function storageKey(date: string): string {
   return `reto:${date}`;
 }
 
+export async function getStoredChallenge(
+  repo: IRepo,
+  date: string,
+): Promise<DailyChallenge | null> {
+  const raw = await repo.getSetting(storageKey(date));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<DailyChallenge>;
+    if (
+      parsed.date === date &&
+      typeof parsed.exerciseId === 'string' &&
+      parsed.exerciseId.length > 0 &&
+      typeof parsed.target === 'number' &&
+      Number.isInteger(parsed.target) &&
+      parsed.target > 0
+    ) {
+      return parsed as DailyChallenge;
+    }
+  } catch {
+    // El reto se puede reconstruir abajo si el dato local está corrupto.
+  }
+  return null;
+}
+
 export async function getTodayChallenge(repo: IRepo): Promise<DailyChallenge> {
   const date = todayKey();
-  const raw = await repo.getSetting(storageKey(date));
-  if (raw) {
-    let parsed: DailyChallenge | null = null;
-    try {
-      parsed = JSON.parse(raw) as DailyChallenge;
-    } catch {
-      parsed = null;
-    }
-    if (parsed && typeof parsed === 'object' && parsed.exerciseId && parsed.target) {
-      return parsed;
-    }
-  }
+  const stored = await getStoredChallenge(repo, date);
+  if (stored) return stored;
   const prefs = await getPrefs(repo);
   const challenge = buildChallenge(date, prefs.goal);
   await repo.setSetting(storageKey(date), JSON.stringify(challenge));

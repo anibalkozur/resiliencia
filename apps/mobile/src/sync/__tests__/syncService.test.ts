@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MemoryRepo } from '../../repo/memoryRepo';
 import { markCompleted, getCompletedDates } from '../../retos/completions';
-import { todayKey } from '../../retos/service';
+import { buildChallenge, todayKey } from '../../retos/service';
 import { pushFreeSession, getFreeSessions } from '../../retos/freeSessions';
 import {
   uploadCompletions,
@@ -22,16 +22,6 @@ const EXERCISE_CODES = [
   'sentadilla_isometrica',
 ];
 
-interface UpsertCall {
-  rows: Record<string, unknown>[];
-  options: unknown;
-}
-
-interface InsertCall {
-  table: string;
-  rows: Record<string, unknown>[];
-}
-
 interface InvokeCall {
   name: string;
   options: unknown;
@@ -39,8 +29,8 @@ interface InvokeCall {
 
 function fakeClient() {
   const calls: {
-    upsert: UpsertCall | null;
-    insert: InsertCall | null;
+    upsert: null;
+    insert: null;
     invoke: InvokeCall | null;
     rpc: { name: string; args: unknown } | null;
   } = {
@@ -63,21 +53,21 @@ function fakeClient() {
         };
       }
       return {
-        upsert: async (rows: Record<string, unknown>[], options: unknown) => {
-          calls.upsert = { rows, options };
-          return { error: null };
-        },
-        insert: async (rows: Record<string, unknown>[]) => {
-          calls.insert = { table, rows };
-          return { error: null };
-        },
+        upsert: async () => ({ error: null }),
+        insert: async () => ({ error: null }),
       };
     },
     functions: {
       invoke: async (name: string, options: unknown) => {
         calls.invoke = { name, options };
+        const body = (options as { body?: { completions?: unknown[] } }).body;
         return {
-          data: { received: 2, pending: 1, rejected: 0, verified: 0 },
+          data: body?.completions
+            ? {
+                completionReceived: body.completions.length,
+                completionPending: body.completions.length,
+              }
+            : { received: 2, pending: 1, rejected: 0, verified: 0 },
           error: null,
         };
       },
@@ -109,7 +99,7 @@ describe('getCompletedDates', () => {
 });
 
 describe('uploadCompletions', () => {
-  it('upserts one completed row per completed date', async () => {
+  it('sends one pending completion proposal per completed date', async () => {
     const repo = new MemoryRepo();
     await markCompleted(repo, todayKey());
     const { client, calls } = fakeClient();
@@ -117,27 +107,58 @@ describe('uploadCompletions', () => {
     const count = await uploadCompletions(client, repo, 'user-1');
 
     expect(count).toBe(1);
-    expect(calls.upsert).not.toBeNull();
-    expect(calls.upsert?.options).toEqual({ onConflict: 'user_id,challenge_date' });
-    const row = calls.upsert?.rows[0];
-    expect(row).toMatchObject({
-      user_id: 'user-1',
-      challenge_date: todayKey(),
-      status: 'completed',
-      goal_requested: 'mantener',
+    expect(calls.invoke).toMatchObject({ name: 'validate_workout' });
+    expect(calls.invoke?.options).toEqual({
+      body: {
+        completions: [
+          {
+            clientOpId: `daily:${todayKey()}`,
+            challengeDate: todayKey(),
+            exerciseCode: buildChallenge(todayKey(), 'mantener').exerciseId,
+            target: buildChallenge(todayKey(), 'mantener').target,
+            goal: 'mantener',
+            value: buildChallenge(todayKey(), 'mantener').target,
+            unit: 'reps',
+            evidence: undefined,
+          },
+        ],
+      },
     });
-    expect(String(row?.exercise_id)).toContain('uuid-');
-    expect(typeof row?.target).toBe('number');
+    expect(calls.upsert).toBeNull();
   });
 
-  it('returns 0 and skips upsert when nothing is completed', async () => {
+  it('sends the completion evidence captured by the camera', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, todayKey(), {
+      value: 25,
+      unit: 'reps',
+      target: 20,
+      evidence: { verifyVersion: 12, durationMs: 12000 },
+    });
+    const { client, calls } = fakeClient();
+
+    const count = await uploadCompletions(client, repo, 'user-1');
+
+    expect(count).toBe(1);
+    const completion = (
+      calls.invoke?.options as { body: { completions: Record<string, unknown>[] } }
+    ).body.completions[0];
+    expect(completion).toMatchObject({
+      clientOpId: `daily:${todayKey()}`,
+      value: 25,
+      unit: 'reps',
+      evidence: { verifyVersion: 12, durationMs: 12000 },
+    });
+  });
+
+  it('returns 0 and skips validation when nothing is completed', async () => {
     const repo = new MemoryRepo();
     const { client, calls } = fakeClient();
 
     const count = await uploadCompletions(client, repo, 'user-1');
 
     expect(count).toBe(0);
-    expect(calls.upsert).toBeNull();
+    expect(calls.invoke).toBeNull();
   });
 });
 

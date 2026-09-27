@@ -2,8 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { IRepo } from '../repo';
 import { getSupabase } from '../auth/supabase';
 import { getPrefs } from '../prefs/service';
-import { getCompletedDates } from '../retos/completions';
-import { buildChallenge } from '../retos/service';
+import { getCompletedDates, getCompletionMeta } from '../retos/completions';
+import { buildChallenge, getStoredChallenge } from '../retos/service';
+import { EXERCISES } from '../retos/catalog';
 import { getFreeSessions, clearFreeSessions } from '../retos/freeSessions';
 import type { FreeSession } from '../retos/freeSessions';
 
@@ -28,20 +29,6 @@ export interface TotalRepsRankingRow {
   total_value: number;
 }
 
-interface ExerciseRow {
-  id: string;
-  code: string;
-}
-
-interface DailyChallengeRow {
-  user_id: string;
-  challenge_date: string;
-  exercise_id: string;
-  target: number;
-  status: 'completed';
-  goal_requested: string;
-}
-
 export interface WorkoutSessionRow {
   clientOpId: string;
   exerciseCode: string;
@@ -55,54 +42,48 @@ export interface WorkoutSessionRow {
   evidence?: Record<string, unknown>;
 }
 
-async function fetchExerciseIds(client: SupabaseClient): Promise<Map<string, string>> {
-  const { data, error } = await client.from('exercises').select('id, code');
-  if (error || !data) {
-    return new Map();
-  }
-  return new Map((data as ExerciseRow[]).map((row) => [row.code, row.id]));
-}
-
 export async function uploadCompletions(
   client: SupabaseClient,
   repo: IRepo,
-  userId: string,
+  _userId: string,
 ): Promise<number> {
   const dates = await getCompletedDates(repo);
   if (dates.length === 0) {
     return 0;
   }
   const prefs = await getPrefs(repo);
-  const exerciseIds = await fetchExerciseIds(client);
-
-  const rows: DailyChallengeRow[] = [];
+  const completions = [];
   for (const date of dates) {
-    const challenge = buildChallenge(date, prefs.goal);
-    const exerciseId = exerciseIds.get(challenge.exerciseId);
-    if (!exerciseId) {
-      continue;
-    }
-    rows.push({
-      user_id: userId,
-      challenge_date: date,
-      exercise_id: exerciseId,
+    const challenge = (await getStoredChallenge(repo, date)) ?? buildChallenge(date, prefs.goal);
+    const meta = await getCompletionMeta(repo, date);
+    const unit = EXERCISES.find((e) => e.id === challenge.exerciseId)?.unit ?? 'reps';
+    completions.push({
+      clientOpId: `daily:${date}`,
+      challengeDate: date,
+      exerciseCode: challenge.exerciseId,
       target: challenge.target,
-      status: 'completed',
-      goal_requested: prefs.goal,
+      goal: prefs.goal,
+      value: meta?.value ?? challenge.target,
+      unit,
+      evidence: meta?.evidence,
     });
   }
 
-  if (rows.length === 0) {
+  if (completions.length === 0) {
     return 0;
   }
 
-  const { error } = await client
-    .from('daily_challenges')
-    .upsert(rows, { onConflict: 'user_id,challenge_date' });
+  const { data, error } = await client.functions.invoke('validate_workout', {
+    body: { completions },
+  });
   if (error) {
     throw error;
   }
-  return rows.length;
+  const received = Number(data?.completionReceived ?? 0);
+  if (!Number.isFinite(received) || received < 0) {
+    throw new Error('validate_workout returned an invalid completion response');
+  }
+  return received;
 }
 
 export async function fetchRanking(client: SupabaseClient, maxRows = 50): Promise<RankingRow[]> {
@@ -134,6 +115,7 @@ export async function uploadSessions(
     seriesOk: s.seriesOk,
     livenessOk: s.livenessOk === true,
     sessionDate: s.date,
+    evidence: s.evidence,
   }));
   const { data, error } = await client.functions.invoke('validate_workout', {
     body: { sessions: rows },

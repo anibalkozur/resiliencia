@@ -315,3 +315,27 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
   Edge Function (`supabase functions deploy validate_workout`, con `SUPABASE_SERVICE_ROLE_KEY`).
 - Tests: 139 en verde (12 suites), typecheck y lint OK. La clave `cam.free_ranked_pending`
   quedó con indentación desigual en `en`/`pt`; prettier la normaliza en el pre-commit.
+
+### 2026-09-27 — Retos server-authoritative (0011), camino a `verified` y auditoría #2 → reverting a `pending`
+
+**Seguimiento del paquete del equipo auditor (cierre del punto 8, retos diarios) — revisado y ampliado:**
+
+- `0011_server_authoritative_daily_challenges.sql`: revoca escrituras del cliente sobre `daily_challenges` (drop `challenge_insert_own/update_own/delete_own`), crea **`daily_challenge_submissions`** (bandeja, solo `select` propio) y `get_ranking` solo cuenta `status='completed' AND completion_source='server'`. `reset_own_progress` también limpia ambas bandejas (evita que una propuesta re-aprobada reintroduzca progreso borrado tras un reset). **Fix de consistencia:** se eliminó el `unique(user_id, client_op_id)` (queda `unique(user_id, challenge_date)`) para que el upsert no pueda tumbar el batch con un op_id forjado; se agregaron `client_value`, `evidence_hash` y `verification_version`.
+- `camera-verification.html` v12: el payload `complete` transporta **`evidence`** (`verifyVersion`, `model`, `startedAt/finishedAt`, `durationMs`, cadencia, liveness requerida/resultado, `targetVal`, `targetMet`). Ambos labels → "Sesión enviada para validación — pendiente de ranking".
+- App: `FreeSession.evidence`, `markCompleted` guarda `CompletionMeta` (value/unit/evidence), `retos.tsx`/`camretos.tsx` la capturan y `uploadCompletions`/`uploadSessions` la envían. `VERIFY_VERSION` → **12**; gh-pages redeployed (`a29025f`).
+- Edge Function v2: validaba evidencia (versión, timestamps, duración mínima reps×350 ms / seg×1000 ms, cadencia ≥2 s, límites reps≤1000 / seg≤900) y **aprobaba `verified`** (escribía `workout_sessions`/`daily_challenges`). Tests 141 en verde.
+
+**Auditoría externa #2 — verificación con evidencia: 7/7 hallazgos TRUE:**
+
+- (1) Evidencia **falsificable**: todo campo (`durationMs`, `livenessPassed`, `seriesOk`, `verifyVersion`, …) lo ponía el cliente; el payload de ejemplo pasaba. (2) El reto esperado (ejercicio/objetivo/fecha) lo decidía el cliente → `challengeDate` pasado con `target:1, value:1` generaba días artificiales. (3) Liveness = mera afirmación (sin atestación/video). (4) Riesgo de **duplicar** `workout_sessions` (insert sin `client_op_id`, sin upsert idempotente; el upsert de submissions iba después). (5) **Doble escritura sin transacción** → reto quedaba `completed` y la submission `pending`. (6) `VERIFY_VERSION` sin fijar (`?v=999` pasaba). (menor) `unit:'reps'` por defecto en completions históricos (plancha/segundos).
+- **Dictamen:** la aprobación automática volvía a hacer falsificable el ranking **vía la Edge Function** (los valores fuente son del cliente). Correcto el auditor: no habilitar aprobación automática sin validador real.
+
+**Decisión del PO: revertir a `pending` + arreglos gratis. Edge Function v3:**
+
+- **Cero aprobaciones**: todas las propuestas (sesiones y retos) quedan `pending`; ya **no escribe** `workout_sessions` ni `daily_challenges` → desaparecen los riesgos de duplicados e inconsistencias entre tablas (una sola bandeja por flujo, upsert idempotente por `client_op_id` / `(user_id, challenge_date)`).
+- **Reto derivado por el servidor**: réplica exacta del algoritmo determinista de la app (`catalog.ts`/`service.ts`: orden por objetivo, `DEFAULT_TARGETS`, multiplicadores, `isoWeekNumber`+`isoWeekday`) → ejercicio/objetivo/unidad esperados para `(fecha, objetivo)`; mismatch → `rejected` (`challenge_mismatch`). Fecha fuera de ventana (hoy/ayer UTC, tolera zona horaria) → `rejected`. Mata el ataque de completar días fake.
+- **Allowlist de versiones** `[12]` (`unsupported_evidence_version` si no).
+- `syncService`: `unit` desde catálogo local (no default `'reps'`).
+- Consecuencia de producto: los rankings de **reps y rachas quedan vacíos** hasta que exista validador real (video/attestation server-side) o revisión manual; la evidencia se conserva como **registro y filtro de datos imposibles** (`missing_evidence` → `pending`; imposible → `rejected`).
+- Pendientes del PO: aplicar **`0008 → 0009 → 0010 → 0011`** en orden (SQL Editor) y `supabase functions deploy validate_workout` (con `SUPABASE_SERVICE_ROLE_KEY` seteada). Aviso: usuarios con build v11 sin actualizar verán sus sesiones ranked `rejected` (versión no soportada).
+- Tests: 141 en verde, typecheck y lint OK.

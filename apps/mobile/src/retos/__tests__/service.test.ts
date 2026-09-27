@@ -1,6 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 import { MemoryRepo } from '../../repo/memoryRepo';
-import { buildChallenge, getTodayChallenge, todayKey, tomorrowKey } from '../service';
+import {
+  buildChallenge,
+  getStoredChallenge,
+  getTodayChallenge,
+  todayKey,
+  tomorrowKey,
+} from '../service';
 import { savePrefs } from '../../prefs/service';
 import { GOAL_EXERCISE_ORDER } from '../catalog';
 
@@ -90,5 +96,15 @@ describe('getTodayChallenge', () => {
     const challenge = await getTodayChallenge(repo);
     const order = GOAL_EXERCISE_ORDER.ganar_musculo;
     expect(order).toContain(challenge.exerciseId);
+  });
+
+  it('keeps the stored challenge when the goal changes later', async () => {
+    const repo = new MemoryRepo();
+    const date = '2026-09-20';
+    const original = buildChallenge(date, 'mantener');
+    await repo.setSetting(`reto:${date}`, JSON.stringify(original));
+    await savePrefs(repo, { goal: 'perder_grasa' });
+
+    expect(await getStoredChallenge(repo, date)).toEqual(original);
   });
 });

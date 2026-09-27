@@ -75,6 +75,12 @@ export default function LibreScreen() {
         ranked,
         seriesOk,
         livenessOk,
+        evidence:
+          typeof data.evidence === 'object' &&
+          data.evidence !== null &&
+          !Array.isArray(data.evidence)
+            ? (data.evidence as Record<string, unknown>)
+            : undefined,
       })
         .then(() => {
           if (session) {

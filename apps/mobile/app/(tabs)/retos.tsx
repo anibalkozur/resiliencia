@@ -88,7 +88,17 @@ export default function RetosScreen() {
       const target = challenge?.target ?? 0;
       if (reps >= target) {
         void (async () => {
-          await markCompleted(repo, date);
+          await markCompleted(repo, date, {
+            value: Number(data.value ?? data.reps) || reps,
+            unit: data.unit === 'seconds' ? 'seconds' : 'reps',
+            target,
+            evidence:
+              typeof data.evidence === 'object' &&
+              data.evidence !== null &&
+              !Array.isArray(data.evidence)
+                ? (data.evidence as Record<string, unknown>)
+                : undefined,
+          });
           setDone((prev) => ({ ...prev, [date]: true }));
           if (session) {
             await syncAfterLogin(repo, session.user.id);

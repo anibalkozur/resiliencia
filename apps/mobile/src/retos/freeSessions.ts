@@ -12,6 +12,7 @@ export interface FreeSession {
   seriesOk: boolean;
   livenessOk?: boolean;
   clientOpId?: string;
+  evidence?: Record<string, unknown>;
 }
 
 function parse(raw: string | null | undefined): FreeSession[] {
