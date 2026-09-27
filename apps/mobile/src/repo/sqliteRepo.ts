@@ -26,7 +26,14 @@ export class SqliteRepo implements IRepo {
     const row = await (
       await this.getDb()
     ).getFirstAsync<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', PROFILE_KEY);
-    return row ? (JSON.parse(row.value) as UserProfile) : null;
+    if (!row) {
+      return null;
+    }
+    try {
+      return JSON.parse(row.value) as UserProfile;
+    } catch {
+      return null;
+    }
   }
 
   async saveProfile(profile: UserProfile): Promise<void> {

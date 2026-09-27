@@ -50,7 +50,7 @@ export default function AjustesScreen() {
               try {
                 await resetLocalProgress(getRepo());
                 if (client && session) {
-                  await resetCloudProgress(client, session.user.id);
+                  await resetCloudProgress(client);
                 }
                 Alert.alert(
                   translate(lang, 'settings.reset_confirm_title'),
@@ -62,7 +62,9 @@ export default function AjustesScreen() {
                 console.warn('[ajustes] reset:', err);
                 Alert.alert(
                   translate(lang, 'settings.reset_confirm_title'),
-                  translate(lang, 'settings.reset_local_only'),
+                  client && session
+                    ? translate(lang, 'settings.reset_error')
+                    : translate(lang, 'settings.reset_local_only'),
                 );
               }
             })();

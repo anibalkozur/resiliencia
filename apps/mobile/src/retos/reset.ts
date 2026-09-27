@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { IRepo } from '../repo';
+import { FREE_SESSIONS_KEY } from './freeSessions';
 
 export async function resetLocalProgress(repo: IRepo): Promise<void> {
   const keys = await repo.listKeys();
@@ -8,13 +9,11 @@ export async function resetLocalProgress(repo: IRepo): Promise<void> {
       await repo.removeSetting(key);
     }
   }
+  await repo.removeSetting(FREE_SESSIONS_KEY);
 }
 
-export async function resetCloudProgress(client: SupabaseClient, userId: string): Promise<void> {
-  const { error } = await client
-    .from('daily_challenges')
-    .update({ status: 'pending' })
-    .eq('user_id', userId);
+export async function resetCloudProgress(client: SupabaseClient): Promise<void> {
+  const { error } = await client.rpc('reset_own_progress');
   if (error) {
     throw error;
   }

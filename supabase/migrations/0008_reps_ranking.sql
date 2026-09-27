@@ -26,7 +26,7 @@ alter table public.workout_sessions
 
 create index if not exists idx_workout_sessions_ranked
   on public.workout_sessions (exercise_code, value desc)
-  where ranked and series_ok;
+  where ranked and series_ok and source = 'libre';
 
 -- ---------------------------------------------------------------------------
 -- get_reps_ranking: mejor sesión por ejercicio y usuario (máx reps en una sesión)
@@ -55,6 +55,7 @@ as $$
   join public.exercises e on e.code = ws.exercise_code
   join public.profiles p on p.user_id = ws.user_id
   where e.code = any (string_to_array(p_exercise_code, ','))
+    and e.measurement_type = 'reps'
     and ws.source = 'libre'
     and ws.ranked
     and ws.series_ok

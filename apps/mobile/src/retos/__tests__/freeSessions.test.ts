@@ -24,13 +24,23 @@ describe('freeSessions', () => {
     expect(await getFreeSessions(repo)).toEqual([]);
   });
 
-  it('pushes and reads a session', async () => {
+  it('pushes and reads a session with a generated client op id', async () => {
     const repo = new MemoryRepo();
     await pushFreeSession(repo, base);
 
     const list = await getFreeSessions(repo);
     expect(list).toHaveLength(1);
-    expect(list[0]).toEqual(base);
+    expect(list[0]).toMatchObject(base);
+    expect(typeof list[0].clientOpId).toBe('string');
+    expect(list[0].clientOpId?.length).toBeGreaterThan(0);
+  });
+
+  it('keeps an existing client op id when given', async () => {
+    const repo = new MemoryRepo();
+    await pushFreeSession(repo, { ...base, clientOpId: 'op-x' });
+
+    const list = await getFreeSessions(repo);
+    expect(list[0].clientOpId).toBe('op-x');
   });
 
   it('appends sessions in order', async () => {

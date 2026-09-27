@@ -51,6 +51,7 @@ export interface WorkoutSessionRow {
   ranked: boolean;
   series_ok: boolean;
   session_date: string;
+  client_op_id?: string;
 }
 
 async function fetchExerciseIds(client: SupabaseClient): Promise<Map<string, string>> {
@@ -128,8 +129,14 @@ export async function uploadSessions(
     ranked: s.ranked,
     series_ok: s.seriesOk,
     session_date: s.date,
+    client_op_id:
+      s.clientOpId != null && s.clientOpId.length > 0
+        ? s.clientOpId
+        : Math.random().toString(36).slice(2) + Date.now().toString(36),
   }));
-  const { error } = await client.from('workout_sessions').insert(rows);
+  const { error } = await client
+    .from('workout_sessions')
+    .upsert(rows, { onConflict: 'user_id,client_op_id' });
   if (error) {
     throw error;
   }

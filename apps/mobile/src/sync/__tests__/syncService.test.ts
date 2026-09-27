@@ -158,7 +158,7 @@ describe('fetchRanking', () => {
 });
 
 describe('uploadSessions', () => {
-  it('inserts one row per free session with ranked flags', async () => {
+  it('upserts one row per free session with ranked flags', async () => {
     const { client, calls } = fakeClient();
 
     const count = await uploadSessions(client, 'user-1', [
@@ -169,6 +169,7 @@ describe('uploadSessions', () => {
         target: 20,
         ranked: true,
         seriesOk: true,
+        clientOpId: 'op-1',
       },
       {
         date: '2026-09-22',
@@ -177,12 +178,12 @@ describe('uploadSessions', () => {
         target: 10,
         ranked: false,
         seriesOk: false,
+        clientOpId: 'op-2',
       },
     ]);
 
     expect(count).toBe(2);
-    expect(calls.insert?.table).toBe('workout_sessions');
-    expect(calls.insert?.rows).toEqual([
+    expect(calls.upsert?.rows).toEqual([
       {
         user_id: 'user-1',
         exercise_code: 'sentadillas',
@@ -192,6 +193,7 @@ describe('uploadSessions', () => {
         ranked: true,
         series_ok: true,
         session_date: '2026-09-22',
+        client_op_id: 'op-1',
       },
       {
         user_id: 'user-1',
@@ -202,15 +204,35 @@ describe('uploadSessions', () => {
         ranked: false,
         series_ok: false,
         session_date: '2026-09-22',
+        client_op_id: 'op-2',
       },
     ]);
+    expect(calls.upsert?.options).toEqual({ onConflict: 'user_id,client_op_id' });
   });
 
-  it('returns 0 and skips insert for empty sessions', async () => {
+  it('generates a client_op_id when the queued session lacks one', async () => {
+    const { client, calls } = fakeClient();
+
+    await uploadSessions(client, 'user-1', [
+      {
+        date: '2026-09-22',
+        exerciseId: 'plancha',
+        value: 60,
+        target: 30,
+        ranked: true,
+        seriesOk: true,
+      },
+    ]);
+
+    expect(typeof calls.upsert?.rows[0]?.['client_op_id']).toBe('string');
+    expect(String(calls.upsert?.rows[0]?.['client_op_id']).length).toBeGreaterThan(0);
+  });
+
+  it('returns 0 and skips upsert for empty sessions', async () => {
     const { client, calls } = fakeClient();
 
     expect(await uploadSessions(client, 'user-1', [])).toBe(0);
-    expect(calls.insert).toBeNull();
+    expect(calls.upsert).toBeNull();
   });
 });
 

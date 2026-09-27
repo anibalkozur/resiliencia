@@ -188,6 +188,7 @@ export default function ProgresoScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardLabel}>{translate(lang, 'progress.ranking')}</Text>
+        <Text style={styles.rankingNote}>{translate(lang, 'progress.ranking_note')}</Text>
         <View style={styles.tabsRow}>
           {RANK_TABS.map((t) => (
             <Pressable
@@ -403,6 +404,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.sm,
+  },
+  rankingNote: {
+    color: colors.teal,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: spacing.xs,
   },
   rankRow: {
     flexDirection: 'row',

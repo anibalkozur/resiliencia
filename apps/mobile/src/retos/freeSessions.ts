@@ -10,6 +10,7 @@ export interface FreeSession {
   target: number;
   ranked: boolean;
   seriesOk: boolean;
+  clientOpId?: string;
 }
 
 function parse(raw: string | null | undefined): FreeSession[] {
@@ -30,7 +31,11 @@ export async function getFreeSessions(repo: IRepo): Promise<FreeSession[]> {
 
 export async function pushFreeSession(repo: IRepo, session: FreeSession): Promise<void> {
   const list = await getFreeSessions(repo);
-  list.push(session);
+  const next = { ...session };
+  if (!next.clientOpId) {
+    next.clientOpId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+  list.push(next);
   if (list.length > FREE_SESSIONS_MAX) {
     list.splice(0, list.length - FREE_SESSIONS_MAX);
   }

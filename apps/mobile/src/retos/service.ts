@@ -58,7 +58,15 @@ export async function getTodayChallenge(repo: IRepo): Promise<DailyChallenge> {
   const date = todayKey();
   const raw = await repo.getSetting(storageKey(date));
   if (raw) {
-    return JSON.parse(raw) as DailyChallenge;
+    let parsed: DailyChallenge | null = null;
+    try {
+      parsed = JSON.parse(raw) as DailyChallenge;
+    } catch {
+      parsed = null;
+    }
+    if (parsed && typeof parsed === 'object' && parsed.exerciseId && parsed.target) {
+      return parsed;
+    }
   }
   const prefs = await getPrefs(repo);
   const challenge = buildChallenge(date, prefs.goal);

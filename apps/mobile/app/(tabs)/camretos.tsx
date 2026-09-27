@@ -3,10 +3,13 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, REP_CADENCE, exerciseNameKey } from '../../src/retos/catalog';
 import { buildVerifyUri } from '../../src/retos/verify';
 import { pushFreeSession } from '../../src/retos/freeSessions';
+import { todayKey } from '../../src/retos/service';
+import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
@@ -16,6 +19,7 @@ type Tone = 'ok' | 'bad' | 'plain';
 
 export default function LibreScreen() {
   const { prefs } = usePrefs();
+  const { session } = useAuth();
   const lang = prefs?.language ?? 'es';
   const repo = getRepo();
   const { libreExerciseId, libreTarget, setLibreTarget, libreRanked, setLibreRanked } =
@@ -36,15 +40,21 @@ export default function LibreScreen() {
 
   const handleMessage = useCallback(
     (event: any) => {
-      const data = JSON.parse(event.nativeEvent.data);
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(event.nativeEvent.data);
+      } catch {
+        return;
+      }
       if (data.type !== 'complete') return;
       const value = Number(data.value ?? data.reps) || 0;
       const ranked = data.ranked === true;
       const seriesOk = data.seriesOk === true;
+      const livenessOk = data.livenessOk !== false;
       const unitLabel = translate(lang, freeUnit === 'reps' ? 'unit.reps' : 'unit.seconds');
       setSessionOpen(false);
       if (ranked) {
-        const eligible = seriesOk && value >= libreTarget;
+        const eligible = seriesOk && livenessOk && value >= libreTarget;
         setResult({
           tone: eligible ? 'ok' : 'bad',
           text: eligible
@@ -58,15 +68,21 @@ export default function LibreScreen() {
         });
       }
       void pushFreeSession(repo, {
-        date: new Date().toISOString().slice(0, 10),
+        date: todayKey(),
         exerciseId: libreExerciseId,
         value,
         target: libreTarget,
         ranked,
         seriesOk,
-      }).catch(() => {});
+      })
+        .then(() => {
+          if (session) {
+            return syncAfterLogin(repo, session.user.id);
+          }
+        })
+        .catch(() => {});
     },
-    [repo, lang, freeUnit, libreExerciseId, libreTarget],
+    [repo, lang, freeUnit, libreExerciseId, libreTarget, session],
   );
 
   const startSession = () => {
@@ -145,6 +161,7 @@ export default function LibreScreen() {
             allowsInlineMediaPlayback={true}
             mediaPlaybackRequiresUserAction={false}
             onMessage={handleMessage}
+            onPermissionRequest={(request: any) => request.grant()}
             style={styles.webView}
           />
         </View>

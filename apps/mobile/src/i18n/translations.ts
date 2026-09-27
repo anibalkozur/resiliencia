@@ -48,6 +48,8 @@ const es = {
     'Cuando completes tu primer reto verás tu historial y los gráficos de evolución.',
   'progress.ranking': 'RANKING',
   'progress.ranking_empty': 'Todavía no hay datos. Completá retos para entrar al ranking.',
+  'progress.ranking_note':
+    'Clasificación verificada en el dispositivo — todavía no se revalida en el servidor.',
   'progress.rank_challenges': 'RETOS',
   'progress.rank_streak': 'RACHA',
   'progress.rank_reps': 'REPS',
@@ -172,7 +174,7 @@ const es = {
   'settings.create_account': 'CREAR CUENTA',
   'settings.reset': 'REINICIAR RETOS Y RANKING',
   'settings.reset_desc':
-    'Borra el progreso de retos de este dispositivo y, si hay sesión, de la nube y del ranking.',
+    'Borra retos, rachas y sesiones libres de este dispositivo y, si hay sesión, tu historial en la nube y del ranking.',
   'settings.reset_confirm_title': '¿Reiniciar retos?',
   'settings.reset_confirm':
     'Se borrarán tus retos completados, rachas y tu lugar en el ranking. No se puede deshacer. ¿Continuar?',
@@ -180,6 +182,7 @@ const es = {
   'settings.reset_cancel': 'CANCELAR',
   'settings.reset_done': 'Retos y ranking reiniciados.',
   'settings.reset_local_only': 'Sin sesión iniciada: solo se reinició este dispositivo.',
+  'settings.reset_error': 'No se pudo reiniciar la nube. Revisá tu conexión e intentá de nuevo.',
 
   'onboarding.email': 'Email',
   'onboarding.password': 'Contraseña',
@@ -279,6 +282,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
       'Once you complete your first challenge you will see your history and progress charts.',
     'progress.ranking': 'RANKING',
     'progress.ranking_empty': 'No data yet. Complete challenges to join the ranking.',
+    'progress.ranking_note': 'Ranking verified on device — not yet recomputed server-side.',
     'progress.rank_challenges': 'CHALLENGES',
     'progress.rank_streak': 'STREAK',
     'progress.rank_reps': 'REPS',
@@ -403,7 +407,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'settings.create_account': 'CREATE ACCOUNT',
     'settings.reset': 'RESET CHALLENGES & RANKING',
     'settings.reset_desc':
-      'Clears challenge progress from this device and, if signed in, from the cloud and the ranking.',
+      'Clears challenges, streaks and free sessions from this device and, if signed in, your history from the cloud and the ranking.',
     'settings.reset_confirm_title': 'Reset challenges?',
     'settings.reset_confirm':
       'Your completed challenges, streaks and ranking spot will be deleted. This cannot be undone. Continue?',
@@ -411,6 +415,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'settings.reset_cancel': 'CANCEL',
     'settings.reset_done': 'Challenges and ranking reset.',
     'settings.reset_local_only': 'No active session: only this device was reset.',
+    'settings.reset_error': 'Could not reset the cloud. Check your connection and try again.',
 
     'onboarding.email': 'Email',
     'onboarding.password': 'Password',
@@ -505,6 +510,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
       'Quando você concluir seu primeiro desafio verá seu histórico e os gráficos de evolução.',
     'progress.ranking': 'RANKING',
     'progress.ranking_empty': 'Ainda sem dados. Conclua desafios para entrar no ranking.',
+    'progress.ranking_note':
+      'Classificação verificada no dispositivo — ainda não recalculada no servidor.',
     'progress.rank_challenges': 'DESAFIOS',
     'progress.rank_streak': 'SEQUÊNCIA',
     'progress.rank_reps': 'REPS',
@@ -627,7 +634,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'settings.create_account': 'CRIAR CONTA',
     'settings.reset': 'REINICIAR DESAFIOS E RANKING',
     'settings.reset_desc':
-      'Apaga o progresso de desafios deste dispositivo e, se estiver conectado, da nuvem e do ranking.',
+      'Apaga desafios, sequências e sessões livres deste dispositivo e, se estiver conectado, seu histórico da nuvem e do ranking.',
     'settings.reset_confirm_title': 'Reiniciar desafios?',
     'settings.reset_confirm':
       'Seus desafios concluídos, sequências e seu lugar no ranking serão apagados. Isso não pode ser desfeito. Continuar?',
@@ -635,6 +642,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'settings.reset_cancel': 'CANCELAR',
     'settings.reset_done': 'Desafios e ranking reiniciados.',
     'settings.reset_local_only': 'Sem sessão ativa: apenas este dispositivo foi reiniciado.',
+    'settings.reset_error':
+      'Não foi possível reiniciar a nuvem. Verifique a conexão e tente novamente.',
 
     'onboarding.email': 'Email',
     'onboarding.password': 'Senha',

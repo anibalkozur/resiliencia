@@ -40,7 +40,11 @@ export function normalizePrefs(input: Partial<UserPrefs> | undefined): UserPrefs
 export async function getPrefs(repo: IRepo): Promise<UserPrefs> {
   const raw = await repo.getSetting(PREFS_KEY);
   if (raw) {
-    return normalizePrefs(JSON.parse(raw) as Partial<UserPrefs>);
+    try {
+      return normalizePrefs(JSON.parse(raw) as Partial<UserPrefs>);
+    } catch {
+      await repo.removeSetting(PREFS_KEY);
+    }
   }
   await repo.setSetting(PREFS_KEY, JSON.stringify(DEFAULT_PREFS));
   return DEFAULT_PREFS;

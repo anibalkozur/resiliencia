@@ -9,7 +9,10 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.resiliencia"
+      "bundleIdentifier": "app.resiliencia",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ResiliencIA usa la cámara para verificar tu técnica de ejercicio con visión por computadora."
+      }
     },
     "android": {
       "package": "app.resiliencia",
@@ -19,7 +22,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -77,16 +77,23 @@ export default function RetosScreen() {
 
   const handleMessage = useCallback(
     (event: any) => {
-      const data = JSON.parse(event.nativeEvent.data);
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(event.nativeEvent.data);
+      } catch {
+        return;
+      }
       if (data.type !== 'complete') return;
       const reps = Number(data.reps) || 0;
       const target = challenge?.target ?? 0;
       if (reps >= target) {
-        void markCompleted(repo, date);
-        setDone((prev) => ({ ...prev, [date]: true }));
-        if (session) {
-          void syncAfterLogin(repo, session.user.id);
-        }
+        void (async () => {
+          await markCompleted(repo, date);
+          setDone((prev) => ({ ...prev, [date]: true }));
+          if (session) {
+            await syncAfterLogin(repo, session.user.id);
+          }
+        })();
       }
     },
     [repo, challenge, date, session],
@@ -166,6 +173,7 @@ export default function RetosScreen() {
                 domStorageEnabled={true}
                 allowsInlineMediaPlayback={true}
                 mediaPlaybackRequiresUserAction={false}
+                onPermissionRequest={(request: any) => request.grant()}
                 onMessage={handleMessage}
                 style={styles.webView}
               />
