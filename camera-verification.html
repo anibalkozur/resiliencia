@@ -521,6 +521,7 @@
       const NAME = {
         sentadillas: 'Sentadillas',
         flexiones: 'Flexiones',
+        abdominales: 'Abdominales',
         plancha: 'Plancha',
         zancadas: 'Zancadas',
         puente_gluteo: 'Puente de glúteo',
@@ -534,6 +535,8 @@
           'Parate derecho frente a la cámara con los pies al ancho de los hombros. Bajá llevando la cadera hacia atrás hasta que tus rodillas queden cerca de 90° y volvé a subir. Cada bajada y subida completa cuenta como 1.',
         flexiones:
           'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo.',
+        abdominales:
+          'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Llevá el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
         plancha:
           'Pará en plancha con los brazos extendidos y el cuerpo formando una línea recta de la cabeza a los pies. Mantené la posición sin bajar la cadera hasta completar el tiempo.',
         zancadas:
@@ -639,6 +642,31 @@
           liveness: 'hold',
           postureMsg: 'Ponete en plancha horizontal para contar flexiones',
           startMsg: 'Extendé los brazos en plancha, quieto un segundo',
+        },
+        abdominales: {
+          name: 'Abdominales',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 25,
+          upDelta: 10,
+          // Gate anti-pararse: si la rodilla queda muy por debajo de la cadera
+          // (de pie) se bloquea y se pide volver a acostarse. Portado del
+          // detector situp de docs/prototipo/camera-verification.html.
+          standingKneeMargin: 0.45,
+          restTorsoMax: 35,
+          liveness: 'hand',
+          postureMsg: 'Recostate en el piso para contar abdominales — te detectamos de pie',
+          startMsg: 'Recostate boca arriba, quieto un segundo',
         },
         plancha: {
           name: 'Plancha',
@@ -802,9 +830,13 @@
       let livenessBeepTimer = null;
       let orientationSupported = false,
         deviceIsVertical = true,
-        betaHistory = [];
+        betaHistory = [],
+        orientationListenerAttached = false,
+        motionListenerAttached = false,
+        sensorUnavailable = false;
       const VERTICAL_TOLERANCE = 35,
-        SENSOR_CONFIRM_MS = 3000;
+        SENSOR_CONFIRM_MS = 8000;
+      const runningInsideReactNative = Boolean(window.ReactNativeWebView);
 
       function post(type, data) {
         try {
@@ -882,6 +914,10 @@
         const dx = shoulder.x - hip.x,
           dy = shoulder.y - hip.y;
         return (Math.atan2(Math.abs(dy), Math.abs(dx)) * 180) / Math.PI;
+      }
+      function kneeStandingMargin(hip, knee, shoulder) {
+        const tl = Math.hypot(shoulder.x - hip.x, shoulder.y - hip.y) || 0.0001;
+        return (knee.y - hip.y) / tl;
       }
       function attemptCalibration(angle, c) {
         calibBuffer.push(angle);
@@ -1506,6 +1542,28 @@
             return;
           }
         }
+        // abdominales: gate anti-pararse. Si la rodilla queda muy por debajo
+        // de la cadera mientras se cuenta (de pie), se bloquea y se pide
+        // volver a acostarse. Portado del prototipo.
+        if (cfg.standingKneeMargin) {
+          const hip = lm[LID[side + '_hip']],
+            knee = lm[LID[side + '_knee']],
+            shoulder = lm[LID[side + '_shoulder']];
+          const margin = kneeStandingMargin(hip, knee, shoulder);
+          groundedHistory.push(margin);
+          if (groundedHistory.length > 5) groundedHistory.shift();
+          const sm = groundedHistory.reduce((a, b) => a + b, 0) / groundedHistory.length;
+          if (sm > cfg.standingKneeMargin) {
+            candidateState = null;
+            candidateStreak = 0;
+            repStateInitialized = false;
+            calibBuffer = [];
+            dynamicDownThresh = null;
+            dynamicUpThresh = null;
+            showState('state-msg blocked', cfg.postureMsg);
+            return;
+          }
+        }
         if (sc.line) {
           const A = lm[LID[sc.line.a]],
             B = lm[LID[sc.line.b]],
@@ -1768,17 +1826,44 @@
       }
 
       async function ensureOrientationSensor() {
-        if (typeof DeviceOrientationEvent === 'undefined') return false;
-        try {
-          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            const perm = await DeviceOrientationEvent.requestPermission();
-            if (perm !== 'granted') return false;
+        orientationSupported = false;
+        deviceIsVertical = true;
+        betaHistory = [];
+        sensorUnavailable = false;
+        // Avisar al contenedor nativo antes de pedir el permiso web. En Expo Go
+        // el WebView puede no reenviar deviceorientation, pero React Native sí
+        // puede leer DeviceMotion y devolvernos el estado por inyección JS.
+        post('sensor_request', {});
+
+        const orientationApi =
+          typeof DeviceOrientationEvent !== 'undefined' ? DeviceOrientationEvent : null;
+        const motionApi = typeof DeviceMotionEvent !== 'undefined' ? DeviceMotionEvent : null;
+        const permissionRequester =
+          orientationApi && typeof orientationApi.requestPermission === 'function'
+            ? orientationApi.requestPermission.bind(orientationApi)
+            : motionApi && typeof motionApi.requestPermission === 'function'
+              ? motionApi.requestPermission.bind(motionApi)
+              : null;
+
+        if (permissionRequester && !runningInsideReactNative) {
+          try {
+            const perm = await permissionRequester();
+            if (perm !== 'granted') log('Permiso web de movimiento no concedido');
+          } catch (e) {
+            // Puede fallar si el WebView no considera el mensaje un gesto de
+            // usuario. El sensor nativo todavía puede confirmar la orientación.
+            log('Permiso web de sensor: ' + e.message);
           }
-        } catch (e) {
-          log('Sensor: ' + e.message);
-          return false;
         }
-        window.addEventListener('deviceorientation', onDeviceOrientation);
+
+        if (!runningInsideReactNative && !orientationListenerAttached && orientationApi) {
+          window.addEventListener('deviceorientation', onDeviceOrientation);
+          orientationListenerAttached = true;
+        }
+        if (!runningInsideReactNative && !motionListenerAttached && motionApi) {
+          window.addEventListener('devicemotion', onDeviceMotion);
+          motionListenerAttached = true;
+        }
         return new Promise((res) => {
           const st = performance.now();
           (function ch() {
@@ -1786,7 +1871,12 @@
               res(true);
               return;
             }
+            if (sensorUnavailable) {
+              res(false);
+              return;
+            }
             if (performance.now() - st > SENSOR_CONFIRM_MS) {
+              post('sensor_stop', {});
               res(false);
               return;
             }
@@ -1794,24 +1884,51 @@
           })();
         });
       }
-      function onDeviceOrientation(ev) {
-        if (ev.beta == null) return;
+      function setOrientationState(vertical, beta) {
         orientationSupported = true;
-        betaHistory.push(ev.beta);
-        if (betaHistory.length > 8) betaHistory.shift();
-        const avg = betaHistory.reduce((a, b) => a + b, 0) / betaHistory.length;
-        const dev = Math.abs(90 - Math.abs(avg));
-        deviceIsVertical = dev <= VERTICAL_TOLERANCE;
+        deviceIsVertical = vertical;
+        if (typeof beta === 'number' && Number.isFinite(beta)) {
+          betaHistory.push(beta);
+          if (betaHistory.length > 8) betaHistory.shift();
+        }
         orientationBadge.style.display = 'flex';
         orientationBadge.className = 'badge ' + (deviceIsVertical ? '' : 'orientation-bad');
         orientationIcon.innerHTML = deviceIsVertical ? ICON.check : ICON.warning;
         orientationText.textContent = deviceIsVertical ? 'Vertical' : '¡Poné el celular vertical!';
       }
+      function onDeviceOrientation(ev) {
+        if (runningInsideReactNative) return;
+        if (ev.beta == null) return;
+        betaHistory.push(ev.beta);
+        if (betaHistory.length > 8) betaHistory.shift();
+        const avg = betaHistory.reduce((a, b) => a + b, 0) / betaHistory.length;
+        const dev = Math.abs(90 - Math.abs(avg));
+        setOrientationState(dev <= VERTICAL_TOLERANCE);
+      }
+      function onDeviceMotion(ev) {
+        if (runningInsideReactNative) return;
+        const g = ev.accelerationIncludingGravity;
+        if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
+        if (Math.hypot(g.y, g.z) < 1) return;
+        const tilt = (Math.atan2(Math.abs(g.z), Math.abs(g.y)) * 180) / Math.PI;
+        setOrientationState(tilt <= VERTICAL_TOLERANCE);
+      }
+      window.__resilienciaSetNativeOrientation = function (sample) {
+        if (!sample) return;
+        if (sample.available === false) {
+          sensorUnavailable = true;
+          return;
+        }
+        if (sample.available !== true || typeof sample.vertical !== 'boolean') return;
+        setOrientationState(sample.vertical, sample.beta);
+      };
 
       async function startCamera() {
+        if (running || startBtn.disabled) return;
         startBtn.disabled = true;
         startBtn.textContent = 'Iniciando…';
         ensureAudio();
+        statusText.textContent = 'Confirmando sensor…';
         const sensorOk = await ensureOrientationSensor();
         if (!sensorOk) {
           log('Sensor no confirmado — modo verificado exige celular vertical');
@@ -1848,6 +1965,7 @@
           );
           requestAnimationFrame(loop);
         } catch (e) {
+          post('sensor_stop', {});
           log('Error: ' + e.message);
           statusText.textContent = 'Sin acceso a cámara';
           startBtn.disabled = false;
@@ -1856,6 +1974,7 @@
       }
       function stopCamera() {
         running = false;
+        post('sensor_stop', {});
         const s = video.srcObject;
         if (s) s.getTracks().forEach((t) => t.stop());
         liveDot.classList.remove('live');
@@ -1900,10 +2019,6 @@
       startBtn.onclick = startCamera;
       stopBtn.onclick = stopCamera;
       refreshHud();
-
-      setTimeout(() => {
-        if (!startBtn.disabled) startCamera();
-      }, 700);
     </script>
   </body>
 </html>
