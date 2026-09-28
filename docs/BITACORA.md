@@ -384,3 +384,130 @@ Los logs del PO ahora deberían mostrar `[auth] exchangeCodeForSession` sin erro
 1. Acto formal: registrar decisión de cambio de regla (reto del día premium) + actualizar `PLAN_COMPLETO` §15.4.
 2. Confirmar D1 (crear `abdominales`), D2 (precios), y empezar **F0** si el PO da luz verde.
 3. [Alto nivel] Hasta que existan cuentas de store, no hay cobro posible; F0–F2 no dependen de eso.
+
+### 2026-09-28 — Análisis del plan free+suscripción en TODOS los roles (9 agentes sobre código real) → decisiones del PO (A–E) y plan v3 consolidado
+
+**Análisis del equipo (verificado en código, no teórico) — veredicto: modelo viable con 3 condiciones; consenso total en 2 SKUs sin lifetime, gate server-side y F2 sin cobrar.**
+
+Condiciones del "sí": (1) instrumentar métricas antes (hoy no hay PostHog/Sentry → F2 sin medir es ficción, `apps/mobile/package.json`); (2) fijar regla del reto para el free (ver D-A); (3) pagar la deuda técnica preexistente que destaparon los roles (bloqueante de F3): `syncService` borra la cola local aunque el edge rechace (`syncService.ts:178` — el edge debe devolver rechazos por `clientOpId` y el cliente conservarlos), **un free puede enviar un ejercicio premium hoy** (el edge no valida `tier`), bugs TZ (ventana UTC) y de unidades en `mountain_climbers`, y `workout_exercises.insert_own`/`streaks` aceptan selección de ejercicio y rachas sin gate (ROAD: cerrarlos antes del paywall).
+
+**Decisiones del PO confirmadas hoy (A–E):**
+
+- **D-A — Reto del día para free: rotando entre los 3 libres** (cambia el modelo original premium-only). El free juega el reto diario si el ejercicio aleatorio cae en `flexiones/abdominales/sentadillas`; si cae en premium, ve ficha teaser. Consecuencia: **las rachas vuelven a ser para todos** (se revierte la consecuencia aceptada de `:364`). El ranking **TOTAL sigue solo para suscritos**; los boards por ejercicio incluyen a todos pero cada usuario aporta solo a lo que puede ejecutar. Esto **evita** el conflicto agravado con `PLAN_COMPLETO:731` (el reto sigue gratis para el free cuando es ejecutable), elimina el riesgo de rating 1★/dark-pattern notado por ASO, y conserva el loop de hábito que MARKET dice que ganamos sobre Hevy/Strong.
+- **D-B — Trial: 7 días, solo en el plan anual**, elegibilidad y aviso de renovación los maneja el store (1 trial de por vida por cuenta). Sin tarjeta en el free, no se pide en el trial.
+- **D-C — Contenido rating 13+; compras (IAP) solo 17+** (blinda el caso "compró un menor"; Family buying para <17 en Play). [LEG] redactará la verificación en T&C + data safety.
+- **D-D — Precio de lanzamiento: `US$2.99`/mes y `US$19.99`/año (−44%)**, 1 aumento opt-out por país/año permitido (hasta +50%, p. ej. llegar a 3.99/23.99 con datos), **sin precio manual por país** (Play auto-convierte moneda local desde 2026-09-14), comisión real 15% Play (suscripciones auto-renovables) / 15-30% Apple (Small Business program) → neto ≈ 85%, usarlo en unit-economics.
+- **D-E — IDs estandarizados: `premium_monthly` + `premium_annual`** (clave entitlement `premium_exercises`). Se corrige `PLAN_COMPLETO:720` (`premium_yearly`), `BITACORA:374` (nombraba `premium_lifetime`) y la sugerencia de precio del plan v2 se alinea con D-D.
+
+**Plan v3 (fases ajustadas con los aportes de los roles):**
+
+- **F0 + F0.5 — Fundaciones sin cobrar (HOY, sin cuentas de store):** `abdominales` (8º, reps; mover a `tier='free'`), `tier` en catálogo+i18n+DB (`0012` con CHECK y default fail-closed), compat determinista por fecha de corte, detector `situp` con gate anti-pararse y buffer propio (SVY: patrón `puente_gluteo`, portar `kneeStandingMargin` de `docs/prototipo/camera-verification.html:831-834,1600-1621`), `REP_CADENCE abdominales: 3`, gh-pages + `VERIFY_VERSION` 13, **release atómico** (HTML+edge+0012+fixtures+jobs). **Instrumentación PostHog (free tier, costo 0)** con diccionario de eventos ANTES de la primera pantalla de paywall (`[DATA]`: sin esto F2 no mide). Pagar deuda técnica preexistente del gate (syncService rechazos, TZ, mountain_climbers, cerrar `insert_own`/`streaks`). [MED] toques: tope de volumen Modo Libre (~60-80 reps), técnica por ejercicio, aviso médico corto, y **agregar 1 ejercicio de espalda al catálogo premium** (hoy no hay ninguno).
+- **F1 — Semántica de ranking por entitlement:** helper `has_active_entitlement` (SECURITY DEFINER, **sin EXECUTE público** — evita oráculo); TOTAL solo suscritos; boards: `e.tier='free'` OR entitlement; streak vuelve universal (por D-A). Edge: gate `tier` ANTES de construir filas (`premium_required`), valida `exercise.tier` de la DB (cierra el hueco de hoy), completions rechazadas → `rejected` persistido, sesiones incobrables descartadas. `ranked_as_premium` = estampa de contexto (historial estable), **sin backfill**, no filtra lectura (cancelar no borra del TOTAL histórico). `0013`: `entitlements` (PK `(user_id,key)`, `expires_at`, RLS select-own, revoca a clientes) + `subscriptions` (PK `original_transaction_id`) + `purchases` (PK `rc_event_id` → anti-replay).
+- **F2 — Paywall mock (sin cobrar):** **login obligatorio antes de comprar** (`Purchases.logIn(auth.uid)` — compra anónima queda huérfana, [SEC]); placement pago por momento de valor (no al abrir la app); máx. 1 paywall por sesión y por punto de entrada; candados con `exerciseId` memorizado; convertidor mensual/anual; **semántica "bloqueado" sin depender de arrays de ranking vacíos** (`syncService` devuelve `[]` tanto en error como sin datos → no gatillar candado por eso). Gates medidos (PostHog): ≥8% ven-paywall→seleccionan-plan, ≥15% tocan CTA, piso <5% → no F3; n≥300 vistas/variante; D1/D7 no perder >5pp.
+- **F3 — Billing real (⛳ gate PO + autorización `AGENTS.md:86-87`):** cuentas Play US$25 / Apple US$99/año / RevenueCat gratis hasta ~US$2.5k MRR / EAS free; `react-native-purchases`; productos `premium_monthly`+`premium_annual`; edge `revenuecat_webhook` **`--no-verify-jwt`** con firma `Bearer` comparación constante-tiempo y `unique(rc_event_id)`. **Webhook: `CANCELLATION` NO revoca** (solo `will_renew=false` → al vencimiento); revocan `EXPIRATION/REFUND/TRANSFER/DELETE`; `BILLING_ISSUE` mantiene (gracia). Trial 7d anual (D-B) con precio de renovación visible; restore purchases; refunds revocan entitlement. Entitlement **nunca de cliente**; mapeo `app_user_id → auth.uid()` solo `service_role`.
+- **F4 — Cumplimiento + store:** acta de cambio de regla (D-A) firmada previa; `docs/legal/T&C` versionados (renovación, cancelación en tienda, trial, restore, reembolsos); data safety (RevenueCat declarado: user ID + purchase history; biometría = dato sensible, retención 30 días); política de privacidad; rating 13+ con IAP 17+ (D-C: verificación de edad + Family billing); reembolsos (Play 48 h / UE 14 días; meta <3%); content rating; ficha store (copy destacando "reto diario 3 ejercicios gratis"); closed testing 12+ testers 14 días; rollout 10→50→100. **Gate formalización real [FIN]: ~130-150 suscriptores** (no los "300 USD" teóricos); MRR≠caja (liquidación store el mes siguiente → caja ≈55-65% del MRR bruto).
+- **F5 — Métricas y anti-abuso:** unit-economics (ARPU, MRR, CAC<LTV/3, churn, %conversión, reembolsos <3%, **regla del 30%** apple-deep), vigilancia premium sharing / trial reuse (gate por `auth.uid()`). Drop la suba automática de precio hasta tener F2/F3 data.
+
+**Acuerdos técnicos transversales que quedan vigentes:** el ranking TOTAL queda vacío hasta que exista validador real (camino `verified`) — el premium no cambia eso; sin validador, el orden es por volumen validado → el valor premium se construye con F0.5-F3, no con rankings fantasma.
+
+**Entregable de hoy:** análisis consolidado + decisiones A–E → plan v3. No se tocó código (la fecha de corte de la migración `0012` aún define el orden anterior = `007` compatible).** Pendientes del PO:**
+
+1. Autorizar F0+F0.5 (no dependen de cuentas de store) — recomendación del DER: dar luz verde hoy.
+2. Acto formal D-A (cambio de regla) + actualizar `PLAN_COMPLETO` §15.4 y AGENTS si aplica.
+3. Confirmar backfill de `tier` y de la deuda técnica preexistente como parte de F0 (recomendado: sí).
+
+### 2026-09-28 — PLAN v4 ADOPTADO: Free tier + Premium sin datos falsificables (revisión externa de v3 + correcciones del PO) — PLAN VIGENTE de free/pro
+
+**Proceso:** v3 se sometió a análisis externo → PLAN v4. Se revisó contra el código actual y las decisiones A–E. **v4 reemplaza a v2/v3 como plan vigente**, con 2 correcciones del PO (reto y espalda) y ajustes del DER. Sin cambios de código el día de hoy.
+
+**Principio rector:** el cliente puede proponer resultados, pero **nunca** puede crear por sí mismo progreso, rachas, rankings ni entitlements válidos. Mientras no exista validación real de evidencia, todo queda en `pending`.
+
+### 1. Modelo de producto (final)
+
+- **Free** (`flexiones`, `abdominales`, `sentadillas`): reto diario, rachas, Modo Libre, ranking individual de los 3 libres, cámara/detección, historial local. **Sin ranking TOTAL.**
+- **Premium** (`plancha`, `zancadas`, `puente_gluteo`, `mountain_climbers`, `sentadilla_isometrica` + ejercicios futuros): Modo Libre premium, rankings premium, ranking TOTAL, futuras rutinas/planes premium.
+- **Reto diario gratis para todos** (D-A). Premium = contenido adicional, no el acceso básico. **No hay lifetime** (D-E).
+
+### 2. Regla única del reto diario (cambia "7 antes / 8 después")
+
+- Antes de `FEATURE_DATE`: algoritmo antiguo para compat histórica.
+- Desde `FEATURE_DATE`: el reto rota **solo entre flexiones, abdominales y sentadillas**. La rotación es determinista: misma fecha, misma zona horaria definida, misma fórmula móvil+servidor, mismo objetivo esperado, mismo target. El objetivo del usuario puede modificar el target pero **no es elegido libremente por el cliente al sincronizar**.
+
+### 3. Autoridad server-side del reto (nueva tabla conceptual `daily_challenge_assignments`)
+
+- Campos: `user_id`, `challenge_date`, `goal_snapshot`, `exercise_code`, `target`, `unit`, `feature_version`, `created_at`. PK `(user_id, challenge_date)`; el cliente **solo lee** su asignación (sin insert/update/delete); solo RPC segura o Edge la crea.
+- Flujo: app solicita reto → server lee objetivo del perfil → crea/devuelve asignación → app guarda local → al enviar el resultado el server compara contra la asignación (ejercicio/unidad/fecha/target) → mismatch = rechazo. Evita que el cliente mande otro goal/target/ejercicio para un reto más fácil.
+- Retos antiguos sin asignación → `manual_review`/`pending`, nunca aprobación automática.
+- **Corrección del PO (adoptada):** el `goal_snapshot` del cliente es **solo informativo**. Para aprobar históricamente un reto tras un cambio de objetivo hace falta **historial server-side del objetivo** (tabla `goal_history`: `user_id, goal, valid_from, valid_until` o una asignación por fecha): la derivación del edge vale para el reto vigente (objetivo actual en el perfil), no para sync tardía tras cambio de objetivo. La asignación/historial es **fuente autoritativa** del objetivo por fecha; el server valida contra ella, no contra lo que mande el cliente.
+
+### 4. Catálogo y tiers
+
+- **DB = fuente de verdad.** `exercises.tier` `free | premium`, **fail-closed** (sin tier válido = premium). El Edge NO usa listas hardcodeadas; el catálogo móvil solo sirve para UI/experiencia local.
+- Migración: (1) agregar `tier`; (2) actualizar los 7 ejercicios existentes; (3) `abdominales` como free; (4) ejercicio de espalda futuro (ver corrección); (5) constraint del catálogo; (6) fixtures de todos; (7) réplica en cámara y Edge.
+
+### 5. Cámara y evidencia
+
+- La cámara reporta evidencia (valor, unidad, duración, versión, timestamps, cadencia, liveness, hash) pero el server la trata como **no confiable**. Edge: valida formato/límites/unidad/versión/ejercicio+tier, guarda hash, guarda `pending`/`rejected`, **nunca** convierte a `verified` automáticamente. El hash detecta modificaciones posteriores, no prueba cámara real.
+- Futuro `verified`: validación server-side de video, evidencia firmada, attestation de dispositivo (no prueba el movimiento por sí sola), revisión manual, o combinación. Copy obligatorio: **"Sesión enviada para validación"**; nunca "Sesión verificada".
+
+### 6. Sincronización y cola local (fix del bug `syncService.ts:178`)
+
+- Edge responde por elemento: `clientOpId`, `status(accepted|pending|rejected)`, `reason`. El móvil **no borra** toda la cola tras HTTP 200: `accepted`→borra; `pending`→conserva; `rejected`→conserva (mostrar motivo/historial); error de red→conserva; respuesta parcial→procesar elemento por elemento.
+- Idempotencia: sesiones `(user_id, client_op_id)`; retos `(user_id, challenge_date)`. Los reintentos actualizan `pending` pero **nunca degradan** una propuesta ya aprobada por un validador independiente. Límite de cuota por usuario + tamaño máximo de batch.
+
+### 7. RLS y superficies heredadas (cerrar ANTES del paywall)
+
+- Cerrar escritura directa de: `daily_challenges`, `workout_sessions`, `workout_exercises`, `streaks`, `progress`, XP y logros.
+- Cliente solo: leer sus datos, invocar funciones, enviar propuestas. Nunca escribir valores que afecten rankings o progreso autoritativo.
+- Reset de progreso borra: `daily_challenges`, `workout_sessions`, `workout_submissions`, `daily_challenge_submissions` y asignaciones/propuestas pendientes relacionadas.
+
+### 8. Semántica correcta de rankings (corrige contradicción de v3)
+
+- **Racha:** visible para todos; solo `status='completed' AND completion_source='server'`; pending no cuenta.
+- **Boards free:** visibles para todos, solo sesiones verificadas; no aceptan sesiones premium en un board free por error.
+- **Boards premium:** solo visibles con entitlement activo; una sesión verificada conserva su contexto histórico; la cancelación no borra sesiones pasadas.
+- **Ranking TOTAL:** **NO filtrar cada fila por el entitlement actual del participante.** Regla correcta: (1) quien consulta tiene entitlement premium activo; (2) las filas mostradas tienen `ranked_as_premium = true`; (3) la cancelación no elimina historial; (4) las sesiones premium nuevas quedan bloqueadas tras la expiración. Así se conserva el historial sin permitir que un no suscriptor consulte el TOTAL.
+
+### 9. Entitlements
+
+- `entitlements` (`user_id, key, expires_at, store, updated_at`): RLS select-own; el usuario **no puede** insertar/actualizar/revocar.
+- `subscriptions`: idempotencia **`(store, original_transaction_id)`** (no `original_transaction_id` solo — evita colisiones entre stores).
+- `purchases`: `rc_event_id` `unique` (anti-replay de webhook).
+- Entitlement escrito **solo** por `service_role` desde el webhook.
+
+### 10. RevenueCat y stores
+
+- Flujo: `Google Play / App Store → RevenueCat → webhook firmado → Supabase Edge Function → entitlements → app`. La app **nunca** activa premium por respuesta local del cliente.
+- Login antes de comprar; cuenta RC asociada a `auth.uid()` desde servidor.
+- Eventos a manejar: compra inicial, renovación, cancelación, expiración, reembolso, transferencia, billing issue, restauración, cambio de producto. **Una cancelación NO revoca de inmediato**: se conserva hasta la fecha de expiración, salvo reembolso o revocación explícita.
+- RevenueCat: gratis hasta ~US$2.5k MRR, después 1% del MTR.
+
+### 11. Precio y monetización (D-D + ajustes)
+
+- `premium_monthly`: **US$2.99/mes** · `premium_annual`: **US$19.99/año** (~US$1.67/mes, descuento ~44%) · **trial 7 días solo en anual** (D-B) · **sin lifetime**.
+- **No** tratar la "suba del 50% una vez por país y año" como regla fija: cambios de precio, notificaciones y consentimiento dependen del país y la tienda (Google genera precios locales automáticos y permite revisarlos por región; Play auto-convierte USD→local desde 2026-09-14).
+- Comisiones **no** como cifra global única: Google varía por región/programa/instalación (suscripciones auto-renovables = 15%), Apple 15%/30% según programa, región y antigüedad de la suscripción (Small Business = 15%).
+- Modelo financiero debe incluir: impuestos, reembolsos, conversiones, comisión de tienda, RevenueCat post-umbral, **retraso de liquidación (MRR ≠ caja; caja ≈ 55-65% del MRR bruto)**, soporte, cuentas de desarrollador (Play US$25, Apple US$99/año). Gate de formalización: ~130-150 suscriptores.
+
+### 12. Fases de ejecución (v4)
+
+- **F0 — Base gratuita y seguridad:** `abdominales`, tiers, reto diario free de 3, asignaciones server-side, migraciones, RLS, validación de tier, cola segura, pruebas de manipulación, cámara VERIFY_VERSION 13, release atómico (HTML+Edge+DB). _Ajuste: el ejercicio de espalda NO entra en F0 (ver corrección 2)._ **Criterio de salida:** ningún cliente escribe progreso autoritativo; premium no corre como free; una propuesta rechazada no desaparece; sin rankings falsos; tests cubren fechas, unidades, tiers y reintentos.
+- **F0.5 — Calidad e instrumentación:** PostHog o equivalente (gratis); diccionario de eventos sin PII; errores de sync; métricas de cámara y abandono; dashboard mínimo; alertas Supabase/Edge. Eventos mínimos: `challenge_view/complete/pending/rejected`, `paywall_view`, `plan_selected`, `purchase_started/completed/failed`, `subscription_expired`.
+- **F1 — Semántica premium:** `entitlements`, helper seguro `has_active_entitlement` (sin oráculo), boards free/premium, TOTAL con control de acceso + `ranked_as_premium`, pruebas de expiración/cancelación, tests de RLS y no-oráculo. **Criterio:** cancelar sin perder historial; usuario expirado no crea sesiones premium; free no consulta TOTAL; ranking sin datos no verificados.
+- **F2 — Paywall mock (antes de cobrar):** paywall en momento de valor; máx. 1 por sesión y punto de entrada; copy es/en/pt; pantalla de producto; selección mensual/anual; restore visible; login obligatorio antes de compra; medición completa (**PostHog: ≥8% ven-paywall→seleccionan-plan, ≥15% tocan CTA, piso <5% → no F3; n≥300 vistas/variante; D1/D7 no perder >5pp**). Los objetivos de conversión son **hipótesis** (muestra, duración, criterio estadístico), no decisiones permanentes.
+- **F3 — Billing real (⛳ gate PO + autorización `AGENTS.md:86-87`; solo si F2 demuestra interés):** cuentas Play/Apple, RevenueCat, productos, trial 7d anual, webhook, restore, refunds, entitlements, sandbox, offline, anti-replay. **`react-native-purchases` requiere build nativa/dev build; NO funciona en Expo Go.**
+- **F4 — Cumplimiento y stores:** T&C, política de privacidad, consentimiento de cámara, política de eliminación, exportación de datos, retención de evidencia (30 días), Data Safety, contenido 13+ (IAP 17+ — ver nota), revisión de menores y compras parentales, copy sin promesas médicas, ficha de store, closed testing, rollout gradual. _Nota de exactitud [ASO/LEG]: edad de compra NO como regla universal fija 17+ — revisar por país, store y controles parentales (D-C queda como default concreto hoy: 13+ contenido / compras 17+ con verificación parental)._ Google exige closed testing 12 testers/14 días **para cuentas personales nuevas determinadas, no todas**. Reembolsos: Play 48 h / UE 14 días, meta <3%.
+- **F5 — Métricas y anti-abuso:** conversión, retención, churn, reembolsos, ARPU, MRR, usuarios premium activos, sesiones premium rechazadas, cuentas anómalas, intentos de replay, propuestas por usuario, consumo Edge/DB. **CAC < LTV/3 = objetivo futuro** (no aplicable sin adquisición paga).
+
+### 13. Orden recomendado (v4)
+
+1. Congelar reglas free/premium → 2. catálogo y tiers → 3. asignaciones server-side del reto → 4. cerrar RLS heredada → 5. reparar cola de sync → 6. abdominales y detector → 7. pruebas de cámara → 8. instrumentar eventos → 9. paywall mock → 10. medir retención/conversión → 11. entitlements → 12. RevenueCat → 13. cumplimiento y stores → 14. rollout gradual.
+
+### Correcciones y ajustes adoptados en la revisión (acordados con el PO)
+
+1. **Reto offline (goal):** la derivación on-the-fly permite offline-first, pero el `goal_snapshot` del cliente es **solo informativo**; para aprobar históricamente un reto tras un cambio de objetivo hace falta **historial server-side del objetivo** (§3). Opción general más barata: `goal_history` (`user_id, goal, valid_from, valid_until`) sirve también para progresión histórica si el catálogo cambia; alternativa simple: asignación por fecha. A definir en F0.
+2. **Ejercicio de espalda → DIFERIDO a futuro (no bloquea F0):** `bird_dog` es válido como core/posterior pero **no cumple** "espalda" católicamente; si el producto quiere venderlo como espalda, el estándar honesto es **remo con banda** (mayor complejidad CV) y como opción barata sin equipamiento **`superman`** (erector/paravertebrales, encuadre fácil). Decisión adoptada: dejar para fase futura, mantener el catálogo premium base en los 5 ejercicios actuales.
+
+**Veredicto de la revisión (adoptado):** v3 tenía buena dirección pero el plan correcto es v4 — free primero; reto diario limitado a 3 ejercicios; tiers controlados por DB; asignaciones server-side; cola resistente a rechazos; rankings solo con resultados verificados; premium por entitlement; billing después de validar demanda; legal y tiendas antes de cobrar.
+
+**Pendientes del PO para arrancar F0:** (1) luz verde a F0+F0.5; (2) acto formal D-A + actualizar `PLAN_COMPLETO` §15.4; (3) decidir en F0: `goal_history` vs asignación por fecha para el reto server-side.

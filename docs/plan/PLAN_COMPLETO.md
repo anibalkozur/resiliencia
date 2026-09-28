@@ -717,7 +717,7 @@ crear retos y ver reportes con datos reales de Supabase.
 ### 15.3 Premium y consumibles
 
 10. **Premium (suscripción)**: React Native Purchases (RevenueCat) con
-    productos: `premium_monthly`, `premium_yearly` (flujo: sin ads,
+    productos: `premium_monthly`, `premium_annual` (flujo: sin ads,
     estadísticas avanzadas, equipo de entrenamiento +, contenido premium,
     cosméticos).
 11. **Entitlement en backend**: `entitlements(user_id,key='premium')` validado
