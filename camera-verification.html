@@ -2019,6 +2019,14 @@
       startBtn.onclick = startCamera;
       stopBtn.onclick = stopCamera;
       refreshHud();
+
+      // En Expo el WebView no tiene un gesto de usuario que dispare el flujo
+      // al entrar a la pestaña. Iniciar una sola vez después de montar el DOM
+      // permite establecer primero el handshake del sensor nativo y mantiene
+      // el botón disponible como reintento si el permiso o la cámara fallan.
+      if (runningInsideReactNative) {
+        requestAnimationFrame(() => void startCamera());
+      }
     </script>
   </body>
 </html>
