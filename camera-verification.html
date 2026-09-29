@@ -830,7 +830,8 @@
       let livenessBeepTimer = null;
       let orientationSupported = false,
         deviceIsVertical = true,
-        betaHistory = [];
+        betaHistory = [],
+        sensorConfirmRetries = 0;
       const VERTICAL_TOLERANCE = 35,
         SENSOR_CONFIRM_MS = 8000;
 
@@ -1868,12 +1869,20 @@
         ensureAudio();
         const sensorOk = await ensureOrientationSensor();
         if (!sensorOk) {
+          if (sensorConfirmRetries < 1) {
+            sensorConfirmRetries += 1;
+            statusText.textContent = 'Confirmando sensor de nuevo…';
+            setTimeout(() => void startCamera(), 300);
+            return;
+          }
+          sensorConfirmRetries = 0;
           log('Sensor no confirmado — modo verificado exige celular vertical');
           startBtn.disabled = false;
           startBtn.textContent = 'Reintentar';
           statusText.textContent = 'Sensor no confirmado';
           return;
         }
+        sensorConfirmRetries = 0;
         try {
           if (!poseLandmarker) await initModel();
           const stream = await navigator.mediaDevices.getUserMedia({
