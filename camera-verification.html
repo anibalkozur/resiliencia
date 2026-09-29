@@ -835,6 +835,8 @@
       const VERTICAL_TOLERANCE = 35,
         SENSOR_CONFIRM_MS = 8000;
 
+      const runningInsideReactNative = Boolean(window.ReactNativeWebView);
+
       function post(type, data) {
         try {
           const payload = { type, ...data };
@@ -1824,16 +1826,19 @@
 
       async function ensureOrientationSensor() {
         if (typeof DeviceOrientationEvent === 'undefined') return false;
-        try {
-          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            const perm = await DeviceOrientationEvent.requestPermission();
-            if (perm !== 'granted') return false;
+        if (!runningInsideReactNative) {
+          try {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+              const perm = await DeviceOrientationEvent.requestPermission();
+              if (perm !== 'granted') return false;
+            }
+          } catch (e) {
+            log('Sensor: ' + e.message);
+            return false;
           }
-        } catch (e) {
-          log('Sensor: ' + e.message);
-          return false;
         }
         window.addEventListener('deviceorientation', onDeviceOrientation);
+        window.addEventListener('devicemotion', onDeviceMotion);
         return new Promise((res) => {
           const st = performance.now();
           (function ch() {
@@ -1851,12 +1856,26 @@
       }
       function onDeviceOrientation(ev) {
         if (ev.beta == null) return;
-        orientationSupported = true;
         betaHistory.push(ev.beta);
         if (betaHistory.length > 8) betaHistory.shift();
         const avg = betaHistory.reduce((a, b) => a + b, 0) / betaHistory.length;
         const dev = Math.abs(90 - Math.abs(avg));
-        deviceIsVertical = dev <= VERTICAL_TOLERANCE;
+        setOrientationState(dev <= VERTICAL_TOLERANCE);
+      }
+      function onDeviceMotion(ev) {
+        const g = ev.accelerationIncludingGravity;
+        if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
+        if (Math.hypot(g.y, g.z) < 1) return;
+        const tilt = (Math.atan2(Math.abs(g.z), Math.abs(g.y)) * 180) / Math.PI;
+        setOrientationState(tilt <= VERTICAL_TOLERANCE);
+      }
+      function setOrientationState(vertical, beta) {
+        orientationSupported = true;
+        deviceIsVertical = vertical;
+        if (typeof beta === 'number' && Number.isFinite(beta)) {
+          betaHistory.push(beta);
+          if (betaHistory.length > 8) betaHistory.shift();
+        }
         orientationBadge.style.display = 'flex';
         orientationBadge.className = 'badge ' + (deviceIsVertical ? '' : 'orientation-bad');
         orientationIcon.innerHTML = deviceIsVertical ? ICON.check : ICON.warning;
