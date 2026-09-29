@@ -17,9 +17,16 @@ const MAX_CHALLENGE_AGE_DAYS = 365;
 // Versiones de evidencia soportadas. La versión llega en la URL de la cámara
 // (?v=) y en buildVerifyUri; solo se aceptan versiones explícitas para evitar
 // downgrade o versiones inventadas.
-const ALLOWED_EVIDENCE_VERSIONS = new Set([12]);
+const ALLOWED_EVIDENCE_VERSIONS = new Set([12, 13]);
 const GOALS = ['perder_grasa', 'ganar_musculo', 'mantener'] as const;
 type Goal = (typeof GOALS)[number];
+
+// El título de sesión por ángulo del cuerpo NO cambia la rotación: desde
+// FEATURE_DATE el reto diario gratuito rota solo entre el pool FREE. La misma
+// fecha límite se define en apps/mobile/src/retos/catalog.ts.
+const FEATURE_DATE = '2026-09-28';
+const FEATURE_VERSION = 13;
+const FREE_EXERCISE_ORDER: string[] = ['sentadillas', 'flexiones', 'abdominales'];
 
 const EXERCISE_ORDER: Record<Goal, string[]> = {
   perder_grasa: [
@@ -54,6 +61,7 @@ const EXERCISE_ORDER: Record<Goal, string[]> = {
 const DEFAULT_TARGETS: Record<string, number> = {
   sentadillas: 20,
   flexiones: 10,
+  abdominales: 15,
   plancha: 30,
   zancadas: 24,
   puente_gluteo: 15,
@@ -70,6 +78,7 @@ const TARGET_MULTIPLIER: Record<Goal, number> = {
 const EXERCISE_UNITS: Record<string, 'reps' | 'seconds'> = {
   sentadillas: 'reps',
   flexiones: 'reps',
+  abdominales: 'reps',
   plancha: 'seconds',
   zancadas: 'reps',
   puente_gluteo: 'reps',
@@ -77,7 +86,12 @@ const EXERCISE_UNITS: Record<string, 'reps' | 'seconds'> = {
   sentadilla_isometrica: 'seconds',
 };
 
-type Exercise = { code: string; id: string; measurement_type: 'reps' | 'seconds' };
+type Exercise = {
+  code: string;
+  id: string;
+  measurement_type: 'reps' | 'seconds';
+  tier: 'free' | 'premium';
+};
 
 type IncomingSubmission = {
   clientOpId: string;
@@ -101,6 +115,12 @@ type IncomingCompletion = {
   goal: 'perder_grasa' | 'ganar_musculo' | 'mantener';
   unit?: 'reps' | 'seconds';
   evidence?: Record<string, unknown>;
+};
+
+type SubmissionResult = {
+  clientOpId: string;
+  status: 'accepted' | 'pending' | 'rejected';
+  reason?: string;
 };
 
 function response(body: unknown, status = 200): Response {
@@ -143,7 +163,9 @@ async function sha256Hex(input: string): Promise<string> {
 // ---------------------------------------------------------------------------
 // Reto diario determinista: el servidor calcula el ejercicio, objetivo y
 // unidad esperados para (fecha, objetivo) con el MISMO algoritmo de la app.
-// El cliente ya no define ni ejercicio ni target.
+// Desde FEATURE_DATE el ejercicio sale solo del pool FREE; antes conserva el
+// algoritmo por objetivo para que las sincronizaciones tardías de retos
+// antiguos sigan validando.
 // ---------------------------------------------------------------------------
 function isoWeekday(date: Date): number {
   const day = date.getUTCDay();
@@ -168,7 +190,7 @@ function expectedChallenge(
   if (!(GOALS as readonly string[]).includes(goal)) return null;
   const [y, m, d] = dateKey.split('-').map(Number);
   const parsed = new Date(Date.UTC(y, m - 1, d));
-  const ids = EXERCISE_ORDER[goal as Goal];
+  const ids = dateKey >= FEATURE_DATE ? FREE_EXERCISE_ORDER : EXERCISE_ORDER[goal as Goal];
   const index = (isoWeekNumber(parsed) + isoWeekday(parsed)) % ids.length;
   const exerciseId = ids[index];
   const base = DEFAULT_TARGETS[exerciseId] ?? 10;
@@ -277,6 +299,9 @@ function validateSubmission(
     return { value, error: 'invalid_target' };
   }
   if (!isDateKey(value.sessionDate)) return { value, error: 'invalid_session_date' };
+  if (!challengeDateInWindow(value.sessionDate)) {
+    return { value, error: 'session_date_out_of_window' };
+  }
   if (!evidenceWithinLimit(value.evidence)) return { value, error: 'evidence_too_large' };
 
   return { value };
@@ -377,7 +402,7 @@ Deno.serve(async (request) => {
   ];
   const { data: exerciseRows, error: exerciseError } = await admin
     .from('exercises')
-    .select('id, code, measurement_type')
+    .select('id, code, measurement_type, tier')
     .in('code', exerciseCodes);
   if (exerciseError) return response({ error: 'catalog_unavailable' }, 503);
 
@@ -392,6 +417,30 @@ Deno.serve(async (request) => {
   const validCompletions = uniqueCompletions(
     parsedCompletions.filter((item) => !item.error).map((item) => item.value),
   );
+  // Los elementos inválidos también se reportan por clientOpId para que el
+  // cliente pueda marcar la operación rechazada (no reintentarla en loop).
+  const invalidResults: SubmissionResult[] = invalid.map((item) => ({
+    clientOpId: String(item.value.clientOpId ?? ''),
+    status: 'rejected',
+    reason: item.error ?? 'invalid_submission',
+  }));
+  const invalidCompletionResults: SubmissionResult[] = invalidCompletions.map((item) => ({
+    clientOpId: String(item.value.clientOpId ?? ''),
+    status: 'rejected',
+    reason: item.error ?? 'invalid_completion',
+  }));
+
+  // ---------------------------------------------------------------------------
+  // Tier (PLAN v4 / F0): el catálogo en la DB manda. Fail-closed: SOLO se
+  // acepta el tier 'free'. Como el default en la migración es 'premium',
+  // cualquier ejercicio sin tier explícito queda rechazado (premium_required) y
+  // hasta que exista infraestructura de entitlement ningún premium corre. Los
+  // rechazos se reportan por elemento para que la cola local no se borre
+  // silenciosamente.
+  // ---------------------------------------------------------------------------
+  function tierGate(exercise: Exercise): string | null {
+    return exercise.tier === 'free' ? null : 'premium_required';
+  }
 
   // ---------------------------------------------------------------------------
   // Sesiones libres: SIEMPRE pending. Hasta que exista un validador real,
@@ -399,15 +448,19 @@ Deno.serve(async (request) => {
   // se guardan con su evidencia para auditoría y futura revisión manual.
   // ---------------------------------------------------------------------------
   const sessionRows: Record<string, unknown>[] = [];
-  let sessionsRejected = 0;
-  let sessionsPending = 0;
+  const sessionResults: SubmissionResult[] = [];
 
   for (const item of valid) {
-    const unit = exercises.get(item.exerciseCode)?.measurement_type ?? 'reps';
-    let status = 'pending';
+    const exercise = exercises.get(item.exerciseCode);
+    const unit = exercise?.measurement_type ?? 'reps';
+    let status: SubmissionResult['status'] = 'pending';
     let reason = 'awaiting_server_validator';
 
-    if (item.value > unitLimit(unit) || item.target > unitLimit(unit)) {
+    const tierIssue = exercise ? tierGate(exercise) : 'invalid_exercise';
+    if (tierIssue) {
+      status = 'rejected';
+      reason = tierIssue;
+    } else if (item.value > unitLimit(unit) || item.target > unitLimit(unit)) {
       status = 'rejected';
       reason = 'value_out_of_bounds';
     } else if (item.ranked) {
@@ -426,11 +479,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    if (status === 'rejected') {
-      sessionsRejected++;
-    } else {
-      sessionsPending++;
-    }
+    sessionResults.push({ clientOpId: item.clientOpId, status, reason });
 
     sessionRows.push({
       user_id: userData.user.id,
@@ -456,41 +505,187 @@ Deno.serve(async (request) => {
   }
 
   if (sessionRows.length > 0) {
-    const { error: insertError } = await admin
-      .from('workout_submissions')
-      .upsert(sessionRows, { onConflict: 'user_id,client_op_id' });
-    if (insertError) return response({ error: 'submission_storage_failed' }, 503);
+    // server-authoritative: no re-escribir filas ya decididas. Si una propuesta
+    // ya está verified, el veredicto es terminal (trigger 0015) y se conserva;
+    // al cliente se le devuelve accepted (verified) en vez de re-evaluar.
+    let existingDecided: Set<string> = new Set();
+    try {
+      const clientOpIds = [...new Set(sessionRows.map((r) => String(r.client_op_id)))];
+      const { data: existing } = await admin
+        .from('workout_submissions')
+        .select('client_op_id, verification_status')
+        .eq('user_id', userData.user.id)
+        .in('client_op_id', clientOpIds);
+      if (Array.isArray(existing)) {
+        existingDecided = new Set(
+          existing
+            .filter((row) => row.verification_status === 'verified')
+            .map((row) => String(row.client_op_id)),
+        );
+      }
+    } catch {
+      existingDecided = new Set();
+    }
+    const rowsToWrite = sessionRows.filter((r) => {
+      const opId = String(r.client_op_id);
+      if (existingDecided.has(opId)) {
+        const result = sessionResults.find((res) => res.clientOpId === opId);
+        if (result) {
+          result.status = 'accepted';
+          result.reason = 'already_verified';
+        }
+        return false;
+      }
+      return true;
+    });
+    if (rowsToWrite.length > 0) {
+      const { error: insertError } = await admin
+        .from('workout_submissions')
+        .upsert(rowsToWrite, { onConflict: 'user_id,client_op_id' });
+      if (insertError) return response({ error: 'submission_storage_failed' }, 503);
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Retos diarios: SIEMPRE pending. El servidor deriva el reto esperado y
-  // rechaza propuestas que no coincidan (fecha fuera de ventana, ejercicio,
-  // objetivo o unidad incorrectos). No escribe daily_challenges.
+  // Retos diarios: SIEMPRE pending. El servidor deriva el reto esperado desde
+  // goal_history (el objetivo vigente para la fecha) y materializa la
+  // asignación en daily_challenge_assignments como fuente de verdad. No
+  // escribe daily_challenges. Los rechazos se reportan por elemento.
   // ---------------------------------------------------------------------------
   const completionRows: Record<string, unknown>[] = [];
-  let completionsRejected = 0;
-  let completionsPending = 0;
+  const completionResults: SubmissionResult[] = [];
+  const completionDates = [...new Set(validCompletions.map((c) => c.challengeDate))].sort();
+
+  // Objetivo vigente por fecha desde goal_history (server-side), como manda
+  // la decisión F0. Si no hay historial para una fecha, se usa el actual del
+  // perfil como fallback conservador.
+  let effectiveGoals: Record<string, string> = {};
+  try {
+    const { data: history, error: historyError } = await admin
+      .from('goal_history')
+      .select('goal, valid_from, valid_until')
+      .eq('user_id', userData.user.id)
+      .lte('valid_from', completionDates[completionDates.length - 1] ?? todayUtcKey());
+    if (!historyError && Array.isArray(history)) {
+      for (const dateKey of completionDates) {
+        const row = history
+          .filter(
+            (h) => h.valid_from <= dateKey && (h.valid_until === null || h.valid_until >= dateKey),
+          )
+          .sort(
+            (a, b) =>
+              String(b.valid_from).localeCompare(String(a.valid_from)) ||
+              String(b.valid_until ?? '9999').localeCompare(String(a.valid_until ?? '9999')),
+          )[0];
+        if (row && (GOALS as readonly string[]).includes(String(row.goal))) {
+          effectiveGoals[dateKey] = String(row.goal);
+        }
+      }
+    }
+  } catch {
+    // Sin goal_history disponible se cae al fallback del perfil.
+  }
+
+  let profileGoal: string | null = null;
+  try {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('goal')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+    if (profile && (GOALS as readonly string[]).includes(String(profile.goal))) {
+      profileGoal = String(profile.goal);
+    }
+  } catch {
+    profileGoal = null;
+  }
+
+  // La asignación server-side es la fuente de verdad (plan F0): si ya existe
+  // una asignación materializada para una fecha, se respeta sin recalcular ni
+  // sobrescribir. Solo se calcula e inserta cuando falta, y nunca se pisa una
+  // existente (las asignaciones no cambian retroactivamente aunque el usuario
+  // cambie su objetivo después).
+  const assignmentByDate = new Map<string, string>();
+  try {
+    const { data: assignments } = await admin
+      .from('daily_challenge_assignments')
+      .select('challenge_date, exercise_code, target, unit, goal_snapshot')
+      .eq('user_id', userData.user.id)
+      .in('challenge_date', completionDates);
+    if (Array.isArray(assignments)) {
+      for (const row of assignments) {
+        const key = String(row.challenge_date);
+        if (!assignmentByDate.has(key)) {
+          assignmentByDate.set(key, ''); // marca que ya existe
+        }
+      }
+    }
+  } catch {
+    // Sin asignaciones consultables se cae al cálculo determinista.
+  }
 
   for (const item of validCompletions) {
     const exercise = exercises.get(item.exerciseCode);
     const unit = exercise?.measurement_type ?? 'reps';
-    let status = 'pending';
+    let status: SubmissionResult['status'] = 'pending';
     let reason = 'awaiting_server_validator';
 
-    if (!challengeDateInWindow(item.challengeDate)) {
+    const tierIssue = exercise ? tierGate(exercise) : 'invalid_exercise';
+    if (tierIssue) {
+      status = 'rejected';
+      reason = tierIssue;
+    } else if (!challengeDateInWindow(item.challengeDate)) {
       status = 'rejected';
       reason = 'challenge_date_out_of_window';
     } else if (item.value > unitLimit(unit) || item.target > unitLimit(unit)) {
       status = 'rejected';
       reason = 'value_out_of_bounds';
     } else {
-      const expected = expectedChallenge(item.challengeDate, item.goal);
+      const hasAssignment = assignmentByDate.has(item.challengeDate);
+      const serverGoal = effectiveGoals[item.challengeDate] ?? profileGoal;
+      // Si la asignación ya existe, se valida contra ella (fuente de verdad):
+      // ejercicio, target, unidad Y goal_snapshot (el objetivo con que se creó).
+      // El goal_snapshot es autoritativo incluso si el usuario cambió su
+      // objetivo después; goal_history solo se usa para crear la asignación.
+      let expected: { exerciseCode: string; target: number; unit: 'reps' | 'seconds' } | null =
+        null;
+      let expectedGoal: string | null = null;
+      if (hasAssignment) {
+        try {
+          const { data: existing } = await admin
+            .from('daily_challenge_assignments')
+            .select('exercise_code, target, unit, goal_snapshot')
+            .eq('user_id', userData.user.id)
+            .eq('challenge_date', item.challengeDate)
+            .maybeSingle();
+          if (existing) {
+            expected = {
+              exerciseCode: String(existing.exercise_code),
+              target: Number(existing.target),
+              unit: String(existing.unit) === 'seconds' ? 'seconds' : 'reps',
+            };
+            expectedGoal =
+              existing.goal_snapshot &&
+              (GOALS as readonly string[]).includes(String(existing.goal_snapshot))
+                ? String(existing.goal_snapshot)
+                : null;
+          }
+        } catch {
+          expected = null;
+        }
+      } else {
+        expected = serverGoal === null ? null : expectedChallenge(item.challengeDate, serverGoal);
+      }
+      // La comparación de goal usa el snapshot de la asignación (autoritativo)
+      // cuando la asignación existe; si no, el goal vigente del historial/perfil.
+      const goalForMatch = expectedGoal ?? serverGoal;
       if (
         expected === null ||
         expected.exerciseCode !== item.exerciseCode ||
         expected.target !== item.target ||
         expected.unit !== unit ||
-        item.unit !== unit
+        (goalForMatch !== null && item.goal !== goalForMatch) ||
+        (item.unit !== undefined && item.unit !== unit)
       ) {
         status = 'rejected';
         reason = 'challenge_mismatch';
@@ -509,11 +704,7 @@ Deno.serve(async (request) => {
       }
     }
 
-    if (status === 'rejected') {
-      completionsRejected++;
-    } else {
-      completionsPending++;
-    }
+    completionResults.push({ clientOpId: item.clientOpId, status, reason });
 
     completionRows.push({
       user_id: userData.user.id,
@@ -533,27 +724,100 @@ Deno.serve(async (request) => {
           : 1,
       ),
     });
+
+    // Materializar la asignación SOLO si no existe (fuente de verdad). Nunca
+    // recalcular ni sobrescribir una asignación ya creada.
+    const serverGoal = effectiveGoals[item.challengeDate] ?? profileGoal;
+    if (!assignmentByDate.has(item.challengeDate) && serverGoal !== null) {
+      const expected = expectedChallenge(item.challengeDate, serverGoal);
+      if (expected !== null) {
+        await admin.from('daily_challenge_assignments').upsert(
+          {
+            user_id: userData.user.id,
+            challenge_date: item.challengeDate,
+            goal_snapshot: serverGoal,
+            exercise_code: expected.exerciseCode,
+            target: expected.target,
+            unit: expected.unit,
+            feature_version: FEATURE_VERSION,
+          },
+          { onConflict: 'user_id,challenge_date' },
+        );
+      }
+    }
   }
 
   if (completionRows.length > 0) {
-    const { error: insertError } = await admin
-      .from('daily_challenge_submissions')
-      .upsert(completionRows, { onConflict: 'user_id,challenge_date' });
-    if (insertError) return response({ error: 'completion_storage_failed' }, 503);
+    // server-authoritative: no re-escribir una fecha ya decidida. Si la
+    // propuesta ya está verified, el veredicto es terminal (trigger 0015) y se
+    // conserva; al cliente se le devuelve accepted (verified) en vez de volver
+    // a evaluarla como pending/rejected.
+    let decidedDates: Set<string> = new Set();
+    try {
+      const { data: existing } = await admin
+        .from('daily_challenge_submissions')
+        .select('challenge_date, verification_status')
+        .eq('user_id', userData.user.id)
+        .in(
+          'challenge_date',
+          completionRows.map((r) => String(r.challenge_date)),
+        );
+      if (Array.isArray(existing)) {
+        decidedDates = new Set(
+          existing
+            .filter((row) => row.verification_status === 'verified')
+            .map((row) => String(row.challenge_date)),
+        );
+      }
+    } catch {
+      decidedDates = new Set();
+    }
+    const rowsToWrite = completionRows.filter((r) => {
+      const dateKey = String(r.challenge_date);
+      if (decidedDates.has(dateKey)) {
+        const result = completionResults.find((res) => res.clientOpId === `daily:${dateKey}`);
+        if (result) {
+          result.status = 'accepted';
+          result.reason = 'already_verified';
+        }
+        return false;
+      }
+      return true;
+    });
+    if (rowsToWrite.length > 0) {
+      const { error: insertError } = await admin
+        .from('daily_challenge_submissions')
+        .upsert(rowsToWrite, { onConflict: 'user_id,challenge_date' });
+      if (insertError) return response({ error: 'completion_storage_failed' }, 503);
+    }
   }
 
-  const pendingCount = sessionsPending + completionsPending;
-  const rejectedCount =
-    invalid.length + invalidCompletions.length + sessionsRejected + completionsRejected;
+  const sessionAccepted = sessionResults.filter((r) => r.status === 'accepted').length;
+  const sessionsPending = sessionResults.filter((r) => r.status === 'pending').length;
+  const sessionsRejected =
+    invalid.length + sessionResults.filter((r) => r.status === 'rejected').length;
+  const completionAccepted = completionResults.filter((r) => r.status === 'accepted').length;
+  const completionsPending = completionResults.filter((r) => r.status === 'pending').length;
+  const completionsRejected =
+    invalidCompletions.length + completionResults.filter((r) => r.status === 'rejected').length;
 
   return response({
     received: valid.length + validCompletions.length,
-    verified: 0,
-    pending: pendingCount,
-    rejected: rejectedCount,
+    verified: sessionAccepted + completionAccepted,
+    pending: sessionsPending + completionsPending,
+    rejected: sessionsRejected + completionsRejected,
     completionReceived: validCompletions.length,
+    completionVerified: completionAccepted,
     completionPending: completionsPending,
-    completionVerified: 0,
+    // Por elemento: el cliente conserva en su cola todo lo no-accepted. Los
+    // inválidos de formato también se reportan con su clientOpId para que el
+    // cliente los marque como rechazados en vez de reintentarlos en bucle.
+    results: [
+      ...invalidResults,
+      ...sessionResults,
+      ...invalidCompletionResults,
+      ...completionResults,
+    ],
     message:
       'Todas las propuestas quedan en revisión (pending). El ranking se reabre solo cuando exista un validador server-side real.',
   });
