@@ -11,18 +11,20 @@ export function exerciseDescKey(id: string): TranslationKey {
 }
 
 export const EXERCISES: Exercise[] = [
-  { id: 'sentadillas', unit: 'reps' },
-  { id: 'flexiones', unit: 'reps' },
-  { id: 'plancha', unit: 'seconds' },
-  { id: 'zancadas', unit: 'reps' },
-  { id: 'puente_gluteo', unit: 'reps' },
-  { id: 'mountain_climbers', unit: 'seconds' },
-  { id: 'sentadilla_isometrica', unit: 'seconds' },
+  { id: 'sentadillas', unit: 'reps', tier: 'free' },
+  { id: 'flexiones', unit: 'reps', tier: 'free' },
+  { id: 'abdominales', unit: 'reps', tier: 'free' },
+  { id: 'plancha', unit: 'seconds', tier: 'premium' },
+  { id: 'zancadas', unit: 'reps', tier: 'premium' },
+  { id: 'puente_gluteo', unit: 'reps', tier: 'premium' },
+  { id: 'mountain_climbers', unit: 'seconds', tier: 'premium' },
+  { id: 'sentadilla_isometrica', unit: 'seconds', tier: 'premium' },
 ];
 
 export const DEFAULT_TARGETS: Record<string, number> = {
   sentadillas: 20,
   flexiones: 10,
+  abdominales: 15,
   plancha: 30,
   zancadas: 24,
   puente_gluteo: 15,
@@ -33,7 +35,12 @@ export const DEFAULT_TARGETS: Record<string, number> = {
 export const REP_CADENCE: Record<string, number> = {
   sentadillas: 5,
   flexiones: 5,
+  abdominales: 3,
 };
+
+export const FREE_EXERCISE_ORDER: string[] = ['sentadillas', 'flexiones', 'abdominales'];
+
+export const FEATURE_DATE = '2026-09-28';
 
 export const GOAL_EXERCISE_ORDER: Record<Goal, string[]> = {
   perder_grasa: [

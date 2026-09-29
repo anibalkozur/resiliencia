@@ -2,7 +2,14 @@ import type { IRepo } from '../repo';
 import { getPrefs } from '../prefs/service';
 import type { Goal } from '../prefs/types';
 import type { DailyChallenge } from './types';
-import { DEFAULT_TARGETS, EXERCISES, GOAL_EXERCISE_ORDER, GOAL_TARGET_MULTIPLIER } from './catalog';
+import {
+  DEFAULT_TARGETS,
+  EXERCISES,
+  FEATURE_DATE,
+  FREE_EXERCISE_ORDER,
+  GOAL_EXERCISE_ORDER,
+  GOAL_TARGET_MULTIPLIER,
+} from './catalog';
 
 export function todayKey(): string {
   const now = new Date();
@@ -37,7 +44,13 @@ function isoWeekNumber(date: Date): number {
 export function buildChallenge(date: string, goal: Goal = 'mantener'): DailyChallenge {
   const [y, m, d] = date.split('-').map(Number);
   const parsed = new Date(y, m - 1, d);
-  const ids = GOAL_EXERCISE_ORDER[goal];
+  // Desde FEATURE_DATE el reto diario gratuito rota solo entre el pool FREE
+  // (flexiones/abdominales/sentadillas). El objetivo sigue definiendo la meta,
+  // pero el ejercicio ya no depende de él. La misma fórmula se replica en la
+  // Edge Function validate_workout para no depender de lo que reporte el
+  // cliente. Las fechas previas conservan el algoritmo por objetivo: la
+  // sincronización tardía de retos antiguos debe seguir validando igual.
+  const ids = date >= FEATURE_DATE ? FREE_EXERCISE_ORDER : GOAL_EXERCISE_ORDER[goal];
   const index = (isoWeekNumber(parsed) + isoWeekday(parsed)) % ids.length;
   const exerciseId = ids[index];
   const exercise = EXERCISES.find((e) => e.id === exerciseId) ?? EXERCISES[0];

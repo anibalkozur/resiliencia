@@ -1,12 +1,20 @@
 import { describe, expect, it } from '@jest/globals';
 import { MemoryRepo } from '../../repo/memoryRepo';
 import {
+  markCompleted,
+  setCompletionSyncState,
+  getCompletionSyncState,
+  getTotalCompleted,
+} from '../completions';
+import {
   FREE_SESSIONS_KEY,
   FREE_SESSIONS_MAX,
   getFreeSessions,
   pushFreeSession,
   clearFreeSessions,
   flushFreeSessions,
+  retainOnlyUnaccepted,
+  applySessionResults,
 } from '../freeSessions';
 
 const base = {
@@ -88,5 +96,88 @@ describe('freeSessions', () => {
 
     expect(flushed).toHaveLength(2);
     expect(await getFreeSessions(repo)).toEqual([]);
+  });
+
+  it('retainOnlyUnaccepted keeps pending and rejected, drops only accepted', async () => {
+    const repo = new MemoryRepo();
+    await pushFreeSession(repo, { ...base, clientOpId: 'op-accepted' });
+    await pushFreeSession(repo, { ...base, clientOpId: 'op-pending' });
+    await pushFreeSession(repo, { ...base, clientOpId: 'op-rejected' });
+
+    const remaining = await retainOnlyUnaccepted(repo, new Set(['op-accepted']));
+
+    expect(remaining.map((s) => s.clientOpId)).toEqual(['op-pending', 'op-rejected']);
+    expect((await getFreeSessions(repo)).map((s) => s.clientOpId)).toEqual([
+      'op-pending',
+      'op-rejected',
+    ]);
+  });
+
+  it('applySessionResults persists the verdict and reason per proposuesta', async () => {
+    const repo = new MemoryRepo();
+    await pushFreeSession(repo, { ...base, clientOpId: 'op-1' });
+    await pushFreeSession(repo, { ...base, clientOpId: 'op-2' });
+
+    await applySessionResults(repo, [
+      { clientOpId: 'op-1', status: 'rejected', reason: 'liveness_required' },
+      { clientOpId: 'op-2', status: 'pending', reason: 'awaiting_server_validator' },
+    ]);
+
+    const list = await getFreeSessions(repo);
+    expect(list[0].status).toBe('rejected');
+    expect(list[0].statusReason).toBe('liveness_required');
+    expect(list[1].status).toBe('pending');
+    expect(list[1].statusReason).toBe('awaiting_server_validator');
+  });
+});
+
+describe('markCompleted retry', () => {
+  it('allows re-marking a rejected date with { retry: true } and resets status to pending', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, '2026-09-28', { value: 25, unit: 'reps', target: 20 });
+    await setCompletionSyncState(repo, '2026-09-28', {
+      status: 'rejected',
+      reason: 'challenge_mismatch',
+    });
+
+    await markCompleted(
+      repo,
+      '2026-09-28',
+      { value: 30, unit: 'reps', target: 20 },
+      { retry: true },
+    );
+
+    const state = await getCompletionSyncState(repo, '2026-09-28');
+    expect(state?.status).toBe('pending');
+    expect(await getTotalCompleted(repo)).toBe(1);
+  });
+
+  it('does not double-count the completion when retrying', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, '2026-09-28', { value: 25, unit: 'reps', target: 20 });
+    await markCompleted(
+      repo,
+      '2026-09-28',
+      { value: 28, unit: 'reps', target: 20 },
+      { retry: true },
+    );
+
+    expect(await getTotalCompleted(repo)).toBe(1);
+  });
+
+  it('does not reset a verified date to pending when force-retrying', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, '2026-09-28');
+    await setCompletionSyncState(repo, '2026-09-28', { status: 'verified' });
+
+    await markCompleted(
+      repo,
+      '2026-09-28',
+      { value: 28, unit: 'reps', target: 20 },
+      { retry: true },
+    );
+
+    const state = await getCompletionSyncState(repo, '2026-09-28');
+    expect(state?.status).toBe('verified');
   });
 });

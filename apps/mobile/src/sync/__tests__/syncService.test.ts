@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { MemoryRepo } from '../../repo/memoryRepo';
-import { markCompleted, getCompletedDates } from '../../retos/completions';
+import { markCompleted, getCompletedDates, setCompletionSyncState } from '../../retos/completions';
 import { buildChallenge, todayKey } from '../../retos/service';
 import { pushFreeSession, getFreeSessions } from '../../retos/freeSessions';
 import {
@@ -10,6 +10,7 @@ import {
   fetchRanking,
   fetchRepsRanking,
   fetchTotalRepsRanking,
+  syncAfterLogin,
 } from '../syncService';
 
 const EXERCISE_CODES = [
@@ -61,13 +62,28 @@ function fakeClient() {
       invoke: async (name: string, options: unknown) => {
         calls.invoke = { name, options };
         const body = (options as { body?: { completions?: unknown[] } }).body;
+        const clientOpIds = (
+          body?.completions ??
+          (options as { body?: { sessions?: unknown[] } }).body?.sessions ??
+          []
+        )
+          .map((item) => (item as { clientOpId?: string }).clientOpId)
+          .filter((id): id is string => Boolean(id));
         return {
-          data: body?.completions
-            ? {
-                completionReceived: body.completions.length,
-                completionPending: body.completions.length,
-              }
-            : { received: 2, pending: 1, rejected: 0, verified: 0 },
+          data: {
+            received: clientOpIds.length,
+            pending: clientOpIds.length,
+            rejected: 0,
+            verified: 0,
+            completionReceived: clientOpIds.length,
+            completionPending: clientOpIds.length,
+            completionVerified: 0,
+            results: clientOpIds.map((clientOpId: string) => ({
+              clientOpId,
+              status: 'pending',
+              reason: 'awaiting_server_validator',
+            })),
+          },
           error: null,
         };
       },
@@ -104,9 +120,13 @@ describe('uploadCompletions', () => {
     await markCompleted(repo, todayKey());
     const { client, calls } = fakeClient();
 
-    const count = await uploadCompletions(client, repo, 'user-1');
+    const outcome = await uploadCompletions(client, repo, 'user-1');
 
-    expect(count).toBe(1);
+    expect(outcome.received).toBe(1);
+    expect(outcome.confirmed).toBe(0);
+    expect(outcome.results).toEqual([
+      { clientOpId: `daily:${todayKey()}`, status: 'pending', reason: 'awaiting_server_validator' },
+    ]);
     expect(calls.invoke).toMatchObject({ name: 'validate_workout' });
     expect(calls.invoke?.options).toEqual({
       body: {
@@ -137,9 +157,10 @@ describe('uploadCompletions', () => {
     });
     const { client, calls } = fakeClient();
 
-    const count = await uploadCompletions(client, repo, 'user-1');
+    const outcome = await uploadCompletions(client, repo, 'user-1');
 
-    expect(count).toBe(1);
+    expect(outcome.received).toBe(1);
+    expect(outcome.confirmed).toBe(0);
     const completion = (
       calls.invoke?.options as { body: { completions: Record<string, unknown>[] } }
     ).body.completions[0];
@@ -155,10 +176,53 @@ describe('uploadCompletions', () => {
     const repo = new MemoryRepo();
     const { client, calls } = fakeClient();
 
-    const count = await uploadCompletions(client, repo, 'user-1');
+    const outcome = await uploadCompletions(client, repo, 'user-1');
 
-    expect(count).toBe(0);
+    expect(outcome.received).toBe(0);
     expect(calls.invoke).toBeNull();
+  });
+
+  it('does not resend a rejected completion until it is retried locally', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, todayKey());
+    await setCompletionSyncState(repo, todayKey(), {
+      status: 'rejected',
+      reason: 'challenge_mismatch',
+    });
+    const { client, calls } = fakeClient();
+
+    const outcome = await uploadCompletions(client, repo, 'user-1');
+
+    expect(outcome.received).toBe(0);
+    expect(calls.invoke).toBeNull();
+  });
+
+  it('does not resend a verified completion (server-authoritative)', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, todayKey());
+    await setCompletionSyncState(repo, todayKey(), { status: 'verified' });
+    const { client, calls } = fakeClient();
+
+    const outcome = await uploadCompletions(client, repo, 'user-1');
+
+    expect(outcome.received).toBe(0);
+    expect(calls.invoke).toBeNull();
+  });
+
+  it('resends a rejected completion after it is force-registered as pending (retry)', async () => {
+    const repo = new MemoryRepo();
+    await markCompleted(repo, todayKey(), { value: 22, unit: 'reps', target: 20 });
+    await setCompletionSyncState(repo, todayKey(), {
+      status: 'rejected',
+      reason: 'challenge_mismatch',
+    });
+    await markCompleted(repo, todayKey(), { value: 25, unit: 'reps', target: 20 }, { retry: true });
+    const { client, calls } = fakeClient();
+
+    const outcome = await uploadCompletions(client, repo, 'user-1');
+
+    expect(outcome.received).toBe(1);
+    expect(calls.invoke).toBeDefined();
   });
 });
 
@@ -198,7 +262,7 @@ describe('uploadSessions', () => {
   it('submits one row per free session to the server validator', async () => {
     const { client, calls } = fakeClient();
 
-    const count = await uploadSessions(client, 'user-1', [
+    const outcome = await uploadSessions(client, 'user-1', [
       {
         date: '2026-09-22',
         exerciseId: 'sentadillas',
@@ -219,7 +283,11 @@ describe('uploadSessions', () => {
       },
     ]);
 
-    expect(count).toBe(2);
+    expect(outcome.received).toBe(2);
+    expect(outcome.results).toEqual([
+      { clientOpId: 'op-1', status: 'pending', reason: 'awaiting_server_validator' },
+      { clientOpId: 'op-2', status: 'pending', reason: 'awaiting_server_validator' },
+    ]);
     expect(calls.invoke).toEqual({
       name: 'validate_workout',
       options: {
@@ -277,7 +345,9 @@ describe('uploadSessions', () => {
   it('returns 0 and skips upsert for empty sessions', async () => {
     const { client, calls } = fakeClient();
 
-    expect(await uploadSessions(client, 'user-1', [])).toBe(0);
+    const outcome = await uploadSessions(client, 'user-1', []);
+
+    expect(outcome.received).toBe(0);
     expect(calls.invoke).toBeNull();
   });
 });
@@ -347,5 +417,71 @@ describe('fetchTotalRepsRanking', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ total_value: 120 });
     expect(await getFreeSessions(repo)).toHaveLength(1);
+  });
+});
+
+describe('syncAfterLogin', () => {
+  it('does not resend free sessions already rejected by the server', async () => {
+    const repo = new MemoryRepo();
+    await pushFreeSession(repo, {
+      date: '2026-09-21',
+      exerciseId: 'plancha',
+      value: 60,
+      target: 30,
+      ranked: true,
+      seriesOk: true,
+      clientOpId: 'op-rejected',
+      status: 'rejected',
+      statusReason: 'premium_required',
+    });
+    await pushFreeSession(repo, {
+      date: '2026-09-22',
+      exerciseId: 'sentadillas',
+      value: 25,
+      target: 20,
+      ranked: true,
+      seriesOk: true,
+      clientOpId: 'op-pending',
+    });
+    const { client, calls } = fakeClient();
+
+    await syncAfterLogin(repo, 'user-1', client);
+
+    const sent = (calls.invoke?.options as { body: { sessions: Record<string, unknown>[] } }).body
+      .sessions;
+    const sentOpIds = sent.map((s) => s.clientOpId);
+    expect(sentOpIds).toEqual(['op-pending']);
+  });
+
+  it('keeps rejected sessions in the local store after syncing', async () => {
+    const repo = new MemoryRepo();
+    await pushFreeSession(repo, {
+      date: '2026-09-21',
+      exerciseId: 'plancha',
+      value: 60,
+      target: 30,
+      ranked: true,
+      seriesOk: true,
+      clientOpId: 'op-rejected',
+      status: 'rejected',
+      statusReason: 'premium_required',
+    });
+    const { client } = fakeClient();
+
+    await syncAfterLogin(repo, 'user-1', client);
+
+    const stored = await getFreeSessions(repo);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].clientOpId).toBe('op-rejected');
+    expect(stored[0].status).toBe('rejected');
+  });
+
+  it('syncs the local goal to the server via set_goal before uploading', async () => {
+    const repo = new MemoryRepo();
+    const { client, calls } = fakeClient();
+
+    await syncAfterLogin(repo, 'user-1', client);
+
+    expect(calls.rpc).toEqual({ name: 'set_goal', args: { p_goal: 'mantener' } });
   });
 });

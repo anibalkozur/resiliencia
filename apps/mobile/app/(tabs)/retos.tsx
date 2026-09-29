@@ -1,13 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import { DeviceMotion } from 'expo-sensors';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
-import { isCompleted, markCompleted } from '../../src/retos/completions';
+import { isCompleted, markCompleted, getCompletionSyncState } from '../../src/retos/completions';
+import type { CompletionSyncState } from '../../src/retos/completions';
 import { buildWeek } from '../../src/retos/week';
 import { getTodayChallenge, todayKey } from '../../src/retos/service';
 import { buildVerifyUri } from '../../src/retos/verify';
@@ -40,6 +42,8 @@ export default function RetosScreen() {
   const dayKey = useDayKey();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
+  const [syncState, setSyncState] = useState<Record<string, CompletionSyncState>>({});
+  const [retrying, setRetrying] = useState(false);
   const restartKey = useCameraRestart();
   const focused = useScreenFocused();
 
@@ -53,12 +57,18 @@ export default function RetosScreen() {
       let active = true;
       (async () => {
         const result: Record<string, boolean> = {};
+        const states: Record<string, CompletionSyncState> = {};
         for (const day of week) {
           result[day.date] = await isCompleted(repo, day.date);
+          const state = await getCompletionSyncState(repo, day.date);
+          if (state) {
+            states[day.date] = state;
+          }
         }
         const todayChallenge = await getTodayChallenge(repo);
         if (!active) return;
         setDone(result);
+        setSyncState(states);
         setChallenge(todayChallenge);
       })();
       return () => {
@@ -71,7 +81,14 @@ export default function RetosScreen() {
     ? EXERCISES.find((e) => e.id === challenge.exerciseId)
     : undefined;
   const date = todayKey();
-  const challengeDone = done[date] ?? false;
+  const challengeDone = (done[date] ?? false) && !retrying;
+  const todayState = syncState[date];
+  const isRejected = todayState?.status === 'rejected';
+  const doneLabel = isRejected
+    ? translate(lang, 'home.completed_rejected')
+    : todayState?.status === 'pending'
+      ? translate(lang, 'home.completed_pending')
+      : translate(lang, 'home.completed');
   const today = week.find((d) => d.isToday);
   const trainingToday = today?.isTraining ?? false;
 
@@ -88,28 +105,65 @@ export default function RetosScreen() {
       const target = challenge?.target ?? 0;
       if (reps >= target) {
         void (async () => {
-          await markCompleted(repo, date, {
-            value: Number(data.value ?? data.reps) || reps,
-            unit: data.unit === 'seconds' ? 'seconds' : 'reps',
-            target,
-            evidence:
-              typeof data.evidence === 'object' &&
-              data.evidence !== null &&
-              !Array.isArray(data.evidence)
-                ? (data.evidence as Record<string, unknown>)
-                : undefined,
-          });
+          const wasRetrying = retrying;
+          await markCompleted(
+            repo,
+            date,
+            {
+              value: Number(data.value ?? data.reps) || reps,
+              unit: data.unit === 'seconds' ? 'seconds' : 'reps',
+              target,
+              evidence:
+                typeof data.evidence === 'object' &&
+                data.evidence !== null &&
+                !Array.isArray(data.evidence)
+                  ? (data.evidence as Record<string, unknown>)
+                  : undefined,
+            },
+            { retry: wasRetrying },
+          );
           setDone((prev) => ({ ...prev, [date]: true }));
+          setRetrying(false);
+          setSyncState((prev) => ({ ...prev, [date]: { status: 'pending' } }));
           if (session) {
             await syncAfterLogin(repo, session.user.id);
+            const state = await getCompletionSyncState(repo, date);
+            if (state) {
+              setSyncState((prev) => ({ ...prev, [date]: state }));
+            }
           }
         })();
       }
     },
-    [repo, challenge, date, session],
+    [repo, challenge, date, retrying, session],
   );
 
+  const webviewRef = useRef<any>(null);
+
   const challengeBlock = challenge && challengeExercise && trainingToday;
+
+  useEffect(() => {
+    if (!challengeBlock) return;
+    let sensorSubscription: { remove: () => void } | null = null;
+    let active = true;
+    DeviceMotion.isAvailableAsync().then((available) => {
+      if (!available || !active) return;
+      DeviceMotion.setUpdateInterval(200);
+      sensorSubscription = DeviceMotion.addListener(({ accelerationIncludingGravity: g }) => {
+        if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
+        if (Math.hypot(g.y, g.z) < 1) return;
+        const tilt = (Math.atan2(Math.abs(g.z), Math.abs(g.y)) * 180) / Math.PI;
+        const vertical = tilt <= 35;
+        webviewRef.current?.injectJavaScript(
+          `window.__resilienciaSetNativeOrientation && window.__resilienciaSetNativeOrientation(${JSON.stringify({ available: true, vertical, beta: null })})`,
+        );
+      });
+    });
+    return () => {
+      active = false;
+      sensorSubscription?.remove();
+    };
+  }, [challengeBlock]);
 
   return (
     <View style={styles.screen}>
@@ -151,12 +205,18 @@ export default function RetosScreen() {
 
       {challengeBlock ? (
         <View style={styles.cameraContainer}>
-          {challengeDone ? (
+          {challengeDone && !(isRejected && retrying) ? (
             <View style={styles.doneBox}>
-              <Text style={styles.cameraDoneText}>{translate(lang, 'home.completed')}</Text>
-              <Pressable style={styles.cameraCta} onPress={() => router.push('/(tabs)/camretos')}>
-                <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
-              </Pressable>
+              <Text style={styles.cameraDoneText}>{doneLabel}</Text>
+              {isRejected ? (
+                <Pressable style={styles.cameraCta} onPress={() => setRetrying(true)}>
+                  <Text style={styles.cameraCtaText}>{translate(lang, 'home.retry')}</Text>
+                </Pressable>
+              ) : (
+                <Pressable style={styles.cameraCta} onPress={() => router.push('/(tabs)/camretos')}>
+                  <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
+                </Pressable>
+              )}
             </View>
           ) : focused ? (
             <>
@@ -170,6 +230,7 @@ export default function RetosScreen() {
                 </Text>
               </View>
               <WebView
+                ref={webviewRef}
                 key={`stream-${dayKey}-${challenge.exerciseId}-${challenge.target}-${restartKey}`}
                 originWhitelist={['*']}
                 source={{

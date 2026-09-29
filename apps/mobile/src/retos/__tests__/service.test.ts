@@ -8,7 +8,7 @@ import {
   tomorrowKey,
 } from '../service';
 import { savePrefs } from '../../prefs/service';
-import { GOAL_EXERCISE_ORDER } from '../catalog';
+import { FEATURE_DATE, FREE_EXERCISE_ORDER, GOAL_EXERCISE_ORDER } from '../catalog';
 
 function localDate(day: number): string {
   const d = new Date(2026, 8, day);
@@ -26,7 +26,7 @@ describe('buildChallenge', () => {
     expect(a.target).toBeGreaterThan(0);
   });
 
-  it('picks an exercise within the goal-specific pool', () => {
+  it('picks an exercise within the goal-specific pool before FEATURE_DATE', () => {
     const goal = 'perder_grasa';
     const day = 6;
     const order = GOAL_EXERCISE_ORDER[goal];
@@ -34,7 +34,18 @@ describe('buildChallenge', () => {
     expect(order).toContain(buildChallenge(localDate(day), goal).exerciseId);
   });
 
-  it('does not repeat an exercise within the same week', () => {
+  it('rotates only inside the FREE pool from FEATURE_DATE', () => {
+    expect(FREE_EXERCISE_ORDER).toHaveLength(3);
+    expect(FREE_EXERCISE_ORDER).toContain(buildChallenge(FEATURE_DATE, 'ganar_musculo').exerciseId);
+    expect(buildChallenge(FEATURE_DATE, 'ganar_musculo').exerciseId).toBe(
+      buildChallenge(FEATURE_DATE, 'perder_grasa').exerciseId,
+    );
+    expect(buildChallenge(FEATURE_DATE, 'ganar_musculo').exerciseId).toBe(
+      buildChallenge(FEATURE_DATE, 'mantener').exerciseId,
+    );
+  });
+
+  it('does not repeat an exercise within the same week before FEATURE_DATE', () => {
     const goal = 'mantener';
     const ids = Array.from(
       { length: 7 },
@@ -53,6 +64,16 @@ describe('buildChallenge', () => {
     const base = buildChallenge(localDate(6), 'mantener');
     const fatLoss = buildChallenge(localDate(6), 'perder_grasa');
     expect(fatLoss.target).toBe(Math.round(base.target * 1.2));
+  });
+
+  it('keeps the free rotation goal-independent once the feature is live', () => {
+    expect(buildChallenge(FEATURE_DATE, 'perder_grasa').exerciseId).toBe(
+      buildChallenge(FEATURE_DATE, 'mantener').exerciseId,
+    );
+    expect(buildChallenge(FEATURE_DATE, 'ganar_musculo').exerciseId).toBe(
+      buildChallenge(FEATURE_DATE, 'mantener').exerciseId,
+    );
+    expect(FREE_EXERCISE_ORDER).toContain(buildChallenge(FEATURE_DATE, 'mantener').exerciseId);
   });
 });
 
@@ -90,12 +111,12 @@ describe('getTodayChallenge', () => {
     expect(second).toEqual(first);
   });
 
-  it('builds today challenge according to the saved goal', async () => {
+  it('builds today challenge inside the FREE pool from FEATURE_DATE', async () => {
     const repo = new MemoryRepo();
     await savePrefs(repo, { goal: 'ganar_musculo' });
     const challenge = await getTodayChallenge(repo);
-    const order = GOAL_EXERCISE_ORDER.ganar_musculo;
-    expect(order).toContain(challenge.exerciseId);
+    expect(FREE_EXERCISE_ORDER).toContain(challenge.exerciseId);
+    expect(challenge.target).toBeGreaterThan(0);
   });
 
   it('keeps the stored challenge when the goal changes later', async () => {

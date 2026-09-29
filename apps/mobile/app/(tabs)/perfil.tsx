@@ -13,6 +13,9 @@ import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { getSupabase } from '../../src/auth/supabase';
+import { getRepo } from '../../src/repo';
+import { syncGoalToServer } from '../../src/sync/syncService';
 import {
   SPORT_CATALOG,
   SPORT_DAYS_MAX,
@@ -111,9 +114,10 @@ function Stepper({
 export default function PerfilScreen() {
   const { profile, createUser, updateProfile } = useUser();
   const { prefs, updatePrefs } = usePrefs();
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const lang = prefs?.language ?? 'es';
   const goal: Goal | undefined = prefs?.goal;
+  const hasSession = session != null;
 
   const [nickname, setNickname] = useState(profile?.nickname ?? '');
   const [age, setAge] = useState(profile?.age != null ? String(profile.age) : '');
@@ -392,7 +396,13 @@ export default function PerfilScreen() {
               key={option}
               label={translate(lang, GOAL_TRANSLATION_KEYS[option])}
               active={goal === option}
-              onPress={() => updatePrefs({ goal: option })}
+              onPress={() => {
+                updatePrefs({ goal: option }).then(() => {
+                  if (hasSession) {
+                    void syncGoalToServer(getSupabase(), getRepo());
+                  }
+                });
+              }}
             />
           ))}
         </View>

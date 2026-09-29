@@ -21,6 +21,9 @@ const es = {
   'home.view': 'VER',
   'home.complete': 'COMPLETAR RETO',
   'home.completed': 'RETO COMPLETADO',
+  'home.completed_pending': 'RETO ENVIADO · EN REVISIÓN',
+  'home.completed_rejected': 'RETO RECHAZADO · REINTENTAR',
+  'home.retry': 'REINTENTAR RETO',
 
   'challenge.meta': 'Meta: {target} {unit}',
   'challenge.note':
@@ -219,6 +222,8 @@ const es = {
   'exercise.sentadillas.desc': 'Tren inferior',
   'exercise.flexiones.name': 'Flexiones',
   'exercise.flexiones.desc': 'Tren superior',
+  'exercise.abdominales.name': 'Abdominales',
+  'exercise.abdominales.desc': 'Core',
   'exercise.plancha.name': 'Plancha',
   'exercise.plancha.desc': 'Core',
   'exercise.zancadas.name': 'Zancadas',
@@ -256,6 +261,9 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.view': 'VIEW',
     'home.complete': 'COMPLETE CHALLENGE',
     'home.completed': 'CHALLENGE DONE',
+    'home.completed_pending': 'CHALLENGE SENT · UNDER REVIEW',
+    'home.completed_rejected': 'CHALLENGE REJECTED · RETRY',
+    'home.retry': 'RETRY CHALLENGE',
 
     'challenge.meta': 'Goal: {target} {unit}',
     'challenge.note':
@@ -453,6 +461,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'exercise.sentadillas.desc': 'Lower body',
     'exercise.flexiones.name': 'Push-ups',
     'exercise.flexiones.desc': 'Upper body',
+    'exercise.abdominales.name': 'Sit-ups',
+    'exercise.abdominales.desc': 'Core',
     'exercise.plancha.name': 'Plank',
     'exercise.plancha.desc': 'Core',
     'exercise.zancadas.name': 'Lunges',
@@ -485,6 +495,9 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.view': 'VER',
     'home.complete': 'CONCLUIR DESAFIO',
     'home.completed': 'DESAFIO CONCLUÍDO',
+    'home.completed_pending': 'DESAFIO ENVIADO · EM REVISÃO',
+    'home.completed_rejected': 'DESAFIO REJEITADO · TENTE DE NOVO',
+    'home.retry': 'TENTAR DESAFIO NOVAMENTE',
 
     'challenge.meta': 'Meta: {target} {unit}',
     'challenge.note':
@@ -682,6 +695,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'exercise.sentadillas.desc': 'Parte inferior',
     'exercise.flexiones.name': 'Flexões',
     'exercise.flexiones.desc': 'Parte superior',
+    'exercise.abdominales.name': 'Abdominais',
+    'exercise.abdominales.desc': 'Core',
     'exercise.plancha.name': 'Prancha',
     'exercise.plancha.desc': 'Core',
     'exercise.zancadas.name': 'Avanços',

@@ -1,5 +1,5 @@
 export const VERIFY_URL = 'https://anibalkozur.github.io/resiliencia/camera-verification.html';
-export const VERIFY_VERSION = 12;
+export const VERIFY_VERSION = 16;
 
 export interface VerifyOptions {
   ranked?: boolean;

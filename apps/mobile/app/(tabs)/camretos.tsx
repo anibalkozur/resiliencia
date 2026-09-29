@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { DeviceMotion } from 'expo-sensors';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
@@ -97,6 +98,31 @@ export default function LibreScreen() {
     setSessionOpen(true);
   };
 
+  const webviewRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!sessionOpen || !focused) return;
+    let sensorSubscription: { remove: () => void } | null = null;
+    let active = true;
+    DeviceMotion.isAvailableAsync().then((available) => {
+      if (!available || !active) return;
+      DeviceMotion.setUpdateInterval(200);
+      sensorSubscription = DeviceMotion.addListener(({ accelerationIncludingGravity: g }) => {
+        if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
+        if (Math.hypot(g.y, g.z) < 1) return;
+        const tilt = (Math.atan2(Math.abs(g.z), Math.abs(g.y)) * 180) / Math.PI;
+        const vertical = tilt <= 35;
+        webviewRef.current?.injectJavaScript(
+          `window.__resilienciaSetNativeOrientation && window.__resilienciaSetNativeOrientation(${JSON.stringify({ available: true, vertical, beta: null })})`,
+        );
+      });
+    });
+    return () => {
+      active = false;
+      sensorSubscription?.remove();
+    };
+  }, [sessionOpen, focused]);
+
   const resultColor = result?.tone === 'bad' ? colors.ember : colors.teal;
 
   return (
@@ -155,6 +181,7 @@ export default function LibreScreen() {
       ) : focused ? (
         <View style={styles.cameraContainer}>
           <WebView
+            ref={webviewRef}
             key={`${libreExerciseId}-${libreTarget}-${libreRanked ? 'r' : 'f'}-${restartKey}`}
             originWhitelist={['*']}
             source={{
