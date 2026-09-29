@@ -831,7 +831,8 @@
       let orientationSupported = false,
         deviceIsVertical = true,
         betaHistory = [],
-        sensorConfirmRetries = 0;
+        sensorConfirmRetries = 0,
+        sensorUnavailable = false;
       const VERTICAL_TOLERANCE = 35,
         SENSOR_CONFIRM_MS = 8000;
 
@@ -1826,12 +1827,14 @@
 
       async function ensureOrientationSensor() {
         if (typeof DeviceOrientationEvent === 'undefined') return false;
-        if (!runningInsideReactNative) {
+        if (runningInsideReactNative) {
+          // El WebView de Expo Go no entrega orientación sin gesto; la app lee
+          // el sensor con expo-sensors y nos lo inyecta por este puente.
+          post('sensor_request', {});
+        } else if (typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
-            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-              const perm = await DeviceOrientationEvent.requestPermission();
-              if (perm !== 'granted') return false;
-            }
+            const perm = await DeviceOrientationEvent.requestPermission();
+            if (perm !== 'granted') return false;
           } catch (e) {
             log('Sensor: ' + e.message);
             return false;
@@ -1844,6 +1847,10 @@
           (function ch() {
             if (orientationSupported) {
               res(true);
+              return;
+            }
+            if (sensorUnavailable) {
+              res(false);
               return;
             }
             if (performance.now() - st > SENSOR_CONFIRM_MS) {
@@ -1881,6 +1888,20 @@
         orientationIcon.innerHTML = deviceIsVertical ? ICON.check : ICON.warning;
         orientationText.textContent = deviceIsVertical ? 'Vertical' : '¡Poné el celular vertical!';
       }
+
+      // Puente nativo: la app (Expo) lee el sensor con expo-sensors y nos
+      // inyecta la orientación. Dentro del WebView de Expo Go los eventos
+      // deviceorientation/devicemotion NO llegan sin un gesto del usuario;
+      // este hook evita depender del gesto y del WebView para el sensor.
+      window.__resilienciaSetNativeOrientation = function (sample) {
+        if (!sample) return;
+        if (sample.available === false) {
+          sensorUnavailable = true;
+          return;
+        }
+        if (sample.available !== true || typeof sample.vertical !== 'boolean') return;
+        setOrientationState(sample.vertical, sample.beta);
+      };
 
       async function startCamera() {
         startBtn.disabled = true;
