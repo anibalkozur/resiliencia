@@ -234,24 +234,28 @@ apuntando hacia abajo, simulando sentadillas o abdominales desde un ángulo
 que no corresponde al ejercicio real.
 
 Solución: se usa el sensor de orientación del propio dispositivo (el mismo
-acelerómetro que usa la brújula), vía `DeviceOrientationEvent`, para exigir
-que el celular esté **parado en vertical** — no acostado. El ángulo `beta`
+acelerómetro que usa la brújula) para exigir que el celular esté **parado en
+vertical** — no acostado. El ángulo `beta`
 (inclinación adelante-atrás del dispositivo) es ≈0° cuando está acostado
 plano con la cámara apuntando derecho hacia abajo, y ≈90° cuando está
 parado en vertical filmando horizontalmente. Se bloquea el conteo por
 completo (con un aviso explícito en pantalla) si la desviación respecto a
 90° supera el margen configurado (`VERTICAL_TOLERANCE`, 35°).
 
-En iOS es necesario pedir permiso explícito para leer estos sensores
-(`DeviceOrientationEvent.requestPermission()`), disparado en el mismo
-gesto del usuario que activa la cámara.
+Lectura del sensor (**validado 2026-09-28**): dentro de la app, el WebView de
+Expo Go **no entrega orientación sin un gesto del usuario**, así que la app lee
+el sensor de forma nativa (`expo-sensors` `DeviceMotion`) y lo inyecta en la
+WebView (`__resilienciaSetNativeOrientation`), replicado en el reto diario y en
+Libre. Se conserva `deviceorientation`/`devicemotion` web como respaldo (fuera
+de React Native, p. ej. el prototipo en el navegador, donde en iOS hace falta
+`DeviceOrientationEvent.requestPermission()`).
 
 **Obligatorio, no opcional.** Como esta app alimenta un ranking, no existe
 una versión "de confianza sin verificar": si el sensor no está disponible,
-el permiso se niega, o no llegan datos reales del sensor en
-`SENSOR_CONFIRM_TIMEOUT_MS` (3 segundos), la sesión directamente **no
-arranca** — se muestra un aviso explícito y se ofrece reintentar, en vez de
-seguir sin el chequeo. Esto significa, a propósito, que el modo verificado
+el permiso se niega, o no llegan datos reales del sensor en la ventana de
+confirmación (8 segundos, con un reintento automático), la sesión directamente
+**no arranca** — se muestra un aviso explícito y se ofrece reintentar, en vez
+de seguir sin el chequeo. Esto significa, a propósito, que el modo verificado
 no funciona en una notebook con webcam (sin este sensor): es una
 limitación aceptada a cambio de integridad del ranking, no un descuido.
 

@@ -452,7 +452,12 @@ respalda el ranking.
    - Liveness tipo hand/hold según ejercicio (momento aleatorio).
 3. **Sensor de orientación nativo** (DeviceOrientation → expo-sensors
    `DeviceMotion`): `beta≈90°`, tolerancia 35°, obligatorio para modo
-   verificado (sesión no arranca sin confirmar).
+   verificado (sesión no arranca sin confirmar). **Validado 2026-09-28**: el
+   WebView de Expo Go no reenvía orientación sin gesto del usuario; la vía
+   estable es un puente app→WebView — `DeviceMotion` en React Native +
+   `injectJavaScript('__resilienciaSetNativeOrientation(...)')` — replicado en
+   el reto diario (`retos.tsx`) y en Libre (`camretos.tsx`), con `devicemotion`
+   web como respaldo y 8s de ventana + auto-reintento.
 4. **Sonido/voz**: beeps + `expo-speech` para los avisos (sin depender de
    síntesis web).
 5. **Checks UX**: checklist de landmarks en pantalla, ángulo en vivo, badges
@@ -486,8 +491,11 @@ respalda el ranking.
   evidencia guardada en Storage y hash validado.
 - Manipular el paquete (editar JSON) → el server rechaza o marca revisión.
 - Sesión con pausa >40s → `continuity_ok=false` → no apta ranking.
-- El sensor de orientación bloquea sesión si no se confirma en 3s (port del
-  comportamiento actual).
+- El sensor de orientación bloquea sesión si no se confirma — port del comportamiento
+  actual, **validado 2026-09-28**: bridge nativo (expo-sensors `DeviceMotion` en
+  ambos WebView, reto diario y Libre → `injectJavaScript` a
+  `__resilienciaSetNativeOrientation`), ventana 8s + auto-reintento; el WebView
+  de Expo Go no entrega orientación sin gesto, por eso el sensor se lee desde la app.
 
 ---
 
@@ -728,7 +736,13 @@ crear retos y ver reportes con datos reales de Supabase.
 
 - Los anuncios NUNCA cubren botones críticos ni durante el entrenamiento
   verificado (el conteo no se interrumpe).
-- El reto del día y el ecosistema Gym son gratis para siempre.
+- El reto del día y el ecosistema Gym son gratis para siempre, con esta
+  concreción: el reto diario es **gratis para todos** cuando el ejercicio del
+  día pertenece al pool free (`flexiones`/`abdominales`/`sentadillas`, orden
+  `FREE_EXERCISE_ORDER`), y rota determinísticamente entre esos 3 desde
+  `FEATURE_DATE`. Las rachas valen para todos. Si el reto cae en alguno de los
+  5 premium, el free ve ficha teaser de suscripción (nunca un paywall
+  bloqueante). El ranking TOTAL es exclusivo de suscriptores (F1).
 - El ranking verificado NUNCA se puede acelerar con dinero.
 
 ### 15.5 Facturación B2B fuera de Play (flujo de dinero y reglas)

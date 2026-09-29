@@ -511,3 +511,79 @@ Condiciones del "sí": (1) instrumentar métricas antes (hoy no hay PostHog/Sent
 **Veredicto de la revisión (adoptado):** v3 tenía buena dirección pero el plan correcto es v4 — free primero; reto diario limitado a 3 ejercicios; tiers controlados por DB; asignaciones server-side; cola resistente a rechazos; rankings solo con resultados verificados; premium por entitlement; billing después de validar demanda; legal y tiendas antes de cobrar.
 
 **Pendientes del PO para arrancar F0:** (1) luz verde a F0+F0.5; (2) acto formal D-A + actualizar `PLAN_COMPLETO` §15.4; (3) decidir en F0: `goal_history` vs asignación por fecha para el reto server-side.
+
+### 2026-09-28 — F0 IMPLEMENTADO (núcleo): abdominales + tiers + reto free de 3 + asignaciones + cola segura + cámara v13
+
+**Acto D-A (formal, acordado con el PO en sesión):** el reto diario es GRATIS para todos cuando el ejercicio del día cae en el pool FREE (`flexiones`/`abdominales`/`sentadillas`). Rachas vuelven para todos. El ranking TOTAL queda solo para suscriptores (se implementa en F1). Si el reto cae en uno de los 5 premium, el free ve ficha teaser (F2). Esto evita el conflicto con `PLAN_COMPLETO:731` y conserva el loop de hábito.
+
+**Cambios implementados hoy (sin commit aún; pide commit al PO):**
+
+- **Migración `0012_tiers_goal_history_assignments.sql`:** `exercises.tier` (default `'premium'` = fail-closed, CHECK free/premium); `sentadillas`/`flexiones` → free; **`abdominales`** (8º, reps, free) + ampliación del CHECK de catálogo; tablas `goal_history` (histórico server-side del objetivo vigente por fecha, escrito por trigger sobre `profiles.goal`) y `daily_challenge_assignments` (asignación del reto: `user_id,challenge_date,goal_snapshot,exercise_code,target,unit,feature_version`, UNIQUE por fecha) — ambas con RLS select-own y sin escritura del cliente (service_role). `reset_own_progress` también limpia asignaciones.
+- **Migración `0013_close_legacy_client_surfaces.sql`:** cierra escrituras del cliente en `workout_exercises`, `progress`, `streaks`, `user_levels`, `user_achievements` (drop policies + revoke). Ningún cliente escribe progreso autoritativo.
+- **Catálogo app (`catalog.ts`/`types.ts`):** `Exercise.tier`; **`abdominales`** con `DEFAULT_TARGETS 15` y `REP_CADENCE 3`; `FREE_EXERCISE_ORDER = [sentadillas, flexiones, abdominales]`; **`FEATURE_DATE = 2026-09-28`** (rotación; antes: 7 por goal, desde: solo 3 libres).
+- **`service.ts` `buildChallenge`:** branch `date >= FEATURE_DATE` → rota solo en el pool FREE, ejercicio independiente del goal (rel objetivo sigue modulando target). Conserva el algoritmo por objetivo para fechas previas (sincronización tardía).
+- **`verify.ts`:** `VERIFY_VERSION = 13`.
+- **Edge `validate_workout`:** lee `tier` desde DB; **rechaza premium con `premium_required`** (fail-closed, sin listas hardcodeadas); `ALLOWED_EVIDENCE_VERSIONS = {12, 13}`; deriva el reto esperado usando `goal_history` (fallback a `profiles.goal`); **materializa `daily_challenge_assignments`**; devuelve **`results` por elemento** `{clientOpId,status,reason}`.
+- **`syncService.ts`:** respuestas se procesan por elemento; `syncAfterLogin` ya no borra la cola ante rechazos — solo `retainOnlyUnaccepted` (F0: pending/rejected se conservan). `retainOnlyUnaccepted` nuevo en `freeSessions.ts`.
+- **`camera-verification.html`:** CFG `abdominales` (lateral, ángulo hombro-cadera-rodilla, `downDelta 25`/`upDelta 10`, `restTorsoMax 35`) + **gate anti-pararse** `standingKneeMargin 0.45` (portado del prototipo) + función `kneeStandingMargin`.
+- **i18n es/en/pt:** claves `exercise.abdominales.name/desc`.
+- **Tests:** `service.test.ts` (rotación free desde FEATURE_DATE, pool por goal antes) y `syncService.test.ts` (respuestas por elemento) actualizados. **143 tests en verde + typecheck + lint OK.**
+
+**Pendientes PO:** (1) aplicar migraciones 0008–0013 (y la 0014 de la revisión) y desplegar edge `validate_workout`; (2) deploy gh-pages del HTML v13; (3) commit/review de estos cambios.
+
+### 2026-09-28 — Revisión F0 (cross-check): correcciones aplicadas
+
+Revisión de un reviewer independiente sobre el paquete F0. Emparejamiento de cada hallazgo con la evidencia y la corrección:
+
+1. **`profiles.goal` nunca se sincronizaba → la Edge rechazaba TODO reto con `challenge_mismatch`** (crítico, CONFIRMADO): el perfil creado por `handle_new_user` no setea `goal` (0003) y la app guarda el objetivo solo en prefs locales (`prefs/service.ts`), por lo que `profileGoal` quedaba null y `expectedChallenge` no se calculaba. Mitigación en la migración 0014 y la app.
+2. **Trigger `maintain_goal_history` podía cerrar la fila del mismo día con `valid_until < valid_from`** (crítico, CONFIRMADO): la rama UPDATE cerraba con `current_date - 1` incluso si la fila abierta tenía `valid_from = current_date`, violando el CHECK. Corregido en la migración 0014 con tres pasos: update en la fila abierta de hoy, cierre de filas anteriores y apertura condicional.
+3. **`daily_challenge_assignments` se sovrescribía en vez de consultarse** (importante, CONFIRMADO): la Edge calculaba el reto y hacía upsert sin leer la asignación previa. Ahora la asignación existente es la fuente de verdad y nunca se recalcula ni sobrescribe.
+4. **Reto rechazado seguía viéndose como completado localmente** (importante, CONFIRMADO): se persistió el veredicto por fecha (`completedStatus:<date>`), la UI muestra "EN REVISIÓN"/"RECHAZADO" y no se reenvía lo rechazado en bucle.
+5. **Elementos inválidos no venían en `results`** (importante, CONFIRMADO): la Edge no reportaba clientOpId de los items inválidos; ahora los incluye como `rejected` con motivo, y la cola de sesiones conserva `status`/`statusReason` (`applySessionResults`).
+6. **Sesiones libres sin ventana de fechas** (importante, CONFIRMADO): se aplica la misma ventana de 365 días / sin fechas futuras (`session_date_out_of_window`).
+7. **Cámara sin NAME/HOWTO de `abdominales`** (menor, CONFIRMADO): añadidos.
+8. **Verificación real inexistente (todo `pending`)** (esperado por diseño hasta F1, no corregido): el rankings se reabre solo con un validador real; mientras tanto la UI es honesta ("enviado para validación", nunca "verificado").
+9. **BITACORA con caracteres corruptos + conteo** (menor, CONFIRMADO): este bloque se reescribió con UTF-8 correcto.
+
+**Cambios aplicados en la corrección:** migración `0014_fix_goal_sync_and_history.sql`; edge (asignación leída primero + inválidos en `results` + ventana de fechas en sesiones); app (`completions.ts` con estado de sync, `syncService.ts` con `syncGoalToServer` + no reenvío de rechazadas, `freeSessions.ts` con `applySessionResults`, `retos.tsx` con labels pending/rejected, i18n ×3); cámara (NAME/HOWTO `abdominales`).
+
+**Verificación tras la corrección:** typecheck OK, lint OK, **145 tests / 12 suites en verde**.
+
+### 2026-09-28 — Ronda 2 de revisión F0: reintento real, sesiones rechazadas y goal_snapshot autoritativo
+
+Segunda revisión (3 hallazgos importantes + riesgos menores). Todos atendidos:
+
+1. **Reto rechazado no se podía reintentar de verdad** (importante, CONFIRMADO): la cámara quedaba oculta (`done[date]=true`) y `markCompleted` abortaba si la fecha ya estaba marcada; el botón solo llevaba a Modo libre. Corregido: `markCompleted` acepta `{ retry: true }` (no cuenta dos veces el día y resetea el veredicto a `pending` para que el edge revalide); `retos.tsx` muestra "REINTENTAR RETO" (`home.retry`, i18n ×3) cuando `todayState.status === 'rejected'` y reabre la WebView del reto diario real.
+2. **Sesiones libres rechazadas se reenviaban en cada sync** (importante, CONFIRMADO): `syncAfterLogin` subía todas las sesiones sin filtrar por `status`. Corregido: solo se suben las no rechazadas; las rejected se conservan localmente con su motivo (la UI puede mostrarlas) pero no vuelven a la cola.
+3. **La asignación no usaba su `goal_snapshot` como objetivo** (importante, CONFIRMADO): la edge comparaba `item.goal` contra `goal_history`/perfil actual en vez de contra el objetivo con que se creó la asignación, pudiendo rechazar un reto legítimo tras un cambio de objetivo. Corregido: al validar contra una asignación existente se usa su `goal_snapshot` como objetivo autoritativo (fallback a historial solo si el snapshot falta/inválido).
+4. **`tierGate` fail-closed reforzado** (menor): ahora rechaza (`premium_required`) cualquier tier distinto de `free`, no solo `'premium'`, protegiendo ante tier desconocido/NULL.
+
+**Tests añadidos:** `markCompleted` retry (resetea rejected→pending, no doble conteo, no pisa `verified`), `uploadCompletions` no reenvía rejected salvo retry, `syncAfterLogin` no sube sesiones rechazadas, las conserva localmente y llama `set_goal` con el objetivo local. **Verificación: typecheck OK, lint OK, 153 tests / 12 suites en verde.**
+
+**Pendientes PO** (se mantienen): aplicar migraciones 0008–0013 + 0014, desplegar edge, deploy gh-pages del HTML v13, y decidir commit/review. Nada fue commiteado ni pusheado.
+
+### 2026-09-28 — Invariante `verified` terminal (cierre server-authoritative)
+
+La guarda client-side en `setCompletionSyncState` (no sobrescribir `verified`) se elude con reinstalación, multi-dispositivo, reset o un cliente alterado. Para cerrar el sistema server-authoritative, `verified` ahora es terminal en TODAS las capas:
+
+1. **Migración `0015_protect_verified_submissions.sql`** (nueva): trigger `protect_verified_submission` BEFORE UPDATE en `workout_submissions` y `daily_challenge_submissions` que aborta cualquier UPDATE que cambie una fila `verified` a otro estado (`raise exception`, errcode 23514). Es un invariante a nivel DB: no importa quién escriba (edge, servicio futuro, bug), una fila aprobada no puede degradarse.
+2. **Edge `validate_workout`**: antes de upsertar sesiones o completions, encuesta el estado guardado y **no re-escribe** filas ya `verified`; en `results` devuelve `accepted`/`already_verified` para que el cliente quede en `verified` (idempotencia ante re-sync/reinstall sin degradar).
+3. **Cliente `uploadCompletions`**: además de las `rejected`, ahora saltea las fechas `verified` (no reenvía lo confirmado). Sumado a la guarda de `setCompletionSyncState`, el cliente nunca degrada un `verified` local, y el retry de `retos.tsx` solo está disponible en estado `rejected`, no sobre `verified`.
+
+**Prueba de cierre (breaker de degradación):** nuevo test `uploadCompletions` no reenvía una fecha `verified` (server-authoritative).
+
+**Verificación:** typecheck OK, lint OK, **154 tests / 12 suites en verde**.
+
+### 2026-09-28 — Sensor de orientación reparado (bridge nativo, validado en Reto diario y Libre)
+
+**Problema:** la cámara verificada no arrancaba automáticamente al entrar a Retos/Libre. El sensor se confirmaba solo tras tocar "Reintentar" (un gesto), y el usuario quería cero toques.
+
+**Causa raíz (diagnosticada con evidencia):** el WebView de Expo Go **no entrega eventos `deviceorientation`/`devicemotion` sin un gesto del usuario**. El experimento previo v16/v17 (`gh-pages`) había planteado el puente correcto (HTML exponiendo `window.__resilienciaSetNativeOrientation` + `post('sensor_request')`) pero **la app nunca implementó su lado** (sin `expo-sensors` ni `injectJavaScript`), por eso se revirtió. Además había cache: `VERIFY_VERSION` no subía con cada deploy.
+
+**Solución aplicada (validada por el PO en ambos modos, sin tocar nada):**
+
+- `camera-verification.html` (deploy gh-pages): hook `window.__resilienciaSetNativeOrientation` que resuelve la confirmación; `post('sensor_request')` al arrancar dentro de React Native; `devicemotion` como respaldo; ventana `SENSOR_CONFIRM_MS` **3s → 8s**; auto-reintento único al fallar el primer intento.
+- App: `expo-sensors@~57.0.3` instalado; en `retos.tsx` y `camretos.tsx` (ambos WebViews), `DeviceMotion` (intervalo 200ms) calcula la verticalidad (tilt `atan2(z,y) ≤ 35°`) y la inyecta con `injectJavaScript('__resilienciaSetNativeOrientation(...)')`.
+- `verify.ts`: `VERIFY_VERSION` 15 → **16** (cache bust).
+
+**Pendiente (una advertencia detectada):** `onPermissionRequest` no está en los tipos de react-native-webview v14 (se conserva su uso en runtime con `any`); la auditoría ya lo marcaba como deuda en la config nativa de cámara (`app.json`) para el APK real. Verificación: typecheck OK, lint OK, **154 tests / 12 suites en verde**. Commits a gh-pages `7d4988f`; cambios de app aún sin commit (pide el PO).
