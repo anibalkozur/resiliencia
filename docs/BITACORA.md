@@ -777,3 +777,14 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 **Modelo elegido (revisión de la doc `IA_ENTRENADOR.md`):** la mejor para Android es **Qwen3.5-2B-Instruct Q4_K_M (~1.5 GB)** pero su GGUF público sigue dando HTTP 401 (no descargable); la adoptada como default es **`ggml-org/Qwen3-1.7B-GGUF` · `Qwen3-1.7B-Q4_K_M.gguf` (1.28 GB exactos)** — segunda opción de la tabla del doc (gama media 4–6 GB RAM) y la que ya está bajada y funcionando. El dataset del harness se transfiere tal cual a Qwen3.5 cuando haya GGUF público.
 
 **Verificación:** typecheck OK, **38 tests console / 267 repo en verde**; archivo de estado validado sin BOM; Console relanzada con renderer activo y el modelo detectado como `ready` (se muestra "Motor: descargado — Cargar modelo").
+
+### 2026-09-30 — Copilot: responder como operador, no como suscriptor (fix de identidad)
+
+**Síntoma (reportado por el PO):** al preguntarle al Copilot _"¿es recomendable pasarme a premium?"_, respondió tratando al director como usuario final: _"tu suscripción es gratuita, no podés acceder a contenido premium"_. Dos fallas: confundió al interlocutor (el director que opera la Console) con un suscriptor de la app, y **inventó un dato** ("tu suscripción es gratuita") que no está en el contexto del turno.
+
+**Fix (`apps/console/src/shared/copilot.ts`):**
+
+- **`GUARDRAILS_FIXED`** (reglas que no puede ignorar, siempre presentes): el interlocutor es el director/admin que opera la Console, NO un suscriptor; si pregunta por su "suscripción"/"pasarme a premium" se interpreta como decisión de negocio y jamás se le atribuye un plan salvo que el contexto lo diga.
+- **`DEFAULT_SYSTEM_PROMPT`**: línea de rol aclarando que las preguntas de "premium/mi suscripción" se responden desde el rol de quien opera la app (análisis y propuestas de negocio).
+
+**Uso del harness (recomendación al PO):** marcar la respuesta mala como **Inapropiada** con la nota correspondiente en la pestaña Chat/Evaluaciones: el ejemplo queda registrado en el dataset y sirve para condicionar el comportamiento. Verificación: typecheck OK, 38 tests console en verde.
