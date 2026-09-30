@@ -91,22 +91,40 @@ function LibrePicker({
         <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
           <View style={[styles.menu, { paddingTop: insetsTop + spacing.sm }]}>
             <Text style={styles.menuTitle}>{translate(lang, 'header.pick_exercise')}</Text>
-            {EXERCISES.map((e) => (
-              <Pressable
-                key={e.id}
-                style={[styles.menuItem, e.id === exerciseId && styles.menuItemActive]}
-                onPress={() => {
-                  onSelect(e.id);
-                  setOpen(false);
-                }}
-              >
-                <Text
-                  style={[styles.menuItemText, e.id === exerciseId && styles.menuItemTextActive]}
+            {EXERCISES.map((e) => {
+              const locked = e.tier !== 'free';
+              return (
+                <Pressable
+                  key={e.id}
+                  disabled={locked}
+                  style={[
+                    styles.menuItem,
+                    e.id === exerciseId && styles.menuItemActive,
+                    locked && styles.menuItemLocked,
+                  ]}
+                  onPress={() => {
+                    onSelect(e.id);
+                    setOpen(false);
+                  }}
                 >
-                  {translate(lang, exerciseNameKey(e.id))}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.menuItemText,
+                      e.id === exerciseId && styles.menuItemTextActive,
+                      locked && styles.menuItemTextLocked,
+                    ]}
+                  >
+                    {locked ? '🔒 ' : ''}
+                    {translate(lang, exerciseNameKey(e.id))}
+                  </Text>
+                  {locked ? (
+                    <Text style={styles.menuItemTag}>
+                      {translate(lang, 'header.premium_locked')}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              );
+            })}
           </View>
         </Pressable>
       </Modal>
@@ -183,17 +201,36 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
   },
   menuItemActive: {
     backgroundColor: colors.line,
+  },
+  menuItemLocked: {
+    opacity: 0.55,
   },
   menuItemText: {
     color: colors.silver,
     fontSize: 15,
     fontWeight: '600',
+    flexShrink: 1,
   },
   menuItemTextActive: {
     color: colors.teal,
     fontWeight: '800',
+  },
+  menuItemTextLocked: {
+    color: colors.silverDim,
+    fontWeight: '600',
+  },
+  menuItemTag: {
+    color: colors.teal,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

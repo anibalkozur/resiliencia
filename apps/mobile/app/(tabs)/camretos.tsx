@@ -95,6 +95,13 @@ export default function LibreScreen() {
 
   const startSession = () => {
     setResult(null);
+    // Defensa en profundidad: sin suscripciones (F1) todo ejercicio premium
+    // queda bloqueado. Si por estado residual llegara un premium, no dejamos
+    // que la sesión se descarte después como premium_required en el server.
+    if (freeExercise && freeExercise.tier !== 'free') {
+      setResult({ tone: 'bad', text: translate(lang, 'header.premium_exercise') });
+      return;
+    }
     setSessionOpen(true);
   };
 

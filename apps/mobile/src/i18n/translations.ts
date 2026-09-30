@@ -40,6 +40,8 @@ const es = {
 
   'header.reto': 'Reto del día',
   'header.pick_exercise': 'Elegí tu ejercicio',
+  'header.premium_locked': 'Premium',
+  'header.premium_exercise': 'Este ejercicio es Premium',
 
   'progress.title': 'PROGRESO',
   'progress.best_streak': 'MEJOR RACHA',
@@ -280,6 +282,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'header.reto': "Today's challenge",
     'header.pick_exercise': 'Pick an exercise',
+    'header.premium_locked': 'Premium',
+    'header.premium_exercise': 'This exercise is Premium',
 
     'progress.title': 'PROGRESS',
     'progress.best_streak': 'BEST STREAK',
@@ -514,6 +518,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'header.reto': 'Desafio do dia',
     'header.pick_exercise': 'Escolha o exercício',
+    'header.premium_locked': 'Premium',
+    'header.premium_exercise': 'Este exercício é Premium',
 
     'progress.title': 'PROGRESSO',
     'progress.best_streak': 'MELHOR SEQUÊNCIA',
