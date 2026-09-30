@@ -806,3 +806,14 @@ Verificación: typecheck OK, **38 tests console / 267 repo en verde**.
 2. **Few-shots de arranque** (`defaultFewShots()` en `store.ts`): ejemplo del flujo completo premium instalado por defecto (consulta → pitch con beneficios → "Sí" → siguiente paso). Visible y editable/deleatable en Ajustes.
 
 Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
+
+### 2026-09-30 — Copilot: cortar el bucle de "¿quieres activarlo?" tras aceptar
+
+**Síntoma (reportado por el PO):** tras el fix anterior, el flujo mejoró pero entró en **bucle**: con cada "si" el Copilot volvía a responder "¡Dale! Activa el plan anual… ¿Quieres activarlo?", re-preguntando lo mismo en cadena en vez de cerrar.
+
+**Fix:**
+
+1. **`defaultFewShots()`** (`store.ts`): el ejemplo "Sí → próx paso" ahora **termina sin pregunta**, con instrucción concreta única ("abrí la app → Premium → plan anual → confirmá; la prueba no cobra hasta el día 8" + "avisame cuando esté activo y lo verifico desde la Console"). Se rompe el patrón que el modelo imitaba.
+2. **`DEFAULT_SYSTEM_PROMPT`** (regla de avance endurecida): al aceptar, **una sola vez** el paso concreto, sin repetir beneficios, sin preguntas de sí/no repetidas, cerrando con instrucción accionable; la conversación termina cuando ya se dio la instrucción.
+
+Verificación: typecheck OK, **39 tests console / 268 repo en verde**.

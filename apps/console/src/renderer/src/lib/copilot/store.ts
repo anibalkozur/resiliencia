@@ -55,7 +55,7 @@ export function defaultFewShots(): Turn[] {
     {
       role: 'assistant',
       content:
-        '¡Dale! Abrí la app, entrá a Premium y activá el plan anual para probar los 7 días gratis (sin cargo durante la prueba). Cuando esté activo, lo verifico desde la Console y seguimos. ¿Algo más?',
+        '¡Dale! Hacé esto: abrí la app, tocá Premium, elegí el plan anual y confirmá — la prueba de 7 días no cobra hasta el día 8. Avisame cuando lo tengas activo y lo verifico al toque desde la Console.',
     },
   ];
 }
