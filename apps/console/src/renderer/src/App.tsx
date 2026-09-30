@@ -7,6 +7,7 @@ import {
   persistSession,
   restoreSession,
   signOutSession,
+  subscribeSessionPersistence,
   supabase,
 } from './lib/session';
 import { OAUTH_REDIRECT } from '@console/shared/constants';
@@ -29,6 +30,7 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
+    const unsubscribePersistence = subscribeSessionPersistence();
     async function boot(): Promise<void> {
       const restored = await restoreSession();
       if (cancelled) return;
@@ -51,6 +53,7 @@ export function App() {
     void boot();
     return () => {
       cancelled = true;
+      unsubscribePersistence();
     };
   }, [whoami]);
 

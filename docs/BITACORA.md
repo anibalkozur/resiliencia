@@ -746,3 +746,19 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 **Fix (`apps/console/src/main/copilot.ts`):** el módulo se carga ahora con **`await import('node-llama-cpp')` dinámico** dentro de `loadModel`, en vez de import estático. El `require()` ya no existe (verificado en `out/main/index.js`), el binario nativo solo se carga cuando se usa el modelo, y el arranque no se rompe más.
 
 **Verificación:** typecheck OK, 33 tests console / 262 repo en verde, build OK; instancia vieja cortada y Console relanzada: main + renderer activos, stderr vacío. Commits: `3f48e2b` (módulo Copilot) y `32c30f2` (fix del crash).
+
+### 2026-09-30 — Fix: la Console volvía a pedir Google login en cada apertura (refresh token rotado no se persistía)
+
+**Petición del PO:** _"¿no hay manera de entrar a la Console y que recuerde mi usuario/contraseña y el permiso del celular para no repetir los pasos cada vez?"_
+
+**Análisis:** la persistencia de sesión **ya existía** (keychain cifrado del SO vía `safeStorage` → `console-session.bin`), pero fallaba a la segunda apertura. En `GoTrueClient._setSession` (`.pnpm/.../GoTrueClient.js:3046`) se confirmó la causa: cuando el access token expiró (>1h, default de GoTrue), `setSession()` hace un refresh y **GoTrue ROTA el refresh token** (el presentado queda revocado) pero el keychain seguía guardando el viejo → en el próximo arranque `restoreSession` fallaba con `refresh_token_not_found` → te obligaba a Google + 2FA de nuevo. También `autoRefreshToken: true` rotaba el token en memoria durante sesiones largas sin actualizar el keychain.
+
+**Fix (`src/renderer/src/lib/session.ts` + `App.tsx`):**
+
+- `restoreSession()` ahora **re-persiste la sesión devuelta por `setSession`** (que trae el refresh token rotado) antes de devolverla.
+- Nueva `subscribeSessionPersistence()`: suscribe a `onAuthStateChange` y persiste la sesión en cada evento de auth (TOKEN_REFRESHED incluido), de modo que el keychain siempre tenga el refresh token vigente. Se suscribe en el `boot` de `App` y se desuscribe al desmontar.
+- La ventana de OAuth ya usaba una partición persistente (`oauth-google`), así que las cookies de Google (cuenta/2FA confiable) sobreviven entre inicios.
+
+**Efecto esperado:** el primer ingreso tras el fix puede pedir un login de Google más si el refresh token guardado ya quedó revocado; a partir de ahí, **abrir la Console reentra solo** (sin usuario, contraseña ni 2FA), incluido tras reinicios de la PC. El botón "Cerrar sesión" sigue borrando el keychain a propósito.
+
+**Verificación:** tests nuevos en `session.test.ts` (restore persiste el token rotado; limpieza ante error; suscripción persiste refrescos y no escribe sesiones nulas) → **38 tests console / 267 repo en verde**; typecheck OK; Console relanzada sin crash (main + renderer activos).

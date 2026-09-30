@@ -47,7 +47,24 @@ export async function restoreSession(): Promise<Session | null> {
     await window.api.secureClear();
     return null;
   }
+  // setSession refresca el token si el access token expiró, y GoTrue ROTA el
+  // refresh token (el presentado queda revocado). Guardamos la sesión devuelta
+  // para que el keychain nunca quede con un refresh token stale.
+  await persistSession(data.session);
   return data.session;
+}
+
+/**
+ * Persiste la sesión en el keychain en cada evento de auth (refrescos de token,
+ * cambios de sesión). GoTrue rota el refresh token en cada renovación y, con
+ * `persistSession: false`, el cliente no lo persiste solo: sin esto el keychain
+ * quedaría con un refresh token revocado y el próximo arranque pediría Google.
+ */
+export function subscribeSessionPersistence(): () => void {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) void persistSession(session);
+  });
+  return () => data.subscription.unsubscribe();
 }
 
 /** Guarda (o borra, si session es null) la sesión en el keychain del SO. */
