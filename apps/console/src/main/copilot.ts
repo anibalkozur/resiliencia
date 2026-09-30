@@ -6,8 +6,12 @@ import { app, dialog, ipcMain, shell } from 'electron';
 import { statSync } from 'node:fs';
 import { stat, mkdir, rename, open, readFile, writeFile, rm } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
-import { getLlama, LlamaChatSession, LlamaLogLevel } from 'node-llama-cpp';
 import type { IpcMainInvokeEvent } from 'electron';
+import type { LlamaChatSession } from 'node-llama-cpp';
+// node-llama-cpp se carga con import() dinámico en runtime: el bundle del
+// proceso main es CommonJS y el paquete es ESM con top-level await, así que un
+// require() estático rompería el arranque ("cannot be used on an ESM graph").
+// Además evita cargar el binario nativo hasta que se usa el modelo.
 import { COPILOT_EVENTS, COPILOT_IPC } from '../shared/copilot';
 import type {
   CopilotDownloadProgress,
@@ -138,6 +142,7 @@ async function loadModelInternal(): Promise<Handle> {
     );
   }
 
+  const { getLlama, LlamaLogLevel, LlamaChatSession } = await import('node-llama-cpp');
   let llama;
   try {
     llama = await getLlama({ gpu: 'vulkan', logLevel: LlamaLogLevel.warn });
