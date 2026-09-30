@@ -690,3 +690,21 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 3. Spec plantea "login email + MFA"; la v1 de la Console usa el OAuth de Google ya existente (single sign-on de la cuenta del director). Revisarlo con el PO.
 4. Empaquetado .exe (electron-builder) e ícono propio — hoy se usa dev server + acceso directo.
 5. Fase C de la Console: pagos simulados con monto/recibo, catálogo y `FEATURE_DATE` editables sin redeploy, y replay de eventos RevenueCat.
+
+### 2026-09-30 — Console Electron: login probado en vivo + fix del flujo OAuth (PKCE)
+
+**Petición del PO:** probar el login de la app Electron ya con el redirect URL dado de alta en Supabase Auth (`http://127.0.0.1:5173/auth/callback`).
+
+**Problema encontrado en la prueba en vivo:** Google pedía el 2FA (confirmación por celular), pero al confirmar la app no ingresaba: _"El proveedor no devolvió el código de autorización."_
+
+**Root cause (hallazgo):** el `@supabase/auth-js@2.116.0` instalado usa **`flowType: 'implicit'` por defecto**, así que el OAuth volvía con los tokens en el **fragmento** de la URL (`#access_token=...&refresh_token=...`) y NO con `?code=`. El intercambio PKCE (`exchangeCodeForSession`) nunca veía `code`.
+
+**Fix aplicado:**
+
+1. `createClient(..., { auth: { flowType: 'pkce' } })` — PKCE forzado, el callback vuelve con `?code=` y el exchange funciona.
+2. `exchangeOAuthCode` resiliente: acepta `code` de la query; reporta `error`/`error_description` del proveedor con mensaje claro; y como respaldo, si vienen `access_token`/`refresh_token` en el fragmento (flujo implícito), arma la sesión con `setSession`.
+3. `oauth.ts` (main): intercepta el callback **solo cuando la URL trae material de auth** (`code`, `error` o token en fragmento), con un fallback de 3s para no cortarse ante hops intermedios vacíos hacia nuestro origen.
+
+**Verificado:** el PO entró a la app con su cuenta de director (2FA por celular incluido) → panel con rol **director**. Queda probado el flujo de login de punta a punta (Electron → Google → PKCE → keychain → whoami).
+
+**Pendiente para mañana:** probar a fondo la app (simulador del ciclo premium, auditoría, comportamiento con roles analyst/support), y opcional empaquetar un `.exe` con ícono para dejar de depender del dev server.
