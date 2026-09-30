@@ -762,3 +762,18 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 **Efecto esperado:** el primer ingreso tras el fix puede pedir un login de Google más si el refresh token guardado ya quedó revocado; a partir de ahí, **abrir la Console reentra solo** (sin usuario, contraseña ni 2FA), incluido tras reinicios de la PC. El botón "Cerrar sesión" sigue borrando el keychain a propósito.
 
 **Verificación:** tests nuevos en `session.test.ts` (restore persiste el token rotado; limpieza ante error; suscripción persiste refrescos y no escribe sesiones nulas) → **38 tests console / 267 repo en verde**; typecheck OK; Console relanzada sin crash (main + renderer activos).
+
+### 2026-09-30 — Fix: la Console decía "Sin modelo" con el modelo ya descargado (BOM en copilot-state.json)
+
+**Síntoma (reportado por el PO):** la pestaña Copilot mostraba "Primera vez con el Copilot / Sin modelo" aunque el `.gguf` ya estaba descargado en `userData\models`.
+
+**Causa raíz (hallazgo con evidencia):** `copilot-state.json` (que apunta al archivo del modelo) empezaba con **BOM UTF-8** (`EF BB BF`) — el archivo se había creado a mano con PowerShell, que escribe BOM por defecto. `readPersistedModelPath()` hacía `JSON.parse(raw)` y el BOM lo hacía fallar en silencio → `modelPath = null` → estado `no-model`. El archivo del modelo en sí nunca fue el problema.
+
+**Fix (doble):**
+
+1. `src/main/copilot.ts` `readPersistedModelPath()`: quita un BOM inicial antes del `JSON.parse` (`raw.replace(/^\uFEFF/, '')`) — defensa ante editores/tools de Windows. El `writeFile` de la app ya escribe sin BOM.
+2. Reescrito `copilot-state.json` sin BOM (ahora arranca con `{`).
+
+**Modelo elegido (revisión de la doc `IA_ENTRENADOR.md`):** la mejor para Android es **Qwen3.5-2B-Instruct Q4_K_M (~1.5 GB)** pero su GGUF público sigue dando HTTP 401 (no descargable); la adoptada como default es **`ggml-org/Qwen3-1.7B-GGUF` · `Qwen3-1.7B-Q4_K_M.gguf` (1.28 GB exactos)** — segunda opción de la tabla del doc (gama media 4–6 GB RAM) y la que ya está bajada y funcionando. El dataset del harness se transfiere tal cual a Qwen3.5 cuando haya GGUF público.
+
+**Verificación:** typecheck OK, **38 tests console / 267 repo en verde**; archivo de estado validado sin BOM; Console relanzada con renderer activo y el modelo detectado como `ready` (se muestra "Motor: descargado — Cargar modelo").

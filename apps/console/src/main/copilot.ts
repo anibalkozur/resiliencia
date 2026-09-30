@@ -41,7 +41,10 @@ function sanitizeFileName(name: string): string {
 async function readPersistedModelPath(): Promise<string | null> {
   try {
     const raw = await readFile(stateFile(), 'utf8');
-    const data = JSON.parse(raw) as { modelPath?: string | null };
+    // El estado puede llegar con BOM UTF-8 (p. ej. si se editó a mano con un
+    // editor de Windows); JSON.parse fallaría en silencio y reportaríamos
+    // "sin modelo" aunque el archivo exista.
+    const data = JSON.parse(raw.replace(/^\uFEFF/, '')) as { modelPath?: string | null };
     return typeof data.modelPath === 'string' && data.modelPath.length > 0 ? data.modelPath : null;
   } catch {
     return null;
