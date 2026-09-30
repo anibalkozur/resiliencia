@@ -742,8 +742,13 @@ crear retos y ver reportes con datos reales de Supabase.
   `FREE_EXERCISE_ORDER`), y rota determinísticamente entre esos 3 desde
   `FEATURE_DATE`. Las rachas valen para todos. Si el reto cae en alguno de los
   5 premium, el free ve ficha teaser de suscripción (nunca un paywall
-  bloqueante). El ranking TOTAL es exclusivo de suscriptores (F1).
-- El ranking verificado NUNCA se puede acelerar con dinero.
+  bloqueante).
+- **El usuario free NO participa de ningún ranking** (decisión del PO, ADR
+  `docs/equipo/adr/2026-09-29_free-sin-ranking_premium-todo.md`): ni verificado,
+  ni libre, ni TOTAL. Su retención va por **reto diario + racha**; la
+  competencia es el motivo de pago. El **premium** recibe **todos los
+  ejercicios, la racha y todos los rankings**. El free se compromete, el
+  premium compite. El ranking verificado NUNCA se puede acelerar con dinero.
 
 ### 15.5 Facturación B2B fuera de Play (flujo de dinero y reglas)
 

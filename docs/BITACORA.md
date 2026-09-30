@@ -587,3 +587,38 @@ La guarda client-side en `setCompletionSyncState` (no sobrescribir `verified`) s
 - `verify.ts`: `VERIFY_VERSION` 15 → **16** (cache bust).
 
 **Pendiente (una advertencia detectada):** `onPermissionRequest` no está en los tipos de react-native-webview v14 (se conserva su uso en runtime con `any`); la auditoría ya lo marcaba como deuda en la config nativa de cámara (`app.json`) para el APK real. Verificación: typecheck OK, lint OK, **154 tests / 12 suites en verde**. Commits a gh-pages `7d4988f`; cambios de app aún sin commit (pide el PO).
+
+### 2026-09-29 — Ejercicios premium bloqueados en Modo Libre + DECISIÓN: el free no compite en ningún ranking
+
+**Hallazgo (bug real de producto, reportado por el PO):** al entrar con la cuenta, el usuario veía **los 8 ejercicios seleccionables** en Modo Libre, incluidos los 5 premium, sin tener suscripción.
+
+**Causa raíz:** `components/BrandHeader.tsx:94` renderizaba `EXERCISES.map(...)` **sin consultar `tier`**. El campo `tier` existía (catálogo + DB, migración `0012`) pero **nada en la app lo leía para ocultar contenido**: no hay `revenuecat`/`react-native-purchases` en `package.json` ni `isPremium` en el código, así que a efectos de la app **todos los usuarios son free**. El único candado era el `tierGate` del Edge (`premium_required`), es decir: **la app dejaba hacer el trabajo completo (cámara, reps, evidencia) y el server lo rechazaba después, perdiendo la sesión**. Peor experiencia que bloquear de entrada.
+
+**Cambios aplicados:**
+
+1. **Picker de Modo Libre (`BrandHeader.tsx`):** los 5 premium ahora se listan **atenuados, no seleccionables** (`disabled`), con candado 🔒 y un tag `Premium` a la derecha. Solo `sentadillas`/`flexiones`/`abdominales` quedan elegibles. El menú pasó a `flexDirection: 'row'` para separar nombre y tag.
+2. **Guard de defensa en profundidad (`camretos.tsx` `startSession`):** si por estado residual (`libreExerciseId`) llegara un premium, **no abre la sesión** y muestra "Este ejercicio es Premium". Evita que una sesión se descarte contra `premium_required` del servidor.
+3. **Copy corregido por el PO — "Premium", no "Próximamente con Premium":** la primera versión decía "Próximamente con Premium", que **promete una release futura** y sugiere que el ejercicio "todavía no está listo", cuando en realidad **ya está listo y lo que bloquea es la suscripción**. El PO lo marcó como potentially confuso; se adoptó el tag seco **"Premium"**. Se reservó una clave aparte `header.premium_exercise` ("Este ejercicio es Premium") para el mensaje de bloqueo de `startSession`, que sí necesita texto explicativo.
+4. **i18n es/en/pt:** `header.premium_locked` (`Premium`) + `header.premium_exercise` (`Este ejercicio es Premium` / `This exercise is Premium` / `Este exercício é Premium`). Se eliminó la clave `premium_soon` (grep confirma que no quedan residuos).
+
+**DECISIÓN DEL PO (nueva, cierra una tensión del plan vigente):** el modelo free/premium queda así —
+
+|             | Reto diario               | Racha | Ejercicios      | Rankings       |
+| ----------- | ------------------------- | ----- | --------------- | -------------- |
+| **Free**    | ✅ (rota en el pool free) | ✅    | solo los 3 free | ❌ **ninguno** |
+| **Premium** | ✅                        | ✅    | ✅ **los 8**    | ✅ **todos**   |
+
+El **free entrena, se compromete y enciende su racha, pero no aparece en ningún ranking** (ni verificado, ni libre, ni TOTAL) — su retención va por reto diario + racha. El **premium recibe todos los ejercicios, la racha y todos los rankings** — la competencia es el motivo de pago. Se mantiene la regla dura de que **el ranking verificado NUNCA se acelera con dinero** (pagar compra acceso, nunca posiciones).
+
+Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking TOTAL es exclusivo de suscriptores (F1)", que era más débil: dejaba abierta la posibilidad de que el free apareciera en el ranking verificado. Registrada en `docs/equipo/adr/2026-09-29_free-sin-ranking_premium-todo.md` (ADR nuevo, primer ADR del repo) y reflejada en `PLAN_COMPLETO.md` §15.3.
+
+**Consecuencias anotadas:** rankings son Fase 4 (aún no construidos) → **esta decisión se fijó antes de construir, evitaría rediseñar la Fase 4**; el free debe excluirse del ranking **en el backend** (no solo ocultar en UI) → lo implementa [BE] con el gate de entitlements; [DATA] instrumentará la retención del free por **reto completado + racha** (no por posición, que ya no tiene); [UX] debe revisar la primera impresión de 5 candados sobre 8 (riesgo de "demo truncada"/"paywall falso" del análisis de competencia).
+
+**Verificación:** typecheck OK, lint OK, Prettier OK, **154 tests / 12 suites en verde** (sin tests nuevos: el cambio es de gating de UI/estado, no de lógica de dominio). Probado por el PO en Expo Go: reto de hoy habilitado (correcto, siempre free) y solo los 3 libres seleccionables en Libre.
+
+**Pendientes que siguen abiertos:**
+
+1. **Verificar la Edge Function desplegada** — no hay evidencia de que el `tierGate`/`premium_required` esté en la versión en producción de `validate_workout` (se desplegó desde el Dashboard antes de escribirlo). Hoy es menos urgente porque la app ya no deja llegar al caso, pero es la barrera del server.
+2. **E2E de abdominales completo** — hacer el reto y verificar `daily_challenge_submissions = pending` con `missing_evidence`.
+3. **Deuda técnica:** `onPermissionRequest` sin tipar en react-native-webview v14 (funciona en runtime; revisar al construir el APK real).
+4. Fases pendientes del plan v4: F1 (entitlements/semántica de ranking, donde se aplica esta decisión en el backend), F2 (paywall mock) y F3 (billing real — `react-native-purchases` **no funciona en Expo Go**, requiere dev build).
