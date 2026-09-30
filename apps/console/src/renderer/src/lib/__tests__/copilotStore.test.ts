@@ -43,8 +43,14 @@ describe('defaultConfig', () => {
     const c = defaultConfig();
     expect(c.systemPrompt).toContain('{contexto_json}');
     expect(c.repo.length).toBeGreaterThan(0);
-    expect(c.fewShots).toEqual([]);
     expect(c.temperature).toBeGreaterThanOrEqual(0);
+  });
+
+  it('trae ejemplos de arranque (few-shots) de premium', () => {
+    const c = defaultConfig();
+    expect(c.fewShots).toHaveLength(4);
+    expect(c.fewShots[0]!.content).toContain('¿Es recomendable pasarme a premium?');
+    expect(c.fewShots[2]!.content).toBe('Sí');
   });
 });
 

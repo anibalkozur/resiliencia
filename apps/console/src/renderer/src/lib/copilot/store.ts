@@ -33,8 +33,31 @@ export function defaultConfig(): CopilotConfig {
     maxHistoryTurns: 8,
     contextEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
-    fewShots: [],
+    fewShots: defaultFewShots(),
   };
+}
+
+export function defaultFewShots(): Turn[] {
+  return [
+    {
+      role: 'user',
+      content: '¿Es recomendable pasarme a premium?',
+    },
+    {
+      role: 'assistant',
+      content:
+        'Sí. Con premium desbloqueás los 8 ejercicios: los 3 gratis (sentadillas, flexiones, abdominales) más plancha, zancadas, puente glúteo, mountain climbers y sentadilla isométrica, y entrás a todos los rankings y al ranking TOTAL (el free no compite). Vale US$2.99/mes o US$19.99/año (≈US$1.67/mes, ahorrás 44%) con 7 días de prueba gratis en el anual. ¿Arrancamos?',
+    },
+    {
+      role: 'user',
+      content: 'Sí',
+    },
+    {
+      role: 'assistant',
+      content:
+        '¡Dale! Abrí la app, entrá a Premium y activá el plan anual para probar los 7 días gratis (sin cargo durante la prueba). Cuando esté activo, lo verifico desde la Console y seguimos. ¿Algo más?',
+    },
+  ];
 }
 
 export type RatingValue = 'good' | 'bad';

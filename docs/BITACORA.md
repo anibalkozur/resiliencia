@@ -795,3 +795,14 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 - **`DEFAULT_SYSTEM_PROMPT`**: nuevo bloque **"Premium (qué incluye)"** con los beneficios reales del producto (los 8 ejercicios — 3 free + 5 premium —, todos los rankings y el ranking TOTAL, precios US$2.99/mes o US$19.99/año ≈ US$1.67/mes −44%, prueba 7 días solo anual) para que el modelo concrete los beneficios sin inventar. Tono motivador y sin prometer lo que el producto no da.
 
 Verificación: typecheck OK, **38 tests console / 267 repo en verde**.
+
+### 2026-09-30 — Copilot: avanzar el flujo cuando el usuario acepta (ya no repite la propuesta)
+
+**Síntoma (reportado por el PO):** tras la corrección anterior, "¿es recomendable pasarme a premium?" respondió bien (motivación + beneficios + "¿te gustaría probarlo?"), pero al contestarle "sí", **repitió el mismo texto completo** en vez de avanzar al siguiente paso.
+
+**Fix:**
+
+1. **`DEFAULT_SYSTEM_PROMPT`** (regla de avance): si el usuario ya aceptó ("sí", "dale", "quiero"), **no repetir la propuesta ni los beneficios**; pasar al paso concreto y corto (activar la prueba gratis de 7 días del plan anual en la app, o verificar el entitlement desde la Console si es una prueba) y cerrar con "¿Algo más?".
+2. **Few-shots de arranque** (`defaultFewShots()` en `store.ts`): ejemplo del flujo completo premium instalado por defecto (consulta → pitch con beneficios → "Sí" → siguiente paso). Visible y editable/deleatable en Ajustes.
+
+Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
