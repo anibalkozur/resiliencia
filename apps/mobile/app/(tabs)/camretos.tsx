@@ -15,6 +15,7 @@ import { translate } from '../../src/i18n/translations';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
+import { usePremium } from '../../src/premium/usePremium';
 
 type Tone = 'ok' | 'bad' | 'plain';
 
@@ -25,6 +26,7 @@ export default function LibreScreen() {
   const repo = getRepo();
   const { libreExerciseId, libreTarget, setLibreTarget, libreRanked, setLibreRanked } =
     useLibreExercise();
+  const premiumActive = usePremium();
   const [sessionOpen, setSessionOpen] = useState(false);
   const [result, setResult] = useState<{ text: string; tone: Tone } | null>(null);
   const restartKey = useCameraRestart();
@@ -95,10 +97,11 @@ export default function LibreScreen() {
 
   const startSession = () => {
     setResult(null);
-    // Defensa en profundidad: sin suscripciones (F1) todo ejercicio premium
-    // queda bloqueado. Si por estado residual llegara un premium, no dejamos
-    // que la sesión se descarte después como premium_required en el server.
-    if (freeExercise && freeExercise.tier !== 'free') {
+    // Defensa en profundidad: un ejercicio premium solo corre si el entitlement
+    // está activo (usePremium refleja el servidor, fail-closed). Si por estado
+    // residual llegara un premium sin entitlement, no dejamos que la sesión se
+    // descarte después como premium_required en el server.
+    if (freeExercise && freeExercise.tier !== 'free' && !premiumActive) {
       setResult({ tone: 'bad', text: translate(lang, 'header.premium_exercise') });
       return;
     }

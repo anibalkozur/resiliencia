@@ -10,6 +10,7 @@ import { translate } from '../src/i18n/translations';
 import { greetingKey } from '../src/i18n/greeting';
 import { useLibreExercise } from '../src/header/LibreExerciseProvider';
 import { useDayKey } from '../src/retos/DayProvider';
+import { usePremium } from '../src/premium/usePremium';
 
 const logo = require('../assets/brand/logo.png');
 
@@ -29,6 +30,7 @@ export default function BrandHeader() {
   const { prefs } = usePrefs();
   const { profile } = useUser();
   const { libreExerciseId, setLibreExerciseId } = useLibreExercise();
+  const premiumActive = usePremium();
   useDayKey();
   const lang = prefs?.language ?? 'es';
   const section = sectionForPath(pathname);
@@ -61,6 +63,7 @@ export default function BrandHeader() {
           exerciseId={libreExerciseId}
           onSelect={setLibreExerciseId}
           insetsTop={insets.top + spacing.sm}
+          premiumActive={premiumActive}
         />
       ) : null}
     </View>
@@ -72,11 +75,13 @@ function LibrePicker({
   exerciseId,
   onSelect,
   insetsTop,
+  premiumActive,
 }: {
   lang: 'es' | 'en' | 'pt';
   exerciseId: string;
   onSelect: (id: string) => void;
   insetsTop: number;
+  premiumActive: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -92,7 +97,7 @@ function LibrePicker({
           <View style={[styles.menu, { paddingTop: insetsTop + spacing.sm }]}>
             <Text style={styles.menuTitle}>{translate(lang, 'header.pick_exercise')}</Text>
             {EXERCISES.map((e) => {
-              const locked = e.tier !== 'free';
+              const locked = e.tier !== 'free' && !premiumActive;
               return (
                 <Pressable
                   key={e.id}

@@ -392,6 +392,20 @@ Deno.serve(async (request) => {
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
+
+  // Entitlement del usuario (Fase B). Fail-closed: si la consulta falla se
+  // trata como free; un premium SOLO corre cuando el servidor confirma un
+  // entitlement activo ('premium' sin expirar). Es la ÚNICA puerta de premium.
+  let hasPremium = false;
+  try {
+    const { data } = await admin.rpc('has_active_entitlement', {
+      p_user: userData.user.id,
+      p_key: 'premium',
+    });
+    hasPremium = data === true;
+  } catch {
+    hasPremium = false;
+  }
   const exerciseCodes = [
     ...new Set(
       [...rawSessions, ...rawCompletions]
@@ -431,15 +445,16 @@ Deno.serve(async (request) => {
   }));
 
   // ---------------------------------------------------------------------------
-  // Tier (PLAN v4 / F0): el catálogo en la DB manda. Fail-closed: SOLO se
-  // acepta el tier 'free'. Como el default en la migración es 'premium',
-  // cualquier ejercicio sin tier explícito queda rechazado (premium_required) y
-  // hasta que exista infraestructura de entitlement ningún premium corre. Los
-  // rechazos se reportan por elemento para que la cola local no se borre
-  // silenciosamente.
+  // Tier (PLAN v4 / F0 + Fase B): el catálogo en la DB manda. Fail-closed:
+  // SOLO se acepta el tier 'free' salvo que el servidor confirme un entitlement
+  // activo (hasPremium). Como el default en la migración es 'premium', cualquier
+  // ejercicio sin tier explícito queda rechazado (premium_required) para usuarios
+  // sin entitlement. Los rechazos se reportan por elemento para que la cola
+  // local no se borre silenciosamente.
   // ---------------------------------------------------------------------------
-  function tierGate(exercise: Exercise): string | null {
-    return exercise.tier === 'free' ? null : 'premium_required';
+  function tierGate(exercise: Exercise, hasPremiumEntitlement: boolean): string | null {
+    if (exercise.tier === 'free') return null;
+    return hasPremiumEntitlement ? null : 'premium_required';
   }
 
   // ---------------------------------------------------------------------------
@@ -456,7 +471,7 @@ Deno.serve(async (request) => {
     let status: SubmissionResult['status'] = 'pending';
     let reason = 'awaiting_server_validator';
 
-    const tierIssue = exercise ? tierGate(exercise) : 'invalid_exercise';
+    const tierIssue = exercise ? tierGate(exercise, hasPremium) : 'invalid_exercise';
     if (tierIssue) {
       status = 'rejected';
       reason = tierIssue;
@@ -630,7 +645,7 @@ Deno.serve(async (request) => {
     let status: SubmissionResult['status'] = 'pending';
     let reason = 'awaiting_server_validator';
 
-    const tierIssue = exercise ? tierGate(exercise) : 'invalid_exercise';
+    const tierIssue = exercise ? tierGate(exercise, hasPremium) : 'invalid_exercise';
     if (tierIssue) {
       status = 'rejected';
       reason = tierIssue;

@@ -34,9 +34,19 @@ type AdminRole = 'director' | 'support' | 'analyst';
 // 'analyst' = solo lectura; 'support' lee y audita pero no escribe config;
 // 'director' escribe.
 const PERMISSIONS: Record<AdminRole, readonly string[]> = {
-  analyst: ['whoami', 'list_config'],
-  support: ['whoami', 'list_config', 'list_audit'],
-  director: ['whoami', 'list_config', 'list_audit', 'set_config', 'set_flag'],
+  analyst: ['whoami', 'list_config', 'list_audit', 'list_entitlements'],
+  support: ['whoami', 'list_config', 'list_audit', 'list_entitlements'],
+  director: [
+    'whoami',
+    'list_config',
+    'list_audit',
+    'list_entitlements',
+    'set_config',
+    'set_flag',
+    'grant_entitlement',
+    'revoke_entitlement',
+    'sim_lifecycle',
+  ],
 };
 
 const ROLES: readonly AdminRole[] = ['director', 'support', 'analyst'];
@@ -210,6 +220,107 @@ Deno.serve(async (request) => {
       if (error) {
         console.error('admin_set_flag failed', error);
         return response({ error: 'flag_write_failed' }, 500);
+      }
+      return response(data);
+    }
+
+    // --- Fase B: entitlements + simulador de ciclo de vida (RPC transaccional) ---
+    case 'list_entitlements': {
+      const userId = payload.userId ? String(payload.userId) : null;
+      let query = ctx.admin
+        .from('entitlements')
+        .select('user_id,key,store,expires_at,is_simulation,source,updated_at')
+        .order('user_id');
+      if (userId) query = query.eq('user_id', userId);
+      const { data, error } = await query;
+      if (error) return response({ error: 'entitlements_read_failed' }, 500);
+      await auditRead(ctx, 'list_entitlements', userId ? { userId } : {});
+      return response({ entitlements: data });
+    }
+
+    case 'grant_entitlement': {
+      const userId = String(payload.userId ?? '');
+      const key = String(payload.key ?? 'premium');
+      if (!userId) return response({ error: 'missing_user_id' }, 400);
+      if (!SAFE_KEY.test(key)) return response({ error: 'invalid_key' }, 400);
+
+      const expiresAt = payload.expiresAt ?? null;
+      if (
+        expiresAt !== null &&
+        (typeof expiresAt !== 'string' || Number.isNaN(Date.parse(expiresAt)))
+      ) {
+        return response({ error: 'invalid_expires_at' }, 400);
+      }
+
+      const { data, error } = await ctx.admin.rpc('admin_grant_entitlement', {
+        p_admin: ctx.adminUserId,
+        p_user: userId,
+        p_key: key,
+        p_expires_at: expiresAt,
+        p_reason: parseReason(payload.reason),
+      });
+      if (error) {
+        console.error('admin_grant_entitlement failed', error);
+        return response({ error: 'grant_failed' }, 500);
+      }
+      return response(data);
+    }
+
+    case 'revoke_entitlement': {
+      const userId = String(payload.userId ?? '');
+      const key = String(payload.key ?? 'premium');
+      if (!userId) return response({ error: 'missing_user_id' }, 400);
+      if (!SAFE_KEY.test(key)) return response({ error: 'invalid_key' }, 400);
+
+      const { data, error } = await ctx.admin.rpc('admin_revoke_entitlement', {
+        p_admin: ctx.adminUserId,
+        p_user: userId,
+        p_key: key,
+        p_reason: parseReason(payload.reason),
+      });
+      if (error) {
+        console.error('admin_revoke_entitlement failed', error);
+        return response({ error: 'revoke_failed' }, 500);
+      }
+      return response(data);
+    }
+
+    case 'sim_lifecycle': {
+      const userId = String(payload.userId ?? '');
+      const product = String(payload.product ?? '');
+      const event = String(payload.event ?? '');
+      const targetUserId = payload.targetUserId ? String(payload.targetUserId) : null;
+      if (!userId) return response({ error: 'missing_user_id' }, 400);
+      if (!/^premium_(monthly|annual)$/.test(product)) {
+        return response({ error: 'invalid_product' }, 400);
+      }
+      if (
+        ![
+          'purchase',
+          'trial_start',
+          'renew',
+          'cancel',
+          'expire',
+          'refund',
+          'billing_issue',
+          'transfer',
+          'restore',
+        ].includes(event)
+      ) {
+        return response({ error: 'invalid_event' }, 400);
+      }
+
+      const { data, error } = await ctx.admin.rpc('admin_sim_lifecycle', {
+        p_admin: ctx.adminUserId,
+        p_user: userId,
+        p_product: product,
+        p_event: event,
+        p_reason: parseReason(payload.reason),
+        p_target_user: targetUserId,
+      });
+      if (error) {
+        console.error('admin_sim_lifecycle failed', error);
+        return response({ error: 'sim_lifecycle_failed' }, 500);
       }
       return response(data);
     }

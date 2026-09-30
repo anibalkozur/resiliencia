@@ -622,3 +622,34 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 2. **E2E de abdominales completo** — hacer el reto y verificar `daily_challenge_submissions = pending` con `missing_evidence`.
 3. **Deuda técnica:** `onPermissionRequest` sin tipar en react-native-webview v14 (funciona en runtime; revisar al construir el APK real).
 4. Fases pendientes del plan v4: F1 (entitlements/semántica de ranking, donde se aplica esta decisión en el backend), F2 (paywall mock) y F3 (billing real — `react-native-purchases` **no funciona en Expo Go**, requiere dev build).
+
+### 2026-09-30 — Console: Fase A desplegada y verificada + Fase B (núcleo premium) implementada y probada end-to-end
+
+**Petición del PO:** construir la **ResiliencIA Console** (app admin de escritorio para operar el sistema, probar todos los estados free/premium, simular compras/cancelaciones/expiraciones y asistir con IA). Especificación acordada en `docs/equipo/console_spec.md`. Fases A–E; arrancamos con **Fase A** (base segura) y seguimos con **Fase B** (núcleo premium).
+
+**Fase A — Base segura (implementada, desplegada y probada en producción):**
+
+- **Migración `0016_admin_console_base.sql`:** `admin_users` (allowlist por rol `director|support|analyst`, sin RLS cliente), `entitlements` (RLS select-own; el usuario solo lee el suyo, nunca escribe), `admin_audit_log` (bitácora de acciones privilegiadas, sin acceso cliente), `app_config` y `feature_flags` (solo lectura para autenticados; escritura administrativa), helper `has_active_entitlement` (SECURITY DEFINER, **revocado a public/anon/authenticated** — no es oráculo; solo `service_role` lo ejecuta) + triggers `touch_updated_at`.
+- **Migración `0017_admin_console_audited_writes.sql`:** RPCs `admin_set_config`/`admin_set_flag` que hacen **la escritura y su auditoría dentro de la misma transacción** (fail-closed) y **revalidan el rol dentro de la DB** (defensa en profundidad): si el audit falla, la escritura revierte; un bug de autorización en la Edge no alcanza para saltarse el control. También `admin_assert_role`.
+- **Edge Function `admin_console`:** auth JWT → allowlist `admin_users` → 403 fail-closed si no es admin → ejecuta con `service_role` server-side → audita. Acciones Fase A: `whoami`, `list_config`, `list_audit`, `set_config`, `set_flag`. Correcciones sobre el borrador: parseo booleano **estricto** (`Boolean("false")` era `true`), lecturas ya no tragan errores (devuelven 500), lecturas auditadas best-effort, `reason` normalizado.
+- **Bootstrap:** el PO se insertó como `director` vía SQL Editor (la tabla no es accesible desde el cliente, como corresponde). Usuario de prueba `admin-test@ejemplo.com` para el test.
+- **Script `scripts/test_admin_console.ps1`:** login → whoami → set_flag → list_audit → (c) 403 no-admin. Fase A verificada en producción: director 200 + escritura visible en `admin_audit_log`; sin rol → **403 en todas las acciones**.
+
+**Fase B — Núcleo premium (implementada y probada end-to-end `free → premium → expirado`):**
+
+- **Migración `0018_admin_console_entitlements_lifecycle.sql`:** tablas `subscriptions` (por `(user_id, product_code)`, con estado `active|in_grace_period|expired|cancelled|refunded|paused` y `will_renew`) y `purchases` (`rc_event_id` unique, anti-replay; `is_simulation` y `source`). RPCs `admin_grant_entitlement` / `admin_revoke_entitlement` (director-only, transaccionales, auditadas) y `admin_sim_lifecycle`: simulador del ciclo completo — `purchase` (mensual 30d / anual 365d), `trial_start` (**7 días, SOLO anual**, D-B), `renew`, `cancel` (no revoca; conserva acceso hasta expirar), `expire` (revoca al vencer), `refund` (revoca), `billing_issue` (gracia, no revoca), `transfer`, `restore`. Todo lo simulado queda `is_simulation=true` y `source='simulation'` — **nunca cuenta como caja/MRR** [FIN]. Todas las RPCs auditan + validan rol dentro de la DB, y quedan revocadas para cliente.
+- **Edge `admin_console` (v2):** acciones `list_entitlements`, `grant_entitlement`, `revoke_entitlement`, `sim_lifecycle`. `support` solo lista (sin dinero); `director` administra.
+- **Edge `validate_workout` (v2):** el `tierGate` ahora es `premium_required` **salvo que el servidor confirme un entitlement activo** (`has_active_entitlement(user, 'premium')`, consultado por request, fail-closed: ante error se trata como free). **Esto desbloquea premium de verdad en el server.** De regalo, resolver pendiente histórico: queda desplegada la versión exacta del repo.
+- **App móvil:** nuevo `src/premium/entitlements.ts` (lee `entitlements` vía RLS select-own con el cliente público; **fail-closed**: cualquier error = no premium; caché 60s) + `src/premium/usePremium.ts` + 6 tests. `BrandHeader` (picker de Modo Libre desbloquea los 5 premium si entitlement activo) y `camretos.tsx` (`startSession` permite premium solo con entitlement; las defensas en profundidad anteriores se mantienen).
+
+**Verificación Fase B (script ampliado, pasos 7–11 contra la API en producción):** `sim_lifecycle purchase` → 200; `validate_workout` con `plancha` → **corre sin `premium_required`**; `sim_lifecycle expire` → 200; `validate_workout` de nuevo → **`premium_required` (fail-closed)**; `list_entitlements` muestra el entitlement vencido. Auditoría registra todas las acciones.
+
+**Verificación general:** typecheck OK, lint OK, Prettier OK, **160 tests / 13 suites en verde** (+6 nuevos de premium). Commits: Fase A `8363af5`; Fase B (este registro incluido) pusheado a `main`.
+
+**Pendientes abiertos:**
+
+1. **Fase C de la Console** — pagos simulados con monto/recibo + replay RevenueCat, edición de `FEATURE_DATE`/pool free/catálogo desde la consola (dinámico, sin redeploy).
+2. **La Console Electron en sí** — hasta acá lo construido es la base de servidor (Edge Functions + migraciones + gates). Falta la app de escritorio que usa estas funciones (módulos B–L de la spec).
+3. **Rankings (Fase 4 del plan) y su gate de entitlement** — el free no compite en ningún ranking (decisión ya fijada; aplicarla en backend al construir).
+4. **Deuda técnica:** `onPermissionRequest` sin tipar en react-native-webview v14 (revisar al construir el APK real).
+5. **E2E de abdominales completo** (retenido por F0) y verificación de `missing_evidence` en `daily_challenge_submissions`.
