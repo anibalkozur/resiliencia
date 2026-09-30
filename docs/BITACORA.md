@@ -788,3 +788,10 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 - **`DEFAULT_SYSTEM_PROMPT`**: línea de rol aclarando que las preguntas de "premium/mi suscripción" se responden desde el rol de quien opera la app (análisis y propuestas de negocio).
 
 **Uso del harness (recomendación al PO):** marcar la respuesta mala como **Inapropiada** con la nota correspondiente en la pestaña Chat/Evaluaciones: el ejemplo queda registrado en el dataset y sirve para condicionar el comportamiento. Verificación: typecheck OK, 38 tests console en verde.
+
+**Rectificación del PO (mismo día):** la respuesta NO debe tratar la pregunta como análisis de negocio del operador. Cuando el director pregunte en **primera persona** por "premium"/"pasarme a premium", el Copilot debe ponerse **del lado del usuario** de la app y **motivar la subscripción detallando qué recibe**. Se ajustó:
+
+- **`GUARDRAILS_FIXED`**: línea que hace explícito el modo usuario (motivar + detallar beneficio) y mantiene el "no atribuir plan actual salvo que el contexto lo diga".
+- **`DEFAULT_SYSTEM_PROMPT`**: nuevo bloque **"Premium (qué incluye)"** con los beneficios reales del producto (los 8 ejercicios — 3 free + 5 premium —, todos los rankings y el ranking TOTAL, precios US$2.99/mes o US$19.99/año ≈ US$1.67/mes −44%, prueba 7 días solo anual) para que el modelo concrete los beneficios sin inventar. Tono motivador y sin prometer lo que el producto no da.
+
+Verificación: typecheck OK, **38 tests console / 267 repo en verde**.
