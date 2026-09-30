@@ -736,3 +736,13 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 1. El PO prueba en vivo: `pnpm --filter @resiliencia/console dev` → pestaña **Copilot IA** → cargar el modelo (ya está `ready`) → chat → marcar respuestas (harness) → exportar dataset.
 2. Niveles 2+ de la Fase E (spec: más herramientas/harness) cuando el PO los pida; swap a **Qwen3.5** cuando su GGUF sea accesible; port móvil on-device queda fuera del alcance actual de la Console.
 3. Commit pendiente de decisión del PO (estos cambios de hoy NO están commiteados).
+
+### 2026-09-30 — Fix: crash de la Console al abrir ("A JavaScript error occurred in the main process")
+
+**Síntoma (reportado por el PO):** al ingresar a la Console aparecía un cartel de Electron: _Uncaught Exception: Error require() cannot be used on an ESM graph with top-level await_.
+
+**Causa raíz:** el bundle del proceso main sale en **CommonJS** (`apps/console/package.json` sin `"type": "module"`), y `node-llama-cpp` quedó externalizado en `electron.vite.config.ts`, así que rollup convertía el import estático a `require("node-llama-cpp")`. Ese paquete es **ESM-only con top-level await** → `require()` explota al arrancar la app.
+
+**Fix (`apps/console/src/main/copilot.ts`):** el módulo se carga ahora con **`await import('node-llama-cpp')` dinámico** dentro de `loadModel`, en vez de import estático. El `require()` ya no existe (verificado en `out/main/index.js`), el binario nativo solo se carga cuando se usa el modelo, y el arranque no se rompe más.
+
+**Verificación:** typecheck OK, 33 tests console / 262 repo en verde, build OK; instancia vieja cortada y Console relanzada: main + renderer activos, stderr vacío. Commits: `3f48e2b` (módulo Copilot) y `32c30f2` (fix del crash).
