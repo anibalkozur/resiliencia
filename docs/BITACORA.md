@@ -708,3 +708,31 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 **Verificado:** el PO entró a la app con su cuenta de director (2FA por celular incluido) → panel con rol **director**. Queda probado el flujo de login de punta a punta (Electron → Google → PKCE → keychain → whoami).
 
 **Pendiente para mañana:** probar a fondo la app (simulador del ciclo premium, auditoría, comportamiento con roles analyst/support), y opcional empaquetar un `.exe` con ícono para dejar de depender del dev server.
+
+### 2026-09-30 — Fase E Nivel 1: "Copilot del Director" integrado en la Console (IA on-device, gratis)
+
+**Petición del PO:** responder si la IA ya estaba integrada en la Console y, en todo caso, construirla. Regla de producto fijada por el PO: el modelo SIEMPRE debe estar pensado para correr en el celular **gratis, on-device** (sin API de pago); se prueba primero en la PC dentro de la Console (llama.cpp/GGUF); el motor se integra ya; y por el "equipo" (roles) se arma su **hardcore** (harness de evaluación): marcar respuestas malas/buenas para ir condicionando el comportamiento.
+
+**Respuesta y análisis previo:**
+
+- No había IA integrada; era la Fase E de `console_spec.md` ("L. Copilot del Director", 4 niveles). El análisis de `docs/plan/IA_ENTRENADOR.md` recomienda **Qwen3.5-2B-Instruct Q4_K_M (~1.5 GB)** por GGUF/llama.cpp, Apache-2.0, patrón **ContextBuilder** (la IA nunca consulta datos por sí sola; el contexto se le inyecta por código).
+- Verificado en HuggingFace: el GGUF público de Qwen3.5 da HTTP 401 (repo no accesible); **`ggml-org/Qwen3-1.7B-GGUF` / `Qwen3-1.7B-Q4_K_M.gguf` (~1.28 GB) confirmado** (Apache-2.0, chat template qwen3). Decisión: motor agnóstico (repo+archivo editables en la UI), default = Qwen3-1.7B; el dataset de evaluación queda 100% transferible a Qwen3.5 cuando haya GGUF.
+
+**Implementado (Nivel 1, `apps/console`):**
+
+- **Engine en `src/main/copilot.ts`:** `node-llama-cpp@3.22.1` con `getLlama({gpu:'vulkan'})` + fallback CPU; sesión de chat con `setChatHistory` + streaming de tokens por IPC; descarga del modelo con progreso (fetch streaming → `userData/models`); selección de `.gguf` por diálogo; carga con dedupe (una sola promesa compartida); generación serializada con cola y cancelación (AbortController); estado `ready` (descargado sin cargar) + IPC `prepare` para cargar a demanda; persistencia `copilot-state.json` (`modelPath`). `node-llama-cpp` queda como módulo nativo external en `electron.vite.config.ts`.
+- **Contrato `src/shared/copilot.ts`:** canales IPC, `CopilotStatus`, `DEFAULT_SYSTEM_PROMPT` con `{contexto_json}`, `GUARDRAILS_FIXED`, presupuesto de prompt `TOKEN_BUDGET=1200` (mismo tope objetivo del celular), respuesta máx 512 tokens (configurable 64–2048), temp 0.4 default.
+- **Renderer:** `lib/copilot/prompt.ts` (contexto + few-shots + historia podada al presupuesto, resumen de tokens), `store.ts` (persistencia de config/few-shots/ratings; promover respuesta buena a ejemplo; exportar dataset JSON), `client.ts` (**ContextBuilder**: arma `{contexto_json}` vía `admin_console` con rol, flags, config, entitlements activos/vencidos/simulados y últimas acciones de auditoría). UI `console/Copilot.tsx` con pestañas Chat / Ajustes / Evaluaciones: chat con streaming, botones **Correcta/Inapropiada** con nota (harness de feedback), editor del system prompt en vivo, setup del modelo. Tab "Copilot IA" en `ConsoleShell.tsx`.
+- **PUENTE visible:** `window.consoleCopilot` (`preload` + `shared/api.ts`). La app de escritorio (no la web) expone el puente; el flag `hasCopilot` lo refleja.
+
+**Verificado:**
+
+- Typecheck OK (4 paquetes), prettier OK, **262 tests en verde** (mobile 160, domain 69, console 33: 22 nuevos de `copilotPrompt`/`copilotStore`).
+- **Smoke test headless** (`apps/console/scripts/smoke_copilot.mjs`): descarga real del modelo, carga con Vulkan, generación en español ~9.8 s y respuesta coherente con el contexto inyectado ("5 vs. 3").
+- Modelo pre-colocado en `userData` (`C:\Users\Anibal\AppData\Roaming\@resiliencia\console\models\Qwen3-1.7B-Q4_K_M.gguf`) + `copilot-state.json` con su `modelPath` → la app lo detecta `ready` al arrancar (verificado: Electron arranca con los 3 procesos sin crash).
+
+**Pendientes / planes:**
+
+1. El PO prueba en vivo: `pnpm --filter @resiliencia/console dev` → pestaña **Copilot IA** → cargar el modelo (ya está `ready`) → chat → marcar respuestas (harness) → exportar dataset.
+2. Niveles 2+ de la Fase E (spec: más herramientas/harness) cuando el PO los pida; swap a **Qwen3.5** cuando su GGUF sea accesible; port móvil on-device queda fuera del alcance actual de la Console.
+3. Commit pendiente de decisión del PO (estos cambios de hoy NO están commiteados).

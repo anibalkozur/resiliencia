@@ -5,6 +5,7 @@ import { DashboardView } from './Dashboard';
 import { EntitlementsView } from './Entitlements';
 import { ConfigView } from './Config';
 import { AuditView } from './Audit';
+import { CopilotView } from './Copilot';
 
 type Props = {
   session: Session;
@@ -12,7 +13,7 @@ type Props = {
   onSignOut: () => Promise<void>;
 };
 
-type TabId = 'dashboard' | 'entitlements' | 'config' | 'audit';
+type TabId = 'dashboard' | 'entitlements' | 'config' | 'audit' | 'copilot';
 
 const ROLE_LABEL: Record<AdminRole, string> = {
   director: 'Director',
@@ -28,6 +29,7 @@ export function ConsoleShell({ session, role, onSignOut }: Props) {
     { id: 'entitlements', label: 'Suscripciones & Simulador' },
     { id: 'config', label: 'Config & Flags' },
     { id: 'audit', label: 'Auditoría' },
+    { id: 'copilot', label: 'Copilot IA' },
   ];
 
   return (
@@ -62,6 +64,7 @@ export function ConsoleShell({ session, role, onSignOut }: Props) {
         {tab === 'entitlements' && <EntitlementsView role={role} />}
         {tab === 'config' && <ConfigView role={role} />}
         {tab === 'audit' && <AuditView />}
+        {tab === 'copilot' && <CopilotView />}
       </main>
     </div>
   );

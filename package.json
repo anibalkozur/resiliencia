@@ -20,7 +20,8 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron",
-      "esbuild"
+      "esbuild",
+      "node-llama-cpp"
     ]
   },
   "lint-staged": {

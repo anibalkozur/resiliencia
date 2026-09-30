@@ -2,6 +2,7 @@ import { app, BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { registerSecureStore } from './secureStore';
 import { registerOAuth } from './oauthHandlers';
+import { registerCopilot } from './copilot';
 
 function createMainWindow(): void {
   const win = new BrowserWindow({
@@ -42,6 +43,7 @@ function createMainWindow(): void {
 app.whenReady().then(() => {
   registerSecureStore();
   registerOAuth();
+  registerCopilot();
   createMainWindow();
 
   app.on('activate', () => {
