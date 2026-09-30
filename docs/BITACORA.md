@@ -653,3 +653,40 @@ Esta decisión **reemplaza** el texto anterior del plan que decía "El ranking T
 3. **Rankings (Fase 4 del plan) y su gate de entitlement** — el free no compite en ningún ranking (decisión ya fijada; aplicarla en backend al construir).
 4. **Deuda técnica:** `onPermissionRequest` sin tipar en react-native-webview v14 (revisar al construir el APK real).
 5. **E2E de abdominales completo** (retenido por F0) y verificación de `missing_evidence` en `daily_challenge_submissions`.
+
+### 2026-09-30 — Console Electron: la app de administración (núcleo operativo)
+
+**Petición del PO:** la **ResiliencIA Console** como app de escritorio real en Windows, con acceso directo en el escritorio, y los módulos para operar usuarios, suscripciones y el simulador del ciclo premium. "Recuerda que estamos haciendo la aplicación de admin."
+
+**Qué se construyó — `apps/console` (Electron + React 19 + TS 6, bundleado con `electron-vite`):**
+
+- **Arquitectura thin-client:** la app nunca toca la DB. Habla únicamente con la Edge Function `admin_console` (ya desplegada en Fase A/B) usando el **JWT del admin logueado**. La `service_role` no existe en esta app. Los permisos del lado servidor (`PERMISSIONS`) son la frontera real: analyst/support solo leen; director escribe.
+- **Procesos separados con seguridad por defecto:** main (`src/main/`), preload (`src/preload/`, expone una API mínima vía `contextBridge`), renderer (React). `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, ventana de login en partición aislada (`oauth-google`), `window.open` denegado, navegación a otros orígenes bloqueada, CSP estricta en `index.html`.
+- **Login con Google (OAuth + PKCE):** el renderer pide la URL de autorización; el proceso principal abre la ventana de Google, **intercepta la redirección** hacia `http://127.0.0.1:5173/auth/callback` (nunca llega a navegar), le pasa el `code` al renderer y este hace `exchangeCodeForSession`. El verifier PKCE queda en memoria del client.
+- **Sesión en el keychain:** con `persistSession: false` el cliente no toca localStorage; la sesión se guarda **cifrada con `safeStorage` (keychain del SO)** en `console-session.bin` dentro de `userData`, con clear automático si es inválida o expira (fail-closed). Sin `safeStorage` → no se persiste.
+- **Pantallas:**
+  - _Inicio_: rol, user_id, notas de seguridad.
+  - _Suscripciones & Simulador_: listar entitlements (por user o todos), y para **director** el simulador con los 9 eventos (`purchase`, `trial_start` 7d-solo-anual, `renew`, `cancel`, `expire`, `refund`, `billing_issue`, `transfer` con destinatario, `restore`) + **otorgar/revocar** premium manual (con vencimiento opcional). Todo con campo **Motivo (se audita)**.
+  - _Config & Flags_: toggles de flags para director (piden motivo), lectura de `app_config`.
+  - _Auditoría_: últimas 100 acciones de `admin_audit_log` con payload y motivo.
+- **Contratos tipados** (`lib/adminApi.ts`, `lib/types.ts`) espejando exactamente la Edge Function desplegada; errores del server traducidos a español (`messageFor`), incluyendo hints.
+- **Tests nuevos (11):** catálogo del simulador (invariantes: 9 eventos, trial solo anual D-B, productos) y cliente API (fail-closed, clasificación de errores, hints). Suite total del repo: **240 tests verdes** (mobile 160, domain 69, console 11).
+- **Acceso directo:** `launch-console.cmd` (arranca `pnpm dev` desde `apps/console`) + acceso directo _ResiliencIA Console_ creado en el escritorio (OneDrive) → consola minimizada, ventana de Electron visible.
+
+**Verificación previa al commit:** `tsc --noEmit` en los 4 paquetes ✓, `electron-vite build` (main/preload/renderer) ✓, 240 tests ✓, prettier ✓. El CI corre igual al pushear.
+
+**Notas técnicas / incidentes:**
+
+- TS 6.0 deprecó `baseUrl` → se usan `paths` relativos (`./src/*`) en `apps/console/tsconfig.json`.
+- El alias `@console/*` va configurado en **main, preload y renderer** de `electron-vite` (si falta, el bundle del main no resuelve los imports compartidos).
+- Flat config: `@types/react`/`@types/react-dom` pinneados a `~19.2.x` (peers de React 19.2.3).
+- **`@babel/runtime` agregado a devDependencies de mobile**: tras `pnpm install` quedó huérfano en el store (sin symlink en `apps/mobile/node_modules`) y jest no podía resolver `interopRequireDefault`; con la devDep explícita la suite vuelve a 160 verdes.
+- En la raíz, `pnpm.onlyBuiltDependencies: ["electron", "esbuild"]`: pnpm v10 bloquea los postinstall (binario de Electron/esbuild); con esto el binario se descarga. Dejado así deliberadamente para que funcione el dev de la console.
+
+**Deuda técnica (pendiente):**
+
+1. **El PO debe dar de alta el redirect URL** `http://127.0.0.1:5173/auth/callback` en Supabase → Auth → Redirect URLs. Sin eso el login con Google no completa (primer paso para probar hoy hace falta esto).
+2. Bundle del renderer ~1.3 MB pre-gzip (supabase-js): aceptable para escritorio; si molesta, `dynamic import` del módulo de auth.
+3. Spec plantea "login email + MFA"; la v1 de la Console usa el OAuth de Google ya existente (single sign-on de la cuenta del director). Revisarlo con el PO.
+4. Empaquetado .exe (electron-builder) e ícono propio — hoy se usa dev server + acceso directo.
+5. Fase C de la Console: pagos simulados con monto/recibo, catálogo y `FEATURE_DATE` editables sin redeploy, y replay de eventos RevenueCat.

@@ -17,6 +17,12 @@
     "lint-staged": "^17.5.0",
     "prettier": "^3.6.2"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  },
   "lint-staged": {
     "**/*": "prettier --write --ignore-unknown"
   }
