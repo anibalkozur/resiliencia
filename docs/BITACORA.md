@@ -846,6 +846,14 @@ Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
 
 **Verificación:** 27 tests en verde, `tsc --noEmit` limpio, ESLint sin warnings, prettier aplicado y `expo export --platform android` correcto (621 módulos, bundle HBC 1.5 MB, sin errores).
 
+**Segunda revisión (antes de la prueba en dispositivo) — 4 desvíos más encontrados:**
+
+10. **Signo de la calibración invertido.** Producción (`:934-936`) calcula `dynamicDownThresh = restAngle - downDelta`; el tester sumaba. Con la corrección, en flexiones un codo de reposo en 30° da abajo −10° y arriba 18°.
+11. **Orientación de "abajo" unificada.** En producción "abajo" es ángulo **menor** que el umbral en _todos_ los ejercicios; solo el puente de glúteos lo invierte (`:1686-1692`). El motor pasó a `downIsLess = !cfg.bridge` en vez de basarse en el perfil.
+12. **La calibración usaba el ángulo equivocado.** `TestScreen` calibraba el torso horizontal; producción calibra la **métrica del ejercicio** (codo en flexiones, cadera en abdominales) y usa `restTorsoMax` solo como gate previo. Además se restaba el reposo del ángulo crudo, algo que producción no hace: compara el crudo contra umbrales derivados.
+13. **Prueba de vida 'hand' mal definida.** Se comparaba la muñeca contra la nariz con margen 0.06; producción (`:980-981`) la compara contra el **hombro** correspondiente con margen **0.05**.
+14. **Confirmación de estado:** el prototipo usa `STATE_CONFIRM_FRAMES = 3` (el tester usaba 2); `CONFIRM_FRAMES = 4` para cuerpo visible. Ambos quedaron como constantes exportadas.
+
 **Limitaciones declaradas:** el conteo por snapshots (~700 ms) sirve para calibrar umbrales pero **no reproduce una cadencia rápida**; MediaPipe WASM/modelo se descarga por CDN, así que la primera ejecución necesita internet y no es totalmente offline.
 
 **Pendiente:** prueba física en Android con Expo Go para los 3 ejercicios y la prueba de vida, y recién después portar los ajustes a `apps/mobile`.

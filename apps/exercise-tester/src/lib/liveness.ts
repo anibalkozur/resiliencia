@@ -11,7 +11,8 @@ export const LIVENESS_MIN_MS = 4000;
 export const LIVENESS_MAX_MS = 13000;
 export const LIVENESS_FRAMES = 5;
 export const LIVENESS_HOLD_MS = 2000;
-export const RAISE_NOSE_MARGIN = 0.06;
+/** Margen sobre el hombro para considerar la mano levantada (producción: 0.05). */
+export const RAISE_SHOULDER_MARGIN = 0.05;
 export const RAISE_MIN_FRAMES = 4;
 
 /** La evidencia exige prueba de vida si el objetivo es >5 o el ejercicio es por segundos. */
@@ -40,30 +41,29 @@ export function livenessDue(
   return now >= state.scheduledAt;
 }
 
-/** Tipo 'hand': alguna muñeca 6% del alto del frame por encima de la nariz, 5 frames seguidos. */
-export function handLivenessOk(lms: Pt[], streak: number): boolean {
-  if (streak < LIVENESS_FRAMES) return false;
-  const nose = lms[INDICES.nose];
-  if (!nose) return false;
-  if (nose.y < 0.05 || nose.y > 0.95) return false;
+/**
+ * Tipo 'hand': alguna muñeca 5% del alto del frame por encima del HOMBRO
+ * correspondiente, 5 cuadros seguidos (camera-verification.html:980-984).
+ */
+export function handUp(lms: Pt[]): boolean {
   const lw = lms[INDICES.leftWrist];
   const rw = lms[INDICES.rightWrist];
-  const lwOk = lw !== undefined && (lw.visibility ?? 0) > 0.5 && lw.y < nose.y - RAISE_NOSE_MARGIN;
-  const rwOk = rw !== undefined && (rw.visibility ?? 0) > 0.5 && rw.y < nose.y - RAISE_NOSE_MARGIN;
-  return lwOk || rwOk;
+  const ls = lms[INDICES.leftShoulder];
+  const rs = lms[INDICES.rightShoulder];
+  const rUp = rw && rs && (rw.visibility ?? 0) > 0.5 && rw.y < rs.y - RAISE_SHOULDER_MARGIN;
+  const lUp = lw && ls && (lw.visibility ?? 0) > 0.5 && lw.y < ls.y - RAISE_SHOULDER_MARGIN;
+  return Boolean(rUp || lUp);
+}
+
+/** Tipo 'hand': confirma si el streak llegó a los 5 cuadros exigidos. */
+export function handLivenessOk(lms: Pt[], streak: number): boolean {
+  return streak >= LIVENESS_FRAMES && handUp(lms);
 }
 
 /** Actualiza el streak de mano cuando la liveness está activa. */
 export function handStreak(streak: number, active: boolean, lms: Pt[]): number {
   if (!active) return 0;
-  const nose = lms[INDICES.nose];
-  const lw = lms[INDICES.leftWrist];
-  const rw = lms[INDICES.rightWrist];
-  if (!nose || nose.y < 0.05 || nose.y > 0.95) return 0;
-  const ok =
-    (lw !== undefined && (lw.visibility ?? 0) > 0.5 && lw.y < nose.y - RAISE_NOSE_MARGIN) ||
-    (rw !== undefined && (rw.visibility ?? 0) > 0.5 && rw.y < nose.y - RAISE_NOSE_MARGIN);
-  if (!ok) return 0;
+  if (!handUp(lms)) return 0;
   return streak + 1;
 }
 

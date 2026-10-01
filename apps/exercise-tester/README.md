@@ -20,19 +20,25 @@ Escaneá el QR con Expo Go. La app no requiere build nativa: la cámara la abre
 Los umbrales por ejercicio son **los mismos** que usa la app real
 (`camera-verification.html:609-764`), para que un ajuste hecho acá se porte 1:1:
 
-| Ejercicio   | Perfil  | Umbral abajo      | Umbral arriba | Extra                                             |
-| ----------- | ------- | ----------------- | ------------- | ------------------------------------------------- |
-| Sentadillas | frontal | 100°              | 160°          | —                                                 |
-| Flexiones   | lateral | calibración + 40° | cal − 12°     | `lineMin` 150°, tumbado ≤ 0.9, flexión de rodilla |
-| Abdominales | lateral | calibración + 25° | cal − 10°     | anti-pararse (0.45), reposo torso ≤ 35°           |
+| Ejercicio   | Perfil  | Ángulo medido                                       | Umbral abajo | Umbral arriba | Extra                                   |
+| ----------- | ------- | --------------------------------------------------- | ------------ | ------------- | --------------------------------------- |
+| Sentadillas | frontal | rodilla (cadera→rodilla→tobillo), **ambas piernas** | 100°         | 160°          | bloquea si las piernas difieren > 35°   |
+| Flexiones   | lateral | codo (hombro→codo→muñeca)                           | cal − 40°    | cal − 12°     | `lineMin` 150°, tumbado ≤ 0.9           |
+| Abdominales | lateral | cadera (hombro→cadera→rodilla)                      | cal − 25°    | cal − 10°     | anti-pararse (0.45), reposo torso ≤ 35° |
+
+"Abajo" es siempre ángulo **menor** que el umbral; solo el puente de glúteos lo
+invierte. En los tres casos se compara el ángulo crudo contra umbrales derivados
+de la calibración (no se resta el reposo).
 
 Además replica las reglas que hacen que el conteo sea confiable:
 
 - **Celular en vertical** (`tilt ≤ 35°`, 8 s continuos antes de contar).
-- **Calibración por persona**: 10 muestras de reposo con rango ≤ 9°.
+- **Calibración por persona**: 10 muestras de la métrica del ejercicio en
+  reposo, con rango ≤ 9°.
 - **Prueba de vida** (anti-video): disparo único entre 4 y 13 s, tipo `hand`
-  (muñeca 6% sobre la nariz, 5 cuadros) o `hold` (2 s abajo).
-- **Confirmación por cuadros** (2) y **mínimo 350 ms entre reps**.
+  (muñeca 5% sobre el **hombro**, 5 cuadros) o `hold` (2 s abajo).
+- **Confirmación por cuadros**: 4 de cuerpo visible, 3 de candidato abajo/arriba,
+  y mínimo 350 ms entre reps.
 - **Telemetría por rep**: ángulo de calibración, pico, valle, amplitud y duración.
 
 ## Qué mirar en cada corrida

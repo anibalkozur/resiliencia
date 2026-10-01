@@ -22,7 +22,7 @@ import {
   lineAngle,
   torsoHorizontalAngle,
 } from '../lib/pose';
-import { handStreak, livenessRequired, scheduleLiveness } from '../lib/liveness';
+import { handLivenessOk, handStreak, livenessRequired, scheduleLiveness } from '../lib/liveness';
 import { initialTiltState, isVertical, pushSample, tiltDeg } from '../lib/tilt';
 
 const cfgSentadilla = exerciseById('sentadillas')!;
@@ -82,20 +82,21 @@ describe('calibración de reposo', () => {
     const stable = Array.from({ length: 10 }, () => 30);
     const ok = attemptCalibration(30, stable.slice(0, 9), cfgFlexion);
     expect(ok.calib).not.toBeNull();
-    expect(ok.calib!.down).toBeCloseTo(70, 5); // reposo + 40
-    expect(ok.calib!.up).toBeCloseTo(18, 5); // reposo - 12
+    // el delta se resta al reposo (codo a 30° → abajo a -10°, arriba a 18°)
+    expect(ok.calib!.down).toBeCloseTo(-10, 5);
+    expect(ok.calib!.up).toBeCloseTo(18, 5);
     expect(CALIB_RANGE_MAX).toBe(9);
   });
 
-  it('invierte los umbrales en puente de glúteos', () => {
+  it('suma el delta en puente de glúteos (subir la cadera es "abajo")', () => {
     const bridge = { downDelta: 28, upDelta: 10, bridge: true };
     const out = attemptCalibration(
       25,
       Array.from({ length: 9 }, () => 25),
       bridge,
     );
-    expect(out.calib!.down).toBeCloseTo(-3, 5);
-    expect(out.calib!.up).toBeCloseTo(15, 5);
+    expect(out.calib!.down).toBeCloseTo(53, 5);
+    expect(out.calib!.up).toBeCloseTo(35, 5);
   });
 });
 
@@ -280,21 +281,34 @@ describe('prueba de vida', () => {
     expect(s2.scheduledAt).toBe(s1.scheduledAt);
   });
 
-  it('confirma mano con 5 cuadros de muñeca sobre la nariz', () => {
-    const nose = { x: 0.5, y: 0.5, visibility: 1 };
-    const wristUp = { x: 0.5, y: 0.3, visibility: 1 };
-    const wristDown = { x: 0.5, y: 0.7, visibility: 1 };
-    let lm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
-    lm[0] = nose;
-    lm[15] = wristDown;
-    lm[16] = wristDown;
-    let streak = handStreak(0, true, lm);
-    expect(streak).toBe(0);
+  it('confirma mano con 5 cuadros de muñeca sobre el hombro', () => {
+    // hombro en y=0.6: la muñeca tiene que subir 5% por encima (y < 0.55)
+    const shoulder = { x: 0.5, y: 0.6, visibility: 1 };
+    const wristUp = { x: 0.5, y: 0.4, visibility: 1 };
+    const wristLow = { x: 0.5, y: 0.58, visibility: 1 };
+    const wristDown = { x: 0.5, y: 0.8, visibility: 1 };
+    const base = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
+    base[11] = shoulder;
+    base[12] = shoulder;
 
-    lm = [...lm];
-    lm[15] = wristUp;
-    for (let i = 0; i < 5; i++) streak = handStreak(streak, true, lm);
+    const down = [...base];
+    down[15] = wristDown;
+    down[16] = wristDown;
+    expect(handStreak(0, true, down)).toBe(0);
+
+    // justo por debajo del margen de 5% → todavía no cuenta
+    const low = [...base];
+    low[15] = wristLow;
+    low[16] = wristLow;
+    expect(handStreak(0, true, low)).toBe(0);
+
+    const up = [...base];
+    up[15] = wristUp;
+    up[16] = wristUp;
+    let streak = 0;
+    for (let i = 0; i < 5; i++) streak = handStreak(streak, true, up);
     expect(streak).toBe(5);
+    expect(handLivenessOk(up, streak)).toBe(true);
   });
 
   it('el hold necesita 2 s abajo', () => {
@@ -310,9 +324,10 @@ describe('prueba de vida', () => {
       livenessActive: true,
       livenessDownThresh: 70,
     };
-    // perfil deltas: "abajo" es ángulo > 70. 25 cuadros de 100 ms = 2.5 s
+    // "abajo" es ángulo menor al umbral (como en producción). 25 cuadros de 100 ms
+    // = 2.5 s, supera los 2 s exigidos.
     for (let i = 0; i < 25; i++) {
-      st = processFrame(cfg, st, { ...base, angle: 90, now: i * 100 }, 'ok').state;
+      st = processFrame(cfg, st, { ...base, angle: 50, now: i * 100 }, 'ok').state;
     }
     expect(st.livenessOk).toBe(true);
   });

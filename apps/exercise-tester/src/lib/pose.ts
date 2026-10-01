@@ -252,14 +252,16 @@ export function attemptCalibration(
   const range = Math.max(...next) - Math.min(...next);
   if (range > CALIB_RANGE_MAX) return { buf: next, calib: null };
   const restAngle = mean(next);
+  // Igual que camera-verification.html:934-936, el delta se RESTA al reposo
+  // (la.flexión de codo/columna cierra el ángulo) y se suma solo en puente.
   if (cfg.bridge) {
     return {
       buf: next,
-      calib: { restAngle, down: restAngle - cfg.downDelta, up: restAngle - cfg.upDelta },
+      calib: { restAngle, down: restAngle + cfg.downDelta, up: restAngle + cfg.upDelta },
     };
   }
   return {
     buf: next,
-    calib: { restAngle, down: restAngle + cfg.downDelta, up: restAngle - cfg.upDelta },
+    calib: { restAngle, down: restAngle - cfg.downDelta, up: restAngle - cfg.upDelta },
   };
 }

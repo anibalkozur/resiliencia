@@ -7,7 +7,10 @@ import { ASYMMETRY_MAX_DEG, RollingMean, mean } from './pose';
 import type { ExerciseConfig } from './exercises';
 
 export const MIN_REP_INTERVAL_MS = 350;
+/** Cuadros de cuerpo visible antes de habilitar el conteo (CONFIRM_FRAMES). */
 export const CONFIRM_FRAMES = 4;
+/** Cuadros que un candidato (abajo/arriba) debe sostenerse (STATE_CONFIRM_FRAMES). */
+export const STATE_CONFIRM_FRAMES = 3;
 
 export type Phase = 'reposo' | 'bajo' | 'arriba';
 
@@ -226,10 +229,11 @@ export function processFrame(
   s = { ...s };
   const holdStart = s.livenessHoldStart;
 
-  // Orientación de la métrica: en sentadillas (ángulos absolutos) el ángulo
-  // CRECE al subir; en perfil lateral el delta torso-recreo también crece al
-  // bajar del todo. Por eso "abajo" es menor solo en el perfil de ángulos.
-  const downIsLess = cfg.profile === 'angles';
+  // Orientación de la métrica: en TODOS los ejercicios de producción "abajo" es
+  // ángulo MENOR que el umbral (rodilla de sentadilla, codo de flexión, cadera
+  // de abdominales). Solo el puente de glúteos lo invierte, porque ahí subir la
+  // cadera es "bajar". Ver camera-verification.html:1686-1692.
+  const downIsLess = !cfg.bridge;
   const down = s.down;
   const up = s.up;
 
@@ -321,11 +325,7 @@ export function processFrame(
   let peak = s.peak;
   let trough = s.trough;
 
-  if (streak === 0) {
-    // fuera de meta
-  }
-
-  if (streak >= 2) {
+  if (streak >= STATE_CONFIRM_FRAMES) {
     if (cand === 'down' && phase !== 'bajo') {
       phase = 'bajo';
       repStartAt = input.now;

@@ -231,7 +231,9 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
         if (cfg.id === 'puente_gluteo') rawAngle = backFlatDeg(pts, idx.hip, idx.ankle);
       }
 
-      // Calibración de reposo (perfil deltas)
+      // Calibración de reposo: el gate de torso usa `restTorsoMax`, pero el
+      // ángulo que se calibra es la MÉTRICA del ejercicio (codo / cadera), no
+      // el torso. Ver camera-verification.html:1642 (calibra `smoothed`).
       let calibDone = true;
       if (cfg.profile === 'deltas') {
         const torso = torsoHorizontalAngle(pts, idx.shoulder, idx.hip);
@@ -247,7 +249,7 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
               : 'Acomodate en posición para calibrar',
           );
         } else {
-          const { buf, calib } = attemptCalibration(torso, s.calibBuf, cfg);
+          const { buf, calib } = attemptCalibration(rawAngle, s.calibBuf, cfg);
           s.calibBuf = buf;
           if (calib) {
             s.engine = { ...s.engine, restAngle: calib.restAngle, down: calib.down, up: calib.up };
@@ -263,11 +265,9 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
         calibDone = s.engine.restAngle !== null;
       }
 
-      const torso = cfg.profile === 'deltas' ? torsoHorizontalAngle(pts, idx.shoulder, idx.hip) : 0;
-      const inputAngle =
-        cfg.profile === 'deltas' && s.engine.restAngle !== null
-          ? torso - s.engine.restAngle
-          : rawAngle;
+      // El motor compara el ángulo CRUDO contra umbrales derivados de la
+      // calibración; no hay que restar el reposo (como en producción).
+      const inputAngle = rawAngle;
 
       const g = postureGate(cfg, {
         sideOk,
