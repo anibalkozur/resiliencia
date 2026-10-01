@@ -817,3 +817,35 @@ Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
 2. **`DEFAULT_SYSTEM_PROMPT`** (regla de avance endurecida): al aceptar, **una sola vez** el paso concreto, sin repetir beneficios, sin preguntas de sí/no repetidas, cerrando con instrucción accionable; la conversación termina cuando ya se dio la instrucción.
 
 Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
+
+### 2026-09-30 — App `exercise-tester`: banco de pruebas de cámara e inclinación (fase de calibración)
+
+**Petición del PO:** una app aparte, sin tocar `apps/mobile` ni Supabase, para poder **comprobar en un teléfono real que los ejercicios libres y la prueba de vida se completan**, y ajustar los umbrales antes de portarlos a ResiliencIA.
+
+**Decisiones:**
+
+- Nueva app Expo SDK 57 en `apps/exercise-tester`, workspace `@resiliencia/exercise-tester`, corriendo en **Expo Go** (sin build nativo, sin assets custom).
+- **Arquitectura:** `expo-camera` captura un snapshot cada ~700 ms y un **WebView oculto** corre MediaPipe Pose Landmarker (WASM/GPU desde CDN, fallback CPU) para extraer landmarks. Se descartó analyze-once por frame porque en Expo Go no hay frames continuos de cámara.
+- **Fidelidad con producción:** todo se replica desde `camera-verification.html` (el motor real), no desde el prototipo: `VIS=0.65`, ventanas de suavizado 5/7, `CALIB_WINDOW=10`, `CALIB_RANGE_MAX=9`, `MIN_REP_INTERVAL_MS=350`, `CONFIRM_FRAMES=4`, vertical `atan2(|z|,|y|) ≤35°` durante 8 s.
+- El motor de conteo quedó **portable y testeable** (`src/lib/`): `exercises.ts` (catálogo), `pose.ts` (geometría), `tilt.ts`, `repEngine.ts` (máquina de estados + telemetría por rep), `liveness.ts`, `report.ts`.
+- Cada rep guarda **rep, ángulo de fondo, pico, valle, amplitud y duración** para poder ajustar umbrales con datos, y el resultado se exporta como JSON.
+
+**Correcciones al replicar producción (encontradas auditando `camera-verification.html`):**
+
+1. **Geometría de sentadillas equivocada:** el tester medía el segmento cadera-rodilla contra la horizontal. Producción usa `angleBetween(hip, knee, ankle)` —ángulo de rodilla— sobre **las dos piernas**, con `max` para abajo y `min` para arriba.
+2. **Guarda de asimetría ausente:** producción bloquea si `|izq−der| > 35°`. Se agregó el gate `asimetria`.
+3. **Ángulo de flexiones equivocado:** se usaba cadera-rodilla; producción mide `angleBetween(shoulder, elbow, wrist)` —ángulo de **codo**—, por eso el perfil lateral necesita codo y muñeca visibles.
+4. **Abdominales:** el triángulo correcto es `shoulder → hip → knee`.
+5. **Orientación de umbrales invertida** en sentadillas: "abajo" es ángulo **menor** en perfil absoluto y **mayor** en perfil de deltas.
+6. **Liveness `hold`:** comparaba siempre `< threshold`; ahora respeta el perfil del ejercicio y acumula 2 s reales.
+7. **Telemetría con amplitud negativa:** peak/trough se inicializaban mal; ahora se trackea `max`/`min` y la amplitud es siempre positiva.
+8. **Telemetría ausente en ejercicios sin calibración:** `restAngle` pasó a `number | null` (antes solo se emitía si estaba calibrado, así que en sentadillas nunca había datos).
+9. **Puntos requeridos por ejercicio** centralizados en `LATERAL_POINTS`, copiando `sides[].points` del prototipo.
+
+**Tests:** se agregó `src/__tests__/engine.test.ts` con **27 tests** (catálogo, gates, calibración, conteo/intervalo mínimo/asimetría, isométricos, ant-video, vertical, geometría). Los tests estaban mal planteados al principio: ignoraban el suavizado de 5 cuadros, de modo que secuencias cortas nunca cruzaban los umbrales; se reescribieron con bloques de ≥8 cuadros por posición.
+
+**Verificación:** 27 tests en verde, `tsc --noEmit` limpio, ESLint sin warnings, prettier aplicado y `expo export --platform android` correcto (621 módulos, bundle HBC 1.5 MB, sin errores).
+
+**Limitaciones declaradas:** el conteo por snapshots (~700 ms) sirve para calibrar umbrales pero **no reproduce una cadencia rápida**; MediaPipe WASM/modelo se descarga por CDN, así que la primera ejecución necesita internet y no es totalmente offline.
+
+**Pendiente:** prueba física en Android con Expo Go para los 3 ejercicios y la prueba de vida, y recién después portar los ajustes a `apps/mobile`.
