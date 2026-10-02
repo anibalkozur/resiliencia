@@ -1,4 +1,4 @@
-# Bitácora de ResiliencIA
+﻿# Bitácora de ResiliencIA
 
 Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medida que se planifica y desarrolla cada fase.
 
@@ -857,3 +857,45 @@ Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
 **Limitaciones declaradas:** el conteo por snapshots (~700 ms) sirve para calibrar umbrales pero **no reproduce una cadencia rápida**; MediaPipe WASM/modelo se descarga por CDN, así que la primera ejecución necesita internet y no es totalmente offline.
 
 **Pendiente:** prueba física en Android con Expo Go para los 3 ejercicios y la prueba de vida, y recién después portar los ajustes a `apps/mobile`.
+---
+
+## Banco de pruebas: catalogo completo (8 ejercicios) y fix de carga de pose
+
+**Punto de partida:** el usuario probó el banco en su Android y la pose no cargaba. Ademas pidio cubrir los 8 ejercicios de la app, no solo los 3 gratuitos.
+
+### Causa de la pose que no cargaba
+
+El WebView que corre MediaPipe se servia con source={{ html }} sin aseUrl, o sea desde bout:blank. Desde ahi el CDN del script, el WASM y el modelo fallan por CORS y la app se quedaba esperando en silencio. Ademas el poseWorker usaba detectForVideo() sobre un <img> fijo, que exige timestamps crecientes de un stream: con snapshots nunca iba a funcionar.
+
+**Cambios:**
+
+1. source={{ html, baseUrl: POSE_BRIDGE_BASE_URL }} con origen https://cdn.jsdelivr.net.
+2.
+
+unningMode: 'IMAGE' + landmarker.detect(img). 3. Reporte de etapas (rrancando / script / wasm / modelo / lista), window.onerror y unhandledrejection reenviados a la app, fallback GPU -> CPU, y onError del WebView. 4. Timeout de 45 s: si MediaPipe no dice
+eady, la app lo dice en vez de quedar en blanco. 5. El WebView era 1x1 con opacity: 0.01; Android lo deja en 1 fps o lo congela y la imagen nunca decodifica. Paso a 2x2 casi transparente y fuera de pantalla.
+
+### Catalogo completo
+
+Se replicaron los 8 ejercicios de camera-verification.html:609-764 con unit, ier, objetivo de catalog.ts:24-33 y los umbrales exactos. La geometria paso de if (id === ...) dispersos a campos declarativos (ngle, knee, kneeFold, lineMin, groundedMax, standingKneeMargin, points), resueltos con ngleByNames y lateralPoints, para que agregar un ejercicio no pueda olvidarse de un landmark.
+
+**Cuatro bugs reales encontrados al portar:**
+
+15. **Suavizado de mountain climbers.** El motor suavizaba con ventana 7 (lateral); produccion suaviza el angulo de rodilla con **5** (:1594). Con ventana 7 el pliegue nunca cruzaba 105 grados y **no contaba ninguna rep**.
+16. **Hold de isométricos invertido en frontal.** El hold lateral es smoothed > dynamicUpThresh (:1669), pero el frontal es cand === 'down', o sea **ambas rodillas bajo downThresh** (:1450 + :1420-1422). El tester aplicaba la regla lateral a los dos, asi que la sentadilla isometrica contaba segundos **de pie** y no en sentadilla.
+17. **Calibracion faltante.** Mountain climbers calibra con deltas 0/0 (:1597-1607) y todo ejercicio en segundos pide "quedate quieto" antes de arrancar (:1435-1449), aunque use umbrales fijos. El gate solo cubria el perfil deltas, asi que ninguno de los dos podia contar. Se unifico en
+    eedsCalibration(cfg), usada por el motor y por la pantalla.
+18. **Landmarks incompletos en puente.** sides[].points del puente pide tambien el **tobillo**, que el mapa hardcodeado no exigia, y plancha y mountain_climbers no existian en el mapa: lateralPoints(cfg, side) paso a derivarlos de cfg.points.
+
+Ademas livenessRequired comparaba kind === 'isometrico' cuando produccion usa unit === 'seconds' || target > 5 (:768).
+
+### Discrepancia de mountain climbers (no normalizada)
+
+camera-verification.html:723 declara unit: 'reps' y cuenta una rep por rodilla al pecho. pps/mobile/src/retos/catalog.ts:20 declara unit: 'seconds'. El tester usa
+eps porque reproduce el motor, pero lo deja asentado con catalogUnit y el informe lo marca con [! unidad] para que no pase despercibido al portar el cambio.
+
+**Tests:** la suite paso de 27 a **45**, con cobertura por ejercicio (umbrales contra el HTML, tier, unidad, sides[].points, indice de lateralPoints por lado, isometrico frontal y lateral con y sin calibracion, conteo por pliegue con mesetas, y el triangulo generico ngleByNames).
+
+**Verificacion:** 45 tests en verde, sc --noEmit limpio, ESLint sin warnings.
+
+**Pendiente:** prueba fisica en Android para confirmar que la pose carga y que los 8 ejercicios cuentan, y resolver la unidad de mountain climbers antes de portar nada a pps/mobile.

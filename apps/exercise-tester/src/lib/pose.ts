@@ -1,6 +1,8 @@
 // Geometría de pose: mismas fórmulas y constantes que camera-verification.html
 // (VIS=0.65, CALIB_WINDOW=10, CALIB_RANGE_MAX=9, buffers de suavizado).
 
+import type { ExerciseConfig, Triangle } from './exercises';
+
 export const VIS = 0.65;
 export const CALIB_WINDOW = 10;
 export const CALIB_RANGE_MAX = 9;
@@ -43,12 +45,16 @@ export const FRONTAL_POINTS = [
   INDICES.rightAnkle,
 ] as const;
 
-/** Puntos que exige el prototipo en vista lateral por lado. */
-export const LATERAL_POINTS = {
-  flexiones: ['shoulder', 'elbow', 'wrist', 'hip', 'ankle'],
-  abdominales: ['shoulder', 'hip', 'knee'],
-  puente_gluteo: ['shoulder', 'hip', 'ankle'],
-} as const;
+/**
+ * Puntos que el prototipo exige visibles por lado. Sale de `cfg.points`
+ * (copia literal de `sides[].points` del HTML) para que agregar un ejercicio
+ * no pueda olvidarse de un landmark.
+ */
+export function lateralPoints(cfg: ExerciseConfig, side: SideKey): number[] {
+  const names = cfg.points ?? ['shoulder', 'hip', 'knee'];
+  const idx = SIDE_IDX[side] as unknown as Record<string, number>;
+  return names.map((n) => idx[n]).filter((i) => i !== undefined);
+}
 
 export type SideKey = 'front' | 'back';
 
@@ -189,19 +195,15 @@ export function kneeStandingMargin(lms: Pt[], hip: number, knee: number): number
   return (k.y - h.y) / Math.hypot(s.x - h.x, s.y - h.y);
 }
 
-/** Alineación de la rodilla contra el torso (para flexiones). */
-export function kneeLineAngle(lms: Pt[], hip: number, knee: number): number {
-  return angleBetween(lms[INDICES.leftHip]!, lms[hip]!, lms[knee]!);
-}
-
-/** Choque de rodilla contra el pecho (para abdominales). */
-export function kneeChestApproach(lms: Pt[], hip: number, knee: number): number {
-  return angleBetween(lms[knee]!, lms[hip]!, lms[INDICES.leftShoulder]!);
-}
-
-/** Plancha: espalda plana = línea hombro→cadera→tobillo cerca de 180. */
-export function backFlatDeg(lms: Pt[], hip: number, ankle: number): number {
-  return 180 - lineAngle(lms, INDICES.leftShoulder, hip, ankle);
+/** Triángulo genérico por nombres de landmark, como `sides[].angle` del prototipo. */
+export function angleByNames(lms: Pt[], tri: Triangle, side: SideKey): number {
+  const idx = SIDE_IDX[side] as unknown as Record<string, number>;
+  const pts = tri.map((name) => {
+    const i = idx[name];
+    return i === undefined ? null : (lms[i] ?? null);
+  });
+  if (pts.some((p) => p === null)) return 0;
+  return angleBetween(pts[0]!, pts[1]!, pts[2]!);
 }
 
 export function mean(values: number[]): number {

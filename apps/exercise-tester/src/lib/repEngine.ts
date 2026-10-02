@@ -5,6 +5,7 @@
 
 import { ASYMMETRY_MAX_DEG, RollingMean, mean } from './pose';
 import type { ExerciseConfig } from './exercises';
+import { needsCalibration } from './exercises';
 
 export const MIN_REP_INTERVAL_MS = 350;
 /** Cuadros de cuerpo visible antes de habilitar el conteo (CONFIRM_FRAMES). */
@@ -63,6 +64,8 @@ export type RepEngineState = {
   bodyOkStreak: number;
   reps: number;
   holdMs: number;
+  /** Marca de tiempo del último cuadro en posición (isométricos por segundos). */
+  holdMark: number | null;
   lastRepAt: number | null;
   repStartAt: number | null;
   peak: number;
@@ -71,6 +74,16 @@ export type RepEngineState = {
   livenessHoldStart: number | null;
   smoothed: RollingMean;
 };
+
+/**
+ * Ventana de suavizado del ángulo, igual que el prototipo:
+ * - mountain_climbers suaviza el ángulo de rodilla con 5 (HTML:1594)
+ * - frontal usa 5, lateral 7 (HTML:1394, 1629)
+ */
+export function smoothWindow(cfg: ExerciseConfig): number {
+  if (cfg.kneeFold !== undefined) return 5;
+  return cfg.side === 'frontal' ? 5 : 7;
+}
 
 export function initEngine(cfg: ExerciseConfig): RepEngineState {
   return {
@@ -84,13 +97,14 @@ export function initEngine(cfg: ExerciseConfig): RepEngineState {
     bodyOkStreak: 0,
     reps: 0,
     holdMs: 0,
+    holdMark: null,
     lastRepAt: null,
     repStartAt: null,
     peak: 0,
     trough: Number.POSITIVE_INFINITY,
     livenessOk: false,
     livenessHoldStart: null,
-    smoothed: new RollingMean(cfg.side === 'frontal' ? 5 : 7),
+    smoothed: new RollingMean(smoothWindow(cfg)),
   };
 }
 
@@ -198,7 +212,7 @@ export function processFrame(
     // Cualquier bloqueo resetea el conteo en curso (como processPose del prototipo).
     const reset: RepEngineState = {
       ...initEngine(cfg),
-      smoothed: new RollingMean(cfg.side === 'frontal' ? 5 : 7),
+      smoothed: new RollingMean(smoothWindow(cfg)),
       reps: s.reps,
       lastRepAt: s.lastRepAt,
       livenessOk: s.livenessOk,
@@ -286,8 +300,10 @@ export function processFrame(
     angle = downIsLess ? Math.max(angle, input.secondAngle) : Math.min(angle, input.secondAngle);
   }
 
-  // --- Perfil deltas: recalcular umbrales desde la calibración ---
-  if (cfg.profile === 'deltas' && (!input.calibDone || s.restAngle === null)) {
+  // --- Perfil deltas: recalcular umbrales desde la calibración. Mountain
+  // climbers y los isométricos en segundos también la exigen (ver
+  // needsCalibration en exercises.ts).
+  if (needsCalibration(cfg) && (!input.calibDone || s.restAngle === null)) {
     return {
       state: s,
       result: {
@@ -303,6 +319,78 @@ export function processFrame(
         lastRepAt: s.lastRepAt,
       },
       completedRep: null,
+      livenessHoldMs,
+      livenessPassed: s.livenessOk,
+    };
+  }
+
+  // mountain_climbers: cuenta por pliegue de rodilla contra un umbral fijo,
+  // sin calibración ni transición abajo/arriba (camera-verification.html:1591-1618)
+  if (cfg.kneeFold !== undefined) {
+    let kPhase: Phase = s.phase;
+    let kReps = s.reps;
+    let kPeak = s.peak;
+    let kTrough = s.trough;
+    let kStart = s.repStartAt;
+    let kLast = s.lastRepAt;
+    let kneeRep: RepTelemetry | null = null;
+
+    const folded = angle < cfg.kneeFold;
+    const tooFastK = kLast !== null && input.now - kLast < MIN_REP_INTERVAL_MS;
+    if (folded && kPhase !== 'bajo') {
+      kPhase = 'bajo';
+      kStart = input.now;
+      kPeak = angle;
+      kTrough = angle;
+    } else if (!folded && kPhase === 'bajo') {
+      kPhase = 'arriba';
+      const dur = kStart === null ? 0 : input.now - kStart;
+      const finished = kStart;
+      kStart = null;
+      if (!tooFastK) {
+        kReps += 1;
+        kLast = input.now;
+        const r1 = (v: number) => Math.round(v * 10) / 10;
+        kneeRep = {
+          index: kReps,
+          restAngle: null,
+          peak: r1(kPeak),
+          trough: r1(kTrough),
+          amplitude: r1(Math.abs(kPeak - kTrough)),
+          durationMs: dur,
+          startedAt: finished ?? input.now,
+          finishedAt: input.now,
+          livenessOk: s.livenessOk,
+        };
+      }
+    }
+    if (kPhase !== 'reposo') {
+      kPeak = Math.max(kPeak, angle);
+      kTrough = Math.min(kTrough, angle);
+    }
+    return {
+      state: {
+        ...s,
+        phase: kPhase,
+        reps: kReps,
+        repStartAt: kStart,
+        lastRepAt: kLast,
+        peak: kPeak,
+        trough: kTrough,
+      },
+      result: {
+        reps: kReps,
+        phase: kPhase,
+        holdMs: 0,
+        candidate: null,
+        candidateStreak: 0,
+        metrics: { angle, peak: kPeak, trough: kTrough, fold: cfg.kneeFold },
+        gate: 'ok',
+        message: folded ? 'RODILLA AL PECHO' : 'ARRIBA',
+        repCountInitialized: true,
+        lastRepAt: kLast,
+      },
+      completedRep: kneeRep,
       livenessHoldMs,
       livenessPassed: s.livenessOk,
     };
@@ -324,6 +412,40 @@ export function processFrame(
   let lastRepAt = s.lastRepAt;
   let peak = s.peak;
   let trough = s.trough;
+
+  // --- Isométricos por segundos: el hold depende de la vista, igual que el
+  // prototipo. Frontal: `holdOk = cand === 'down'`, o sea AMBAS rodillas bajo
+  // `downThresh` (HTML:1450 + 1420-1422). Lateral: `smoothed >
+  // dynamicUpThresh`, o sea el ángulo por encima del tope calibrado
+  // (HTML:1669). En ambos casos se suma el tiempo transcurrido y no hay reps.
+  if (cfg.unit === 'seconds') {
+    const holding = cfg.side === 'frontal' ? angle < cfg.downThresh : angle > up;
+    if (holding) {
+      const from = s.holdMark ?? input.now;
+      holdMs += input.now - from;
+      s = { ...s, holdMark: input.now };
+    } else {
+      s = { ...s, holdMark: null };
+    }
+    return {
+      state: { ...s, holdMs, phase: holding ? 'bajo' : 'arriba' },
+      result: {
+        reps,
+        phase: holding ? 'bajo' : 'arriba',
+        holdMs,
+        candidate: null,
+        candidateStreak: 0,
+        metrics: { angle, down, up },
+        gate: 'ok',
+        message: holding ? `SOSTENÉ ${Math.floor(holdMs / 1000)}s` : 'Fuera de posición',
+        repCountInitialized: true,
+        lastRepAt: s.lastRepAt,
+      },
+      completedRep: null,
+      livenessHoldMs,
+      livenessPassed: s.livenessOk,
+    };
+  }
 
   if (streak >= STATE_CONFIRM_FRAMES) {
     if (cand === 'down' && phase !== 'bajo') {

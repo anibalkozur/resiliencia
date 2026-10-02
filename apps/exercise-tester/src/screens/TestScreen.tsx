@@ -5,26 +5,26 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import type { ExerciseConfig } from '../lib/exercises';
+import { needsCalibration } from '../lib/exercises';
 import { handStreak, livenessDue, livenessRequired, scheduleLiveness } from '../lib/liveness';
 import {
   CALIB_RANGE_MAX,
   FRONTAL_POINTS,
-  LATERAL_POINTS,
   SIDE_IDX,
+  angleByNames,
   attemptCalibration,
-  backFlatDeg,
   bilateralKnee,
   checkComplete,
-  elbowAngle,
   groundedRatio,
   kneeStandingMargin,
+  lateralPoints,
   lineAngle,
   resolveSide,
   torsoHorizontalAngle,
   type Pt,
   type SideKey,
 } from '../lib/pose';
-import { POSE_BRIDGE_HTML, type Landmark } from '../lib/poseWorker';
+import { POSE_BRIDGE_BASE_URL, POSE_BRIDGE_HTML, type Landmark } from '../lib/poseWorker';
 import {
   initEngine,
   postureGate,
@@ -126,12 +126,45 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
     return () => sub.remove();
   }, []);
 
+  // Si MediaPipe no announces "ready" en 45 s no va a hacerlo: el WASM y el
+  // modelo se quedan colgados sin internet y la pantalla queda en blanco.
+  useEffect(() => {
+    if (poseState === 'pose lista' || poseState === 'error al cargar') return;
+    const t = setTimeout(() => {
+      setPoseState('error al cargar');
+      log(
+        `MediaPipe no cargó en 45 s (${poseState}). Revisá la conexión: el WASM y el modelo vienen de cdn.jsdelivr.net y storage.googleapis.com.`,
+        'warn',
+      );
+    }, 45_000);
+    return () => clearTimeout(t);
+  }, [poseState, log]);
+
   const onWebMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
       let msg: Record<string, unknown>;
       try {
         msg = JSON.parse(event.nativeEvent.data) as Record<string, unknown>;
       } catch {
+        return;
+      }
+      if (msg['type'] === 'stage') {
+        const s = String(msg['stage'] ?? '');
+        const label =
+          s === 'arrancando'
+            ? 'iniciando pose…'
+            : s === 'script'
+              ? 'bajando MediaPipe…'
+              : s === 'wasm'
+                ? 'cargando WASM…'
+                : s === 'modelo'
+                  ? 'bajando modelo…'
+                  : s;
+        setPoseState(label);
+        return;
+      }
+      if (msg['type'] === 'log') {
+        log(String(msg['text'] ?? ''), 'warn');
         return;
       }
       if (msg['type'] === 'ready') {
@@ -204,10 +237,11 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
       const needed =
         cfg.side === 'frontal'
           ? [...FRONTAL_POINTS]
-          : LATERAL_POINTS[cfg.id as keyof typeof LATERAL_POINTS].map((k) => idx[k]);
+          : lateralPoints(cfg, useRight ? 'back' : 'front');
       const bodyOk = checkComplete(pts, needed);
 
-      // Métrica del ejercicio: mismos triángulos que camera-verification.html
+      // Métrica del ejercicio: el triángulo viene de la config (`sides[].angle` o
+      // `knee` del prototipo), no de un if por ejercicio.
       let rawAngle = 0;
       let secondAngle: number | undefined;
       let notGrounded = true;
@@ -219,23 +253,29 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
         rawAngle = knees.left;
         secondAngle = knees.right;
       } else {
-        lineOk = lineAngle(pts, idx.shoulder, idx.hip, idx.ankle) >= (cfg.lineMin ?? 150);
+        if (cfg.lineMin !== undefined) {
+          lineOk = lineAngle(pts, idx.shoulder, idx.hip, idx.ankle) >= cfg.lineMin;
+        }
         if (cfg.groundedMax !== undefined) {
           notGrounded = !(groundedRatio(pts, idx.hip, idx.ankle) > cfg.groundedMax);
         }
         if (cfg.standingKneeMargin !== undefined) {
           notStanding = !(kneeStandingMargin(pts, idx.hip, idx.knee) > cfg.standingKneeMargin);
         }
-        if (cfg.id === 'flexiones') rawAngle = elbowAngle(pts, idx.shoulder, idx.elbow, idx.wrist);
-        if (cfg.id === 'abdominales') rawAngle = lineAngle(pts, idx.shoulder, idx.hip, idx.knee);
-        if (cfg.id === 'puente_gluteo') rawAngle = backFlatDeg(pts, idx.hip, idx.ankle);
+        // mountain_climbers cuenta por pliegue de rodilla, no por el ángulo del
+        // ejercicio (camera-verification.html:1591-1618)
+        rawAngle = cfg.knee
+          ? angleByNames(pts, cfg.knee, useRight ? 'back' : 'front')
+          : cfg.angle
+            ? angleByNames(pts, cfg.angle, useRight ? 'back' : 'front')
+            : 0;
       }
 
       // Calibración de reposo: el gate de torso usa `restTorsoMax`, pero el
       // ángulo que se calibra es la MÉTRICA del ejercicio (codo / cadera), no
       // el torso. Ver camera-verification.html:1642 (calibra `smoothed`).
       let calibDone = true;
-      if (cfg.profile === 'deltas') {
+      if (needsCalibration(cfg)) {
         const torso = torsoHorizontalAngle(pts, idx.shoulder, idx.hip);
         const inRest = cfg.restTorsoMax === undefined ? true : torso <= cfg.restTorsoMax;
         if (!inRest) {
@@ -516,10 +556,14 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
 
       <WebView<object>
         ref={webRef}
-        source={{ html: POSE_BRIDGE_HTML }}
+        source={{ html: POSE_BRIDGE_HTML, baseUrl: POSE_BRIDGE_BASE_URL }}
         originWhitelist={['*']}
         javaScriptEnabled
         onMessage={onWebMessage}
+        onError={(e) => {
+          setPoseState('error de red');
+          log(`WebView de pose no pudo cargar: ${e.nativeEvent.description}`, 'warn');
+        }}
         style={styles.hidden}
       />
     </View>
@@ -587,5 +631,8 @@ const styles = StyleSheet.create({
   logWarn: { color: '#F4C542' },
   back: { paddingVertical: 12, alignItems: 'center' },
   backText: { color: '#39D98A', fontSize: 13, fontWeight: '700' },
-  hidden: { width: 1, height: 1, opacity: 0.01, position: 'absolute', left: -20, bottom: -20 },
+  // El WebView tiene que existir "de verdad" para que Android no lo pause:
+  // 1x1 con opacity 0.01 lo deja en 1 fps o lo congela, y entonces la imagen
+  // nunca termina de decodificar. Va 2x2 casi transparente y fuera de pantalla.
+  hidden: { width: 2, height: 2, opacity: 0.02, position: 'absolute', left: -30, top: -30 },
 });

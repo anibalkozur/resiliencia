@@ -13,12 +13,16 @@ import {
 import {
   ASYMMETRY_MAX_DEG,
   CALIB_RANGE_MAX,
+  INDICES,
+  angleByNames,
   attemptCalibration,
   bilateralKnee,
+  checkComplete,
   elbowAngle,
   groundedRatio,
   kneeAngle,
   kneeStandingMargin,
+  lateralPoints,
   lineAngle,
   torsoHorizontalAngle,
 } from '../lib/pose';
@@ -28,6 +32,11 @@ import { initialTiltState, isVertical, pushSample, tiltDeg } from '../lib/tilt';
 const cfgSentadilla = exerciseById('sentadillas')!;
 const cfgFlexion = exerciseById('flexiones')!;
 const cfgAbdominal = exerciseById('abdominales')!;
+const cfgPlancha = exerciseById('plancha')!;
+const cfgZancadas = exerciseById('zancadas')!;
+const cfgPuente = exerciseById('puente_gluteo')!;
+const cfgMountain = exerciseById('mountain_climbers')!;
+const cfgSentadillaIso = exerciseById('sentadilla_isometrica')!;
 
 function okFlags() {
   return {
@@ -41,14 +50,117 @@ function okFlags() {
 }
 
 describe('catálogo', () => {
-  it('trae los 3 ejercicios libres con los umbrales de producción', () => {
-    expect(EXERCISES.map((e) => e.id)).toEqual(['sentadillas', 'flexiones', 'abdominales']);
+  it('trae los 8 ejercicios de la app, en el orden de la app', () => {
+    expect(EXERCISES.map((e) => e.id)).toEqual([
+      'sentadillas',
+      'flexiones',
+      'abdominales',
+      'plancha',
+      'zancadas',
+      'puente_gluteo',
+      'mountain_climbers',
+      'sentadilla_isometrica',
+    ]);
+  });
+
+  it('reparte free/premium igual que catalog.ts', () => {
+    expect(EXERCISES.filter((e) => e.tier === 'free').map((e) => e.id)).toEqual([
+      'sentadillas',
+      'flexiones',
+      'abdominales',
+    ]);
+    expect(EXERCISES.filter((e) => e.tier === 'premium')).toHaveLength(5);
+  });
+
+  it('copia los umbrales de CFG en camera-verification.html:609-764', () => {
     expect(cfgSentadilla.downThresh).toBe(100);
     expect(cfgSentadilla.upThresh).toBe(160);
     expect(cfgFlexion.downDelta).toBe(40);
     expect(cfgFlexion.upDelta).toBe(12);
     expect(cfgAbdominal.downDelta).toBe(25);
+    expect(cfgAbdominal.upDelta).toBe(10);
     expect(cfgAbdominal.standingKneeMargin).toBe(0.45);
+    expect(cfgAbdominal.restTorsoMax).toBe(35);
+    expect(cfgPlancha.upDelta).toBe(12);
+    expect(cfgPlancha.lineMin).toBe(150);
+    expect(cfgPlancha.groundedMax).toBe(0.9);
+    expect(cfgZancadas.downThresh).toBe(115);
+    expect(cfgZancadas.upThresh).toBe(160);
+    expect(cfgPuente.downDelta).toBe(28);
+    expect(cfgPuente.upDelta).toBe(10);
+    expect(cfgPuente.bridge).toBe(true);
+    expect(cfgPuente.restTorsoMax).toBe(38);
+    expect(cfgMountain.kneeFold).toBe(105);
+    expect(cfgMountain.lineMin).toBe(150);
+    expect(cfgMountain.groundedMax).toBe(0.9);
+    expect(cfgSentadillaIso.downThresh).toBe(100);
+    expect(cfgSentadillaIso.upThresh).toBe(160);
+  });
+
+  it('copia los objetivos por defecto de catalog.ts:24-33', () => {
+    expect(EXERCISES.map((e) => e.target)).toEqual([20, 10, 15, 30, 24, 15, 30, 25]);
+  });
+
+  it('declara la misma unidad que el motor productivo', () => {
+    // camera-verification.html: unit en cada bloque de CFG
+    expect(EXERCISES.map((e) => e.unit)).toEqual([
+      'reps',
+      'reps',
+      'reps',
+      'seconds',
+      'reps',
+      'reps',
+      'reps',
+      'seconds',
+    ]);
+  });
+
+  it('asienta la discrepancia de mountain_climbers (motor reps vs catálogo seconds)', () => {
+    // camera-verification.html:723 dice unit:'reps' y cuenta una rep por rodilla
+    // al pecho; catalog.ts:20 dice unit:'seconds'. Va 'reps' porque el tester
+    // reproduce el motor, pero el reporte tiene que avisar que no coinciden.
+    expect(cfgMountain.unit).toBe('reps');
+    expect(cfgMountain.catalogUnit).toBe('seconds');
+    expect(EXERCISES.filter((e) => e.catalogUnit !== undefined).map((e) => e.id)).toEqual([
+      'mountain_climbers',
+    ]);
+  });
+
+  it('pide los mismos landmarks que sides[].points', () => {
+    expect(cfgFlexion.points).toEqual(['shoulder', 'elbow', 'wrist', 'hip', 'ankle']);
+    expect(cfgAbdominal.points).toEqual(['shoulder', 'hip', 'knee']);
+    expect(cfgPlancha.points).toEqual(['shoulder', 'elbow', 'wrist', 'hip', 'ankle']);
+    // el puente además del triángulo shoulder-hip-knee exige el tobillo
+    expect(cfgPuente.points).toEqual(['shoulder', 'hip', 'knee', 'ankle']);
+    expect(cfgMountain.points).toEqual(['shoulder', 'elbow', 'wrist', 'hip', 'ankle']);
+  });
+
+  it('resuelve los índices de cada lado a partir de cfg.points', () => {
+    // mountain_climbers y plancha no existían en el mapa hardcodeado anterior
+    expect(lateralPoints(cfgMountain, 'front')).toEqual([
+      INDICES.leftShoulder,
+      INDICES.leftElbow,
+      INDICES.leftWrist,
+      INDICES.leftHip,
+      INDICES.leftAnkle,
+    ]);
+    expect(lateralPoints(cfgPuente, 'back')).toEqual([
+      INDICES.rightShoulder,
+      INDICES.rightHip,
+      INDICES.rightKnee,
+      INDICES.rightAnkle,
+    ]);
+    expect(lateralPoints(cfgPlancha, 'front')).toEqual([
+      INDICES.leftShoulder,
+      INDICES.leftElbow,
+      INDICES.leftWrist,
+      INDICES.leftHip,
+      INDICES.leftAnkle,
+    ]);
+  });
+
+  it('exige liveness para los 8 (target > 5 o isométrico)', () => {
+    for (const cfg of EXERCISES) expect(livenessRequired(cfg)).toBe(true);
   });
 });
 
@@ -238,6 +350,22 @@ describe('conteo de reps (frontal, sentadillas)', () => {
 });
 
 describe('conteo de segundos (isométrico)', () => {
+  /**
+   * Calibra como hace TestScreen.tsx: acumula 10 muestras estables con
+   * attemptCalibration y escribe restAngle/down/up en el estado del motor.
+   */
+  function calibrate(cfg: ReturnType<typeof exerciseById>, restAngle: number) {
+    let buf: number[] = [];
+    let calib: ReturnType<typeof attemptCalibration>['calib'] = null;
+    for (let i = 0; i < 12; i++) {
+      const out = attemptCalibration(restAngle, buf, cfg!);
+      buf = out.buf;
+      if (out.calib) calib = out.calib;
+    }
+    const st = initEngine(cfg!);
+    return calib ? { ...st, restAngle: calib.restAngle, down: calib.down, up: calib.up } : st;
+  }
+
   it('acumula holdMs mientras está abajo', () => {
     const cfg = { ...cfgSentadilla, kind: 'isometrico' as const, target: 5 };
     let st = initEngine(cfg);
@@ -262,6 +390,192 @@ describe('conteo de segundos (isométrico)', () => {
     }
     expect(st.holdMs).toBeGreaterThan(0);
     expect(st.reps).toBe(0);
+  });
+
+  it('la sentadilla isométrica cuenta segundos mientras la rodilla está bajo 100°', () => {
+    // camera-verification.html:1450 — el hold frontal es `cand === 'down'`, o
+    // sea AMBAS rodillas por debajo de downThresh (100°). De pie no cuenta.
+    let st = calibrate(cfgSentadillaIso, 180);
+    expect(st.restAngle).toBeCloseTo(180, 0);
+
+    const base = {
+      bodyOk: true,
+      sideOk: true,
+      lineOk: true,
+      notGroundedTooMuch: true,
+      notStanding: true,
+      calibDone: true,
+      livenessActive: false,
+      livenessDownThresh: 100,
+    };
+
+    // de pie (180°) no acumula nada
+    for (let i = 0; i < 10; i++) {
+      st = processFrame(cfgSentadillaIso, st, { ...base, angle: 180, now: i * 200 }, 'ok').state;
+    }
+    expect(st.holdMs).toBe(0);
+
+    // 10 s en sentadilla sostenida (90°) → acumula el tiempo, 0 reps
+    for (let i = 0; i < 50; i++) {
+      st = processFrame(
+        cfgSentadillaIso,
+        st,
+        { ...base, angle: 90, secondAngle: 90, now: 2000 + i * 200 },
+        'ok',
+      ).state;
+    }
+    expect(st.holdMs).toBeGreaterThanOrEqual(9000);
+    expect(st.reps).toBe(0);
+
+    // al volver a parar, el cronómetro se frena
+    const antes = st.holdMs;
+    for (let i = 0; i < 10; i++) {
+      st = processFrame(
+        cfgSentadillaIso,
+        st,
+        { ...base, angle: 180, secondAngle: 180, now: 12000 + i * 200 },
+        'ok',
+      ).state;
+    }
+    expect(st.holdMs).toBe(antes);
+  });
+
+  it('la plancha cuenta segundos con los brazos extendidos (ángulo sobre el tope)', () => {
+    // camera-verification.html:1669 — el hold lateral es `smoothed >
+    // dynamicUpThresh`. En plancha el codo extends ~180° y upDelta 0 deja el
+    // tope en la calibración, así que mantener los brazos cuenta.
+    let st = calibrate(cfgPlancha, 180);
+    expect(st.restAngle).toBeCloseTo(180, 0);
+
+    const base = {
+      bodyOk: true,
+      sideOk: true,
+      lineOk: true,
+      notGroundedTooMuch: true,
+      notStanding: true,
+      calibDone: true,
+      livenessActive: false,
+      livenessDownThresh: 180,
+    };
+    for (let i = 0; i < 30; i++) {
+      st = processFrame(cfgPlancha, st, { ...base, angle: 180, now: i * 200 }, 'ok').state;
+    }
+    expect(st.holdMs).toBeGreaterThanOrEqual(5000);
+    expect(st.reps).toBe(0);
+
+    // doblar los brazos (codo < tope) frena el conteo
+    const antes = st.holdMs;
+    for (let i = 0; i < 10; i++) {
+      st = processFrame(cfgPlancha, st, { ...base, angle: 90, now: 6000 + i * 200 }, 'ok').state;
+    }
+    expect(st.holdMs).toBe(antes);
+  });
+
+  it('un isométrico no cuenta antes de calibrar', () => {
+    let st = initEngine(cfgPlancha);
+    const out = processFrame(
+      cfgPlancha,
+      st,
+      {
+        angle: 180,
+        bodyOk: true,
+        sideOk: true,
+        lineOk: true,
+        notGroundedTooMuch: true,
+        notStanding: true,
+        calibDone: false,
+        now: 0,
+        livenessActive: false,
+        livenessDownThresh: 180,
+      },
+      'ok',
+    );
+    expect(out.result.gate).toBe('calibrando');
+    expect(out.result.holdMs).toBe(0);
+    expect(out.state.restAngle).toBeNull();
+  });
+});
+
+describe('mountain climbers (pliegue de rodilla)', () => {
+  // camera-verification.html:1591-1618 — no usa transiciones abajo/arriba ni
+  // umbral calibrado: cuenta 1 rep por cada rodilla que baja de 105°. El
+  // ángulo se suaviza con ventana 5, no 7.
+  const run = (seq: number[], step = 400) => {
+    // calibración: 12 muestras estables en plancha (deltas 0/0)
+    let buf: number[] = [];
+    let calib: ReturnType<typeof attemptCalibration>['calib'] = null;
+    for (let i = 0; i < 12; i++) {
+      const out = attemptCalibration(170, buf, cfgMountain);
+      buf = out.buf;
+      if (out.calib) calib = out.calib;
+    }
+    let st = initEngine(cfgMountain);
+    if (calib) st = { ...st, restAngle: calib.restAngle, down: calib.down, up: calib.up };
+
+    const base = {
+      bodyOk: true,
+      sideOk: true,
+      lineOk: true,
+      notGroundedTooMuch: true,
+      notStanding: true,
+      calibDone: true,
+      livenessActive: false,
+      livenessDownThresh: 105,
+    };
+    let t = 0;
+    seq.forEach((angle) => {
+      st = processFrame(cfgMountain, st, { ...base, angle, now: t }, 'ok').state;
+      t += step;
+    });
+    return st;
+  };
+
+  /** Meseta de N cuadros en un ángulo (el modelo tiene que sostener la postura). */
+  const plateau = (angle: number, n = 5) => Array(n).fill(angle);
+
+  it('cuenta una rep por cada rodilla al pecho', () => {
+    // extendida → al pecho → extendida → al pecho → extendida.
+    // Con ventana 5 hacen falta ~4 cuadros por meseta para que el suavizado
+    // cruce 105° en los dos sentidos.
+    const seq = [...plateau(170), ...plateau(80), ...plateau(170), ...plateau(80), ...plateau(170)];
+    expect(run(seq).reps).toBe(2);
+  });
+
+  it('no cuenta si la rodilla nunca baja de 105°', () => {
+    expect(run([...plateau(170), ...plateau(160), ...plateau(150), ...plateau(170)]).reps).toBe(0);
+  });
+
+  it('no acumula segundos aunque el catálogo diga seconds', () => {
+    const st = run(plateau(80, 10));
+    expect(st.holdMs).toBe(0);
+    expect(st.reps).toBe(0);
+  });
+
+  it('exige dos mesetas alternadas por cada rep, no una por cuadro', () => {
+    // una sola meseta larga alternada cuenta 1, no varias
+    expect(run([...plateau(170), ...plateau(80, 10), ...plateau(170, 10)]).reps).toBe(1);
+  });
+
+  it('exige calibración antes de contar', () => {
+    const out = processFrame(
+      cfgMountain,
+      initEngine(cfgMountain),
+      {
+        angle: 80,
+        bodyOk: true,
+        sideOk: true,
+        lineOk: true,
+        notGroundedTooMuch: true,
+        notStanding: true,
+        calibDone: false,
+        now: 0,
+        livenessActive: false,
+        livenessDownThresh: 105,
+      },
+      'ok',
+    );
+    expect(out.result.gate).toBe('calibrando');
+    expect(out.result.reps).toBe(0);
   });
 });
 
@@ -440,5 +754,23 @@ describe('geometría de pose', () => {
     lm[11] = mk(0.9, 0.5); // hombro a la derecha, misma altura → torso horizontal
     lm[23] = mk(0.5, 0.5);
     expect(torsoHorizontalAngle(lm, 11, 23)).toBeCloseTo(0, 1);
+  });
+
+  it('angleByNames calcula el triángulo genérico por nombre', () => {
+    const lm = blank();
+    lm[11] = mk(0.5, 0.3); // shoulder
+    lm[13] = mk(0.5, 0.5); // elbow
+    lm[15] = mk(0.5, 0.7); // wrist
+    expect(angleByNames(lm, ['shoulder', 'elbow', 'wrist'], 'front')).toBeCloseTo(180, 0);
+    lm[15] = mk(0.3, 0.5);
+    expect(angleByNames(lm, ['shoulder', 'elbow', 'wrist'], 'front')).toBeCloseTo(90, 0);
+  });
+
+  it('checkComplete respeta todos los puntos pedidos', () => {
+    const lm = blank();
+    const needed = lateralPoints(cfgMountain, 'front');
+    expect(checkComplete(lm, needed)).toBe(true);
+    lm[INDICES.leftWrist] = mk(0.5, 0.5, 0.5);
+    expect(checkComplete(lm, needed)).toBe(false);
   });
 });

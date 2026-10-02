@@ -16,8 +16,13 @@ export const RAISE_SHOULDER_MARGIN = 0.05;
 export const RAISE_MIN_FRAMES = 4;
 
 /** La evidencia exige prueba de vida si el objetivo es >5 o el ejercicio es por segundos. */
+/**
+ * Misma regla que camera-verification.html:768:
+ * `targetUnit === 'seconds' || targetVal > 5`. Importa `unit` y no `kind`
+ * para no divergir del motor cuando un ejercicio cambie de categoría.
+ */
 export function livenessRequired(cfg: ExerciseConfig): boolean {
-  return cfg.kind === 'isometrico' || cfg.target > 5;
+  return cfg.unit === 'seconds' || cfg.target > 5;
 }
 
 /** Agenda un disparo único aleatorio entre 4 y 13 s. */
