@@ -964,3 +964,35 @@ Producción no depende del alto del body: `.video-wrap` es un wrapper **estátic
 **Tests:** 74 en verde, 4 nuevos de layout que fijan que el body no declare `height: 100%`, que no exista `position: absolute; inset: 0`, que el wrapper tenga `aspect-ratio: 3/4`, y que el espejo esté en la regla base de CSS.
 
 **Verificación:** 74 tests del tester, 303 del repo, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto.
+
+### vision_bundle.js daba 404: el import de MediaPipe estaba mal copiado
+
+El banco reportaba `vision_bundle.js no cargó (CDN sin respuesta?)`. Verificado con `HEAD` contra el CDN: **`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.js` devuelve 404**. El bundle publicado es `vision_bundle.mjs`. Ese `<script src>` nunca pudo funcionar, en ninguna versión del banco.
+
+El error era de copia: producción no usa un tag `script` con `src`, sino un **import de módulo ES** desde el paquete completo (`HTML:471-476`):
+
+```html
+<script type="module">
+  import { PoseLandmarker, FilesetResolver, DrawingUtils }
+    from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+```
+
+Eso tiene una segunda consecuencia que el sondeo de `window` ocultaba: el `import` expone **bindings del módulo**, no globales de `window`. `window.PoseLandmarker` nunca existió, así que `waitForVision` sondeaba algo que no podía aparecer y terminaba siempre en timeout con un mensaje que culpaba al CDN sin poder ser el CDN.
+
+29. **Carga por import de módulo ES.** Se eliminó el tag `script src` y el sondeo `waitForVision`. `PoseLandmarker`, `FilesetResolver` y `DrawingUtils` se importan del paquete y se usan directamente, igual que producción. El `stage('script')` quedó como aviso de arranque: si el import falla, el módulo ni siquiera ejecuta y el error no es observable desde adentro, así que el timeout de 45 s de la app nativa sigue siendo la red de seguridad.
+
+**Dependencias verificadas contra el CDN** (las tres que usa el banco):
+
+| URL                                                                      | Estado      |
+| ------------------------------------------------------------------------ | ----------- |
+| `cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14`                   | 200, 137 KB |
+| `.../wasm/vision_wasm_internal.js`                                       | 200, 210 KB |
+| `.../wasm/vision_wasm_internal.wasm`                                     | 200, 9.4 MB |
+| `.../wasm/vision_wasm_nosimd_internal.{js,wasm}`                         | 200         |
+| `storage.googleapis.com/.../pose_landmarker_lite/float16/latest/...task` | 200, 5.8 MB |
+
+Nota: un `HEAD` sobre la ruta de directorio `/wasm` da 404 aunque los archivos dentro existan. Hay que verificar los archivos individuales con `GET`.
+
+**Tests:** 76 en verde, 2 nuevos que fijan el patrón de carga: que exista `<script type="module">` con el import de los tres símbolos, que no haya ningún `script src`, y que el código (sin comentarios) no espere `window.PoseLandmarker` / `window.FilesetResolver` / `window.DrawingUtils`. Un test que verifique URLs reales contra el CDN no puede ir en la suite porque rompe sin internet; la verificación de arriba es manual y queda registrada acá.
+
+**Verificación:** 76 tests del tester, 305 del repo, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto.

@@ -24,6 +24,28 @@ describe('carga del modelo (copia de camera-verification.html)', () => {
     expect(create).toBeGreaterThan(resolver);
   });
 
+  it('importa el módulo ES como producción, no un <script src> a un .js inexistente', () => {
+    // camera-verification.html:471-476. El bundle publicado es .mjs: pedir
+    // vision_bundle.js da 404. Y el import expone bindings del módulo, no
+    // globales de window, así que un <script src> + sondeo de window nunca
+    // puede funcionar.
+    expect(html).toContain('<script type="module">');
+    expect(html).toContain("from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';");
+    expect(html).toMatch(/import\s*\{[^}]*PoseLandmarker[^}]*FilesetResolver[^}]*DrawingUtils/);
+    expect(html).not.toMatch(/<script[^>]*\ssrc=/);
+    // La URL inexistente solo puede aparecer en el comentario que la explica.
+    const comments = html.replace(/<!--[\s\S]*?-->/g, '');
+    expect(comments).not.toContain('vision_bundle');
+  });
+
+  it('no espera los símbolos como globales de window', () => {
+    // Solo pueden aparecer en comentarios que explican por qué no se usan.
+    const code = html.replace(/\/\/[^\n]*/g, '').replace(/<!--[\s\S]*?-->/g, '');
+    expect(code).not.toContain('window.PoseLandmarker');
+    expect(code).not.toContain('window.FilesetResolver');
+    expect(code).not.toContain('window.DrawingUtils');
+  });
+
   it('usa la misma URL de WASM que producción', () => {
     expect(html).toContain(
       "WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + VERSION + '/wasm'",

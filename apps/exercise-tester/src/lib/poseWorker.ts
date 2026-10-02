@@ -28,7 +28,6 @@ export const POSE_VIEW_HTML = `<!DOCTYPE html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}/vision_bundle.js" crossorigin="anonymous"></script>
     <style>
       * { box-sizing: border-box; }
       /* camera-verification.html:28-92. Ojo con esto: el alto de la cámara NO
@@ -78,7 +77,18 @@ export const POSE_VIEW_HTML = `<!DOCTYPE html>
       <canvas id="canvas"></canvas>
       <div id="checklist"><div id="clTitle"></div><div id="clRows"></div></div>
     </div>
-    <script>
+    <!-- camera-verification.html:471-476. OJO: es un import de módulo ES desde el
+         paquete completo, NO un tag script con src. El archivo .js suelto da 404
+         (el bundle publicado es .mjs) y además el import expone los símbolos como
+         bindings del módulo, no como globales de window, así que esperarlos en
+         window no funciona. -->
+    <script type="module">
+      import {
+        PoseLandmarker,
+        FilesetResolver,
+        DrawingUtils,
+      } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}';
+
       const VERSION = '${VERSION}';
       // camera-verification.html:1793-1795
       const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@' + VERSION + '/wasm';
@@ -163,8 +173,10 @@ export const POSE_VIEW_HTML = `<!DOCTYPE html>
       }
 
       function waitForVision(triesLeft) {
-        if (window.FilesetResolver && window.PoseLandmarker) return Promise.resolve();
-        if (triesLeft <= 0) return Promise.reject(new Error('vision_bundle.js no cargó (CDN sin respuesta?)'));
+        // Solo para detectar que el import falló: si el import del módulo ES
+        // tuvo éxito, este bloque ya está corriendo. Si el CDN no responde, el
+        // módulo nunca arranca y caemos acá por el timeout de la app nativa.
+        if (triesLeft <= 0) return Promise.reject(new Error('no se pudo importar @mediapipe/tasks-vision (CDN sin respuesta?)'));
         return new Promise((res) => setTimeout(res, 400)).then(() => waitForVision(triesLeft - 1));
       }
 
@@ -362,14 +374,12 @@ export const POSE_VIEW_HTML = `<!DOCTYPE html>
           post({ type: 'log', text: 'sin evidencia: ' + e.message });
         }
       };
-
-      stage('script');      waitForVision(40)
-        .then(function () {
-          post({ type: 'log', text: 'MediaPipe ' + VERSION + ' cargado' });
-        })
-        .catch(function (e) {
-          post({ type: 'fatal', error: e.message });
-        });
+      // Si el import del CDN falla, este módulo ni siquiera llega a correr, así
+      // que el error no es observable desde adentro. Se reporta el arranque para
+      // que la app sepa que el módulo arrancó, y la app mantiene su timeout de
+      // 45 s como respaldo si el import nunca resuelve.
+      stage('script');
+      post({ type: 'log', text: 'modulo de vision arrancando (' + VERSION + ')' });
     </script>
   </body>
 </html>`;
