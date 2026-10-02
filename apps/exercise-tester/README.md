@@ -60,6 +60,25 @@ Están portadas tal cual, no simplificadas:
 - **Landmarks exigidos**: salen de `sides[].points` del HTML, no del triángulo.
   El puente además pide el tobillo aunque no lo use en el ángulo.
 
+## Ver la postura
+
+Sobre la cámara se dibuja el esqueleto completo y los puntos que el ejercicio
+exige, con el mismo criterio que la app real (`camera-verification.html:1699-1731`):
+
+- conexiones en `#3A4552`, grosor 2, las 35 de `PoseLandmarker.POSE_CONNECTIONS`
+- punto **verde** `#C8FF3D` si el landmark se ve (radio 5), **rojo** `#FF5A5A` con
+  anillo si no (radio 6 + anillo de radio 10)
+- se resaltan solo los puntos que el ejercicio exige, no los 33
+- se espeja con la cámara frontal, igual que `applyMirror`
+- respeta la proporción real de la foto, con letterbox y centrado
+
+Abajo va el **checklist de landmarks** (`renderChecklist` en la app real): dice
+qué falta ver por nombre, tipo "falta ver: rodilla izq, tobillo der". Es lo que
+distingue "no te ve" de "te ve pero le falta una rodilla".
+
+Si MediaPipe no devuelve pose, el panel muestra "sin pose en el frame" en vez de
+congelar el último esqueleto.
+
 Además replica las reglas que hacen que el conteo sea confiable:
 
 - **Celular en vertical** (`tilt ≤ 35°`, 8 s continuos antes de contar).
@@ -88,6 +107,22 @@ desapercibida al portar el cambio.
 5. Al final compará dos corridas (JSON del informe) y portá solo lo que mejore.
 
 ## Limitaciones conocidas
+
+### Falta portar de la app real
+
+El motor de conteo está replicado, pero estas piezas de producción **todavía no
+están** en el banco:
+
+| Falta                                                  | En producción   |
+| ------------------------------------------------------ | --------------- |
+| Sonido (`beep`, `masterGain`, mute)                    | `:1039`         |
+| `announceSession` con cuenta 3-2-1 (`readyCountStart`) | `:1119`, `:813` |
+| Aviso de ritmo (`paceWarnedIdx`) y `cadenceDeadline`   | `:808`, `:812`  |
+| Modo ranked con gesto de mano arriba (`raiseStreak`)   | `MODE_RANKED`   |
+| Cierre de serie (`postComplete`)                       | `:1143`         |
+| `repTimestamps` (base del cálculo de ritmo)            | `repTimestamps` |
+
+### Otras limitaciones
 
 - El conteo corre por **snapshots** de la cámara (cada ~700 ms) porque
   `expo-camera` no expone frames en vivo dentro de Expo Go. La app real analiza

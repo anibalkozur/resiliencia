@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { EXERCISES, exerciseById } from '../lib/exercises';
 import {
+  CONFIRM_FRAMES,
   gateMessage,
   initEngine,
   postureGate,
@@ -164,6 +165,98 @@ describe('catálogo', () => {
   });
 });
 
+/** Cuadros de cuerpo visible antes de contar (CONFIRM_FRAMES = 4, HTML:780). */
+function warmBody(cfg: ReturnType<typeof exerciseById>, frames = CONFIRM_FRAMES) {
+  let st = initEngine(cfg!);
+  for (let i = 0; i < frames; i++) {
+    st = processFrame(
+      cfg!,
+      st,
+      {
+        angle: 180,
+        bodyOk: true,
+        sideOk: true,
+        lineOk: true,
+        notGroundedTooMuch: true,
+        notStanding: true,
+        calibDone: true,
+        now: i * 200,
+        livenessActive: false,
+        livenessDownThresh: cfg!.downThresh,
+      },
+      'ok',
+    ).state;
+  }
+  return st;
+}
+
+describe('confirmación de cuerpo visible', () => {
+  const frame = (cfg: ReturnType<typeof exerciseById>, now: number) => ({
+    angle: 180,
+    bodyOk: true,
+    sideOk: true,
+    lineOk: true,
+    notGroundedTooMuch: true,
+    notStanding: true,
+    calibDone: true,
+    now,
+    livenessActive: false,
+    livenessDownThresh: cfg!.downThresh,
+  });
+
+  it('exige 4 cuadros antes de habilitar el conteo', () => {
+    expect(CONFIRM_FRAMES).toBe(4);
+    let st = initEngine(cfgSentadilla);
+    for (let i = 1; i <= 3; i++) {
+      const out = processFrame(cfgSentadilla, st, frame(cfgSentadilla, i * 200), 'ok');
+      expect(out.result.gate).toBe('landmarks');
+      expect(out.result.message).toContain(`${i}/4`);
+      st = out.state;
+    }
+    const fourth = processFrame(cfgSentadilla, st, frame(cfgSentadilla, 800), 'ok');
+    expect(fourth.result.gate).toBe('ok');
+    expect(fourth.state.bodyOkStreak).toBe(4);
+  });
+
+  it('el streak no crece más allá de 4', () => {
+    const st = warmBody(cfgSentadilla, 12);
+    expect(st.bodyOkStreak).toBe(CONFIRM_FRAMES);
+  });
+
+  it('un gate roto reinicia el streak de cuerpo', () => {
+    let st = warmBody(cfgSentadilla);
+    expect(st.bodyOkStreak).toBe(4);
+    st = processFrame(cfgSentadilla, st, frame(cfgSentadilla, 1000), 'postura' as Gate).state;
+    expect(st.bodyOkStreak).toBe(0);
+  });
+
+  it('no cuenta reps durante la confirmación', () => {
+    // Cuadros 1-3 de confirmación (180°, arriba). El contador arranca en 0 y el
+    // suavizado también, así que en el cuadro 4 el ángulo suavizado todavía es
+    // 180° y la bajada de 80° tarda 5 cuadros más en cruzar el umbral. En total
+    // la rep se cuenta recién en el cuadro 13, y el readout va 0 → 0 → 1.
+    const seen: number[] = [];
+    let st = initEngine(cfgSentadilla);
+    const seq = [...Array(3).fill(180), ...Array(8).fill(80), ...Array(8).fill(180)];
+    seq.forEach((angle, i) => {
+      const out = processFrame(
+        cfgSentadilla,
+        st,
+        { ...frame(cfgSentadilla, i * 200), angle },
+        'ok',
+      );
+      st = out.state;
+      seen.push(out.result.reps);
+    });
+
+    // los 3 cuadros de confirmación no produzcan ninguna rep
+    expect(seen.slice(0, 3)).toEqual([0, 0, 0]);
+    // y el contador no sube hasta que el movimiento está confirmado de verdad
+    expect(Math.max(...seen)).toBe(1);
+    expect(seen[seen.length - 1]).toBe(1);
+  });
+});
+
 describe('gates de postura', () => {
   it('bloquea si el celular no está vertical', () => {
     expect(postureGate(cfgFlexion, { ...okFlags(), verticalOk: false })).toBe('orientacion');
@@ -305,11 +398,12 @@ describe('conteo de reps (frontal, sentadillas)', () => {
       livenessDownThresh: 100,
     };
     // una rodilla a 80° y la otra a 170° → diferencia 90° > 35°
+    st = warmBody(cfg);
     for (let i = 0; i < 8; i++) {
       const out = processFrame(
         cfg,
         st,
-        { ...base, angle: 80, secondAngle: 170, now: i * 200 },
+        { ...base, angle: 80, secondAngle: 170, now: 1000 + i * 200 },
         'ok',
       );
       st = out.state;
@@ -472,7 +566,7 @@ describe('conteo de segundos (isométrico)', () => {
   });
 
   it('un isométrico no cuenta antes de calibrar', () => {
-    let st = initEngine(cfgPlancha);
+    let st = warmBody(cfgPlancha);
     const out = processFrame(
       cfgPlancha,
       st,
@@ -484,7 +578,7 @@ describe('conteo de segundos (isométrico)', () => {
         notGroundedTooMuch: true,
         notStanding: true,
         calibDone: false,
-        now: 0,
+        now: 1000,
         livenessActive: false,
         livenessDownThresh: 180,
       },
@@ -559,7 +653,7 @@ describe('mountain climbers (pliegue de rodilla)', () => {
   it('exige calibración antes de contar', () => {
     const out = processFrame(
       cfgMountain,
-      initEngine(cfgMountain),
+      warmBody(cfgMountain),
       {
         angle: 80,
         bodyOk: true,
@@ -568,7 +662,7 @@ describe('mountain climbers (pliegue de rodilla)', () => {
         notGroundedTooMuch: true,
         notStanding: true,
         calibDone: false,
-        now: 0,
+        now: 1000,
         livenessActive: false,
         livenessDownThresh: 105,
       },

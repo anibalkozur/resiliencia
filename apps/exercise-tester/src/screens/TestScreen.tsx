@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+import {
+  PoseOverlay,
+  landmarkLabel,
+  missingLandmarks,
+  requiredIndices,
+} from '../components/PoseOverlay';
 import type { ExerciseConfig } from '../lib/exercises';
 import { needsCalibration } from '../lib/exercises';
 import { handStreak, livenessDue, livenessRequired, scheduleLiveness } from '../lib/liveness';
@@ -59,6 +65,8 @@ type Session = {
   liveness: { active: boolean; passed: boolean; holdMs: number; scheduledAt: number | null };
   accel: AccelSample;
   evidence: { rep: number; uri: string; at: number }[];
+  /** Lado confirmado en perfil lateral, para dibujar y medir el mismo lado. */
+  useRight: boolean;
 };
 
 function newSession(cfg: ExerciseConfig, accel: AccelSample): Session {
@@ -72,6 +80,7 @@ function newSession(cfg: ExerciseConfig, accel: AccelSample): Session {
     liveness: { active: false, passed: false, holdMs: 0, scheduledAt: null },
     accel,
     evidence: [],
+    useRight: false,
   };
 }
 
@@ -95,6 +104,15 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
   const [backend, setBackend] = useState<string | null>(null);
   const [poseState, setPoseState] = useState('cargando modelo…');
   const [calibInfo, setCalibInfo] = useState('sin calibrar');
+  // Estado solo de presentación: el esqueleto y el checklist de landmarks.
+  const [view, setView] = useState<{
+    landmarks: Landmark[] | null;
+    side: SideKey;
+    photoWidth: number;
+    photoHeight: number;
+    missing: number[];
+  }>({ landmarks: null, side: 'front', photoWidth: 0, photoHeight: 0, missing: [] });
+  const [camSize, setCamSize] = useState({ width: 0, height: 0 });
   const [livenessUi, setLivenessUi] = useState({
     active: false,
     passed: false,
@@ -230,6 +248,7 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
         const winners = s.sideBuf.filter((v) => v >= 0.4 && v === maxV).length;
         sideOk = winners >= 6;
         useRight = maxV > 0 && s.sideBuf[s.sideBuf.length - 1]! < s.sideBuf[s.sideBuf.length - 2]!;
+        s.useRight = useRight;
       }
       const idx: (typeof SIDE_IDX)[SideKey] = useRight ? SIDE_IDX.back : SIDE_IDX.front;
 
@@ -395,6 +414,19 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
           const photo = await camRef.current?.takePictureAsync({ quality: 0.3, base64: true });
           if (photo?.base64) {
             const lms = await analyze(photo.base64);
+            // El esqueleto y el checklist se actualizan aunque no haya pose: si
+            // MediaPipe no devuelve nada, `landmarks` queda en null y el panel
+            // muestra "sin pose" en vez de congelarse en el último frame bueno.
+            const s = sessionRef.current;
+            const side: SideKey = s?.useRight ? 'back' : 'front';
+            const req = cfg ? requiredIndices(cfg, side) : [];
+            setView({
+              landmarks: lms && lms.length > 0 ? lms : null,
+              side,
+              photoWidth: photo.width ?? 0,
+              photoHeight: photo.height ?? 0,
+              missing: lms && lms.length > 0 ? missingLandmarks(lms, req) : req,
+            });
             if (lms && lms.length > 0) handleFrame(lms, now);
             else log('sin pose en el frame', 'warn');
           }
@@ -482,7 +514,15 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.camBox}>
+      <View
+        style={styles.camBox}
+        onLayout={(e) =>
+          setCamSize({
+            width: e.nativeEvent.layout.width,
+            height: e.nativeEvent.layout.height,
+          })
+        }
+      >
         <CameraView
           ref={camRef}
           style={styles.cam}
@@ -490,6 +530,31 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
           mode="picture"
           animateShutter={false}
         />
+        <PoseOverlay
+          landmarks={view.landmarks}
+          cfg={cfg}
+          side={view.side}
+          mirrored={facing === 'front'}
+          photoWidth={view.photoWidth}
+          photoHeight={view.photoHeight}
+          boxWidth={camSize.width}
+          boxHeight={camSize.height}
+          missing={view.missing}
+        />
+        {view.missing.length > 0 && view.landmarks ? (
+          <View style={styles.missingBox}>
+            <Text style={styles.missingTitle}>
+              falta ver: {view.missing.map(landmarkLabel).join(', ')}
+            </Text>
+          </View>
+        ) : null}
+        {!view.landmarks && running ? (
+          <View style={styles.missingBox}>
+            <Text style={styles.missingTitle}>
+              {poseState === 'pose lista' ? 'sin pose en el frame' : poseState}
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.overlayTop}>
           <Text style={styles.exName}>{cfg.name}</Text>
           <Text style={styles.counter}>{value}</Text>
@@ -584,6 +649,18 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
   },
+  // Equivalente al checklist de landmarks del prototipo (HTML:1050): dice qué
+  // falta ver, que es lo que explica que no se detecte postura.
+  missingBox: {
+    position: 'absolute',
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(3,4,5,0.72)',
+    padding: 7,
+    borderRadius: 8,
+  },
+  missingTitle: { color: '#FF5A5A', fontSize: 11, fontWeight: '600' },
   exName: { color: '#EAF2FF', fontSize: 13, fontWeight: '700' },
   counter: { color: '#39D98A', fontSize: 28, fontWeight: '800', marginTop: 2 },
   gate: { fontSize: 12, fontWeight: '700' },

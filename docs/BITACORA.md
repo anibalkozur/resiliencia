@@ -899,3 +899,30 @@ eps porque reproduce el motor, pero lo deja asentado con catalogUnit y el inform
 **Verificacion:** 45 tests en verde, sc --noEmit limpio, ESLint sin warnings.
 
 **Pendiente:** prueba fisica en Android para confirmar que la pose carga y que los 8 ejercicios cuentan, y resolver la unidad de mountain climbers antes de portar nada a pps/mobile.
+
+### Esqueleto y checklist de landmarks (lo que faltaba para ver la postura)
+
+El usuario reporto que no aparecia el esqueleto que sigue el movimiento. Causa: **la app real dibuja el esqueleto y el tester no dibujaba nada**. En produccion (HTML:1699-1731) un canvas encima del <video> pinta drawConnectors(lm, POSE_CONNECTIONS) en #3A4552 y un punto por landmark exigido, verde #C8FF3D si isibility >= VIS, rojo #FF5A5A con anillo si no. El tester tiene la camara en expo-camera (nativa) y el WebView de MediaPipe **oculto**, asi que no hay canvas donde pintar y el esqueleto nunca existio.
+
+19. **Esqueleto dibujado con Views.** Se agrego POSE_CONNECTIONS (las 35 conexiones de PoseLandmarker.POSE_CONNECTIONS) y LANDMARK_LABELS a pose.ts, y src/components/PoseOverlay.tsx arma el mismo grafo con Views absolutas: una por conexion (anclada por el punto medio y rotada) y una por punto exigido, replicando radios 5/6, el anillo de radio 10 y los colores de produccion. Se respeta la proporcion real de la foto ( akePictureAsync devuelve width/height) con letterbox y centrado, y se espeja cuando la camara es frontal, igual que pplyMirror (HTML:1734-1737). Sin dependencias nuevas: no hay
+    eact-native-svg.
+
+20. **Checklist de landmarks, equivalente a
+    enderChecklist (HTML:1050).** Un panel rojo abajo dice que landmark falta por nombre ("falta ver: rodilla izq, tobillo der"). Es lo que permite distinguir "no te ve" de "te ve pero le falta una rodilla", que era imposible diagnosticar antes.
+
+El esqueleto y el checklist se actualizan **tambien cuando MediaPipe no devuelve pose**: en ese caso el panel muestra "sin pose en el frame" o el estado de carga, en vez de congelar el ultimo frame valido.
+
+**Sigue faltando** (existe en produccion, no portado): eep/masterGain, nnounceSession con cuenta 3-2-1, paceWarnedIdx + cadenceDeadline (aviso de ritmo), MODE_RANKED con gesto de mano arriba, seriesOk (cierre de serie) y
+epTimestamps. El puerto de estas piezas queda pendiente.
+
+**Verificacion:** 58 tests en verde (13 nuevos de esqueleto, checklist y puntos exigidos), sc --noEmit limpio, ESLint sin warnings, expo export --platform android correcto (622 modulos, 1.6 MB).
+
+### CONFIRM_FRAMES no estaba implementado (cuándo se habilita el conteo)
+
+Al comparar el orden de decision de produccion aparecio un quinto bug: produccion exige CONFIRM_FRAMES = 4 **cuadros consecutivos** con los landmarks completos antes de habilitar el conteo (HTML:1405-1408 frontal, :1519-1520 lateral), y en el medio muestra "Confirmando cuerpo…". El tester solo hacia odyOk = checkComplete(...) de un cuadro: **un solo frame con las rodillas visibles alcanzaba para contar**. El campo odyOkStreak existia en RepEngineState pero nunca se leia ni se escribia, y CONFIRM_FRAMES estaba exportado sin usarse.
+
+21. **Confirmacion de cuerpo implementada.** processFrame ahora lleva el streak, satura en CONFIRM_FRAMES, y devuelve gate landmarks con mensaje "Confirmando cuerpo… n/4" hasta llegar a 4. Cualquier gate roto lo reinicia, igual que odyOkStreak = 0 en produccion.
+
+**Tests:** 62 en verde (4 nuevos de la confirmacion de cuerpo). Los 3 tests que fallaron al agregarlo estaban mal planteados: chamaban un solo cuadro y esperaban un gate de conteo; ahora usan warmBody() para pasar los 4 cuadros primero, que es lo que hace la app real.
+
+**Verificacion:** 62 tests del tester, 291 del repo, sc --noEmit y ESLint limpios, expo export --platform android correcto.

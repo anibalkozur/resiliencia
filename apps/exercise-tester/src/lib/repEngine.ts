@@ -239,6 +239,34 @@ export function processFrame(
     };
   }
 
+  // --- Confirmación de cuerpo visible ---
+  // Producción exige CONFIRM_FRAMES = 4 cuadros consecutivos con los landmarks
+  // completos antes de habilitar el conteo (HTML:1405-1408 frontal, :1519-1520
+  // lateral). Sin esto un único cuadro con las rodillas visibles alcanza para
+  // contar, y el conteo arranca con la postura apenas asetada.
+  const bodyStreak = Math.min(s.bodyOkStreak + 1, CONFIRM_FRAMES);
+  s = { ...s, bodyOkStreak: bodyStreak };
+  if (bodyStreak < CONFIRM_FRAMES) {
+    return {
+      state: s,
+      result: {
+        reps: s.reps,
+        phase: 'reposo',
+        holdMs: 0,
+        candidate: null,
+        candidateStreak: 0,
+        metrics: {},
+        gate: 'landmarks',
+        message: `Confirmando cuerpo… ${bodyStreak}/${CONFIRM_FRAMES}`,
+        repCountInitialized: s.repStartAt !== null,
+        lastRepAt: s.lastRepAt,
+      },
+      completedRep: null,
+      livenessHoldMs: 0,
+      livenessPassed: s.livenessOk,
+    };
+  }
+
   let angle = s.smoothed.push(input.angle);
   s = { ...s };
   const holdStart = s.livenessHoldStart;
