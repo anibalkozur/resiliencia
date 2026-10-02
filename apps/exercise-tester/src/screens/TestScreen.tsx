@@ -1,7 +1,7 @@
 import { useCameraPermissions } from 'expo-camera';
 import { Accelerometer, type AccelerometerMeasurement } from 'expo-sensors';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import type { ExerciseConfig } from '../lib/exercises';
@@ -502,63 +502,65 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
       : `${reps} / ${cfg.target}`;
 
   return (
-    <View style={styles.wrap}>
-      {/* El WebView ES la vista de cámara, igual que el <video> del prototipo.
-          `onPermissionRequest` es lo que concede getUserMedia en Android: sin
-          esto el WebView deniega la cámara aunque el permiso de la app esté
-          dado, y no hay ni video ni landmarks. */}
-      <WebView<object>
-        ref={webRef}
-        source={{ html: POSE_VIEW_HTML, baseUrl: POSE_BRIDGE_BASE_URL }}
-        originWhitelist={['*']}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        // No hace falta onPermissionRequest: react-native-webview concede
-        // getUserMedia internamente mapeando RESOURCE_VIDEO_CAPTURE a
-        // Manifest.permission.CAMERA (RNCWebChromeClient.java:143). Lo que sí
-        // importa es el permiso runtime, que da useCameraPermissions arriba.
-        onMessage={onWebMessage}
-        onError={(e) => {
-          setPoseState('error de red');
-          log(`WebView de pose no pudo cargar: ${e.nativeEvent.description}`, 'warn');
-        }}
-        style={styles.cam}
-        containerStyle={styles.camBox}
-      />
+    <ScrollView style={styles.wrap} contentContainerStyle={styles.scrollContent}>
+      {/* La caja de la cámara replica .video-wrap (HTML:66-74): relación 3/4.
+          El WebView ES la vista de cámara, igual que el <video> del prototipo. */}
+      <View style={styles.camStack}>
+        <View style={styles.camBox}>
+          <WebView<object>
+            ref={webRef}
+            source={{ html: POSE_VIEW_HTML, baseUrl: POSE_BRIDGE_BASE_URL }}
+            originWhitelist={['*']}
+            javaScriptEnabled
+            domStorageEnabled
+            allowsInlineMediaPlayback
+            // No hace falta onPermissionRequest: react-native-webview concede
+            // getUserMedia internamente mapeando RESOURCE_VIDEO_CAPTURE a
+            // Manifest.permission.CAMERA (RNCWebChromeClient.java:143). Lo que sí
+            // importa es el permiso runtime, que da useCameraPermissions arriba.
+            onMessage={onWebMessage}
+            onError={(e) => {
+              setPoseState('error de red');
+              log(`WebView de pose no pudo cargar: ${e.nativeEvent.description}`, 'warn');
+            }}
+            style={styles.cam}
+          />
 
-      <View style={styles.overlayTop} pointerEvents="none">
-        <Text style={styles.exName}>{cfg.name}</Text>
-        <Text style={styles.counter}>{value}</Text>
-        <Text style={[styles.gate, { color: gateColor }]}>{message}</Text>
-        <Text style={styles.meta}>
-          ángulo {angle.toFixed(0)}° · tilt {tilt.lastDeg.toFixed(0)}° (
-          {tilt.vertical ? 'vertical' : 'NO vertical'})
-        </Text>
-        <Text style={styles.meta}>
-          {poseState}
-          {backend ? ` (${backend})` : ''} · {calibInfo}
-        </Text>
+          <View style={styles.overlayTop} pointerEvents="none">
+            <Text style={styles.exName}>{cfg.name}</Text>
+            <Text style={styles.counter}>{value}</Text>
+            <Text style={[styles.gate, { color: gateColor }]}>{message}</Text>
+            <Text style={styles.meta}>
+              ángulo {angle.toFixed(0)}° · tilt {tilt.lastDeg.toFixed(0)}° (
+              {tilt.vertical ? 'vertical' : 'NO vertical'})
+            </Text>
+            <Text style={styles.meta}>
+              {poseState}
+              {backend ? ` (${backend})` : ''} · {calibInfo}
+            </Text>
+          </View>
+
+          {livenessUi.active && !livenessUi.passed ? (
+            <View style={styles.banner} pointerEvents="none">
+              <Text style={styles.bannerText}>
+                PRUEBA DE VIDA:{' '}
+                {livenessUi.type === 'hand' ? 'levantá la mano' : 'bajá y aguantá 2 s'}
+                {livenessUi.type === 'hold' && livenessUi.holdMs > 0
+                  ? ` (${Math.round(livenessUi.holdMs / 100) / 10}s)`
+                  : ''}
+              </Text>
+            </View>
+          ) : null}
+
+          {!tilt.confirmed ? (
+            <View style={styles.tiltWarn} pointerEvents="none">
+              <Text style={styles.tiltWarnText}>
+                Vertical — {Math.round(confirmProgress(tilt) * 100)}%
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
-
-      {livenessUi.active && !livenessUi.passed ? (
-        <View style={styles.banner} pointerEvents="none">
-          <Text style={styles.bannerText}>
-            PRUEBA DE VIDA: {livenessUi.type === 'hand' ? 'levantá la mano' : 'bajá y aguantá 2 s'}
-            {livenessUi.type === 'hold' && livenessUi.holdMs > 0
-              ? ` (${Math.round(livenessUi.holdMs / 100) / 10}s)`
-              : ''}
-          </Text>
-        </View>
-      ) : null}
-
-      {!tilt.confirmed ? (
-        <View style={styles.tiltWarn} pointerEvents="none">
-          <Text style={styles.tiltWarnText}>
-            Vertical — {Math.round(confirmProgress(tilt) * 100)}%
-          </Text>
-        </View>
-      ) : null}
 
       <View style={styles.controls}>
         <Pressable style={styles.btnSmall} onPress={flip}>
@@ -587,15 +589,29 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
       <Pressable style={styles.back} onPress={onExit}>
         <Text style={styles.backText}>← Salir del test</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1 },
+  wrap: { flex: 1, backgroundColor: '#05070A' },
+  scrollContent: { padding: 12, paddingBottom: 24 },
   box: { padding: 18, paddingTop: 20 },
   msg: { color: '#9FB0C6', fontSize: 13, lineHeight: 19, marginBottom: 14 },
-  camBox: { flex: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: '#000' },
+  // La caja de la cámara replica .video-wrap del prototipo (HTML:66-74):
+  // relación 3/4, fondo negro y esquinas redondeadas. El alto NO puede ser
+  // flex:1: eso reparte el espacio con los controles y el log, y con pantallas
+  // bajas la cámara queda en cero.
+  camBox: {
+    width: '100%',
+    aspectRatio: 0.75,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  // Wrapper sin bordered para que los HUD absolutos se midan contra la caja de
+  // la cámara y no contra la ventana del ScrollView.
+  camStack: { width: '100%', aspectRatio: 0.75 },
   cam: { flex: 1, backgroundColor: '#000' },
   overlayTop: {
     position: 'absolute',

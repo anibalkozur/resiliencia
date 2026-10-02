@@ -31,12 +31,36 @@ export const POSE_VIEW_HTML = `<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}/vision_bundle.js" crossorigin="anonymous"></script>
     <style>
       * { box-sizing: border-box; }
-      html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
-        font-family: -apple-system, Roboto, sans-serif; }
-      #stage { position: absolute; inset: 0; }
-      video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-      canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-      .no-mirror { transform: scaleX(-1); }
+      /* camera-verification.html:28-92. Ojo con esto: el alto de la cámara NO
+         puede depender de html/body height:100%, porque dentro de un WebView con
+         layout flexible eso no siempre resuelve y el contenedor colapsa a
+         altura 0 (cámara invisible). Producción usa un wrapper estático con
+         aspect-ratio, que no depende del alto del body. */
+      body {
+        margin: 0;
+        padding: 0;
+        background: #000;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      }
+      .video-wrap {
+        position: relative;
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #000;
+        aspect-ratio: 3/4;
+      }
+      video, canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      video { transform: scaleX(-1); }
+      canvas { transform: scaleX(-1); }
+      .no-mirror { transform: none; }
       #checklist { position: absolute; left: 8px; bottom: 8px; display: none;
         background: rgba(3,4,5,.72); border-radius: 8px; padding: 7px 8px; }
       #clTitle { color: #EAF2FF; font-size: 11px; font-weight: 700; }
@@ -49,7 +73,7 @@ export const POSE_VIEW_HTML = `<!DOCTYPE html>
     </style>
   </head>
   <body>
-    <div id="stage">
+    <div class="video-wrap" id="stage">
       <video id="video" playsinline autoplay muted></video>
       <canvas id="canvas"></canvas>
       <div id="checklist"><div id="clTitle"></div><div id="clRows"></div></div>

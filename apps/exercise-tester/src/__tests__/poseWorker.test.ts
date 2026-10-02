@@ -123,6 +123,38 @@ describe('puente de orientación (copia de HTML:1896-1904)', () => {
   });
 });
 
+describe('layout de la cámara (copia de HTML:28-92)', () => {
+  it('el alto de la cámara no depende de html/body height:100%', () => {
+    // Este fue el bug que dejó la cámara invisible: `#stage` con
+    // `position:absolute; inset:0` colapsa a 0 cuando body height:100% no
+    // resuelve dentro del WebView. Producción usa un wrapper estático.
+    // El `height: 100%` que sí debe existir es el de video/canvas respecto del
+    // wrapper (HTML:81), no el del body.
+    expect(html).not.toMatch(/body\s*\{[^}]*height:\s*100%/);
+    expect(html).not.toContain('position: absolute; inset: 0;');
+  });
+
+  it('usa un wrapper estático con aspect-ratio 3/4', () => {
+    expect(html).toContain('class="video-wrap"');
+    expect(html).toContain('position: relative;');
+    expect(html).toContain('aspect-ratio: 3/4;');
+    expect(html).toContain('overflow: hidden;');
+  });
+
+  it('video y canvas se superponen al wrapper, como en producción', () => {
+    expect(html).toContain('video, canvas {');
+    expect(html).toContain('position: absolute;');
+    expect(html).toContain('object-fit: cover;');
+  });
+
+  it('el espejo está por defecto en el CSS y se quita con .no-mirror', () => {
+    // camera-verification.html:84-92: el scaleX(-1) está en la regla base.
+    expect(html).toContain('video { transform: scaleX(-1); }');
+    expect(html).toContain('canvas { transform: scaleX(-1); }');
+    expect(html).toContain('.no-mirror { transform: none; }');
+  });
+});
+
 describe('superficie que consume la app nativa', () => {
   it('expone las funciones que TestScreen inyecta', () => {
     expect(html).toContain('window.__start = startCamera;');

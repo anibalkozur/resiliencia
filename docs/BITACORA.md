@@ -950,3 +950,17 @@ Al escribir estas secciones con un here-string de PowerShell `@"..."@` (expandib
 Se reparó el tramo desde "Banco de pruebas: catálogo completo" hasta acá. Las secciones anteriores nunca estuvieron dañadas: mantienen sus backticks y sus identificadores intactos.
 
 **Para escribir markdown técnico hay que usar here-strings literales `@'...'@` o el editor, nunca `@"..."@`.** Un `@"..."@` con backticks corrompe el texto en silencio: no da error, solo pierde letras.
+
+### La cámara no se veía: el contenedor colapsaba a altura cero
+
+El usuario reportó que no se veía la cámara y que "no le dejaron espacio". Causa concreta: el CSS del WebView usaba `#stage { position: absolute; inset: 0 }` y confiaba en que `html, body { height: 100% }` resolviera dentro del WebView. Cuando eso no resuelve, el contenedor absoluto colapsa a **0 px de alto**: el video no tenía espacio y la pantalla quedaba en negro.
+
+Producción no depende del alto del body: `.video-wrap` es un wrapper **estático** con `aspect-ratio: 3/4` (`HTML:66-74`), y `video`/`canvas` son absolutos _dentro_ de él (`HTML:75-83`). El alto sale de la relación de aspecto, no de la cadena de herencia del body.
+
+27. **CSS del WebView alineado a `.video-wrap`.** Se copiaron `body`, `.video-wrap`, `video, canvas` y `.no-mirror` tal cual (`HTML:28-92`), incluido el `transform: scaleX(-1)` en la regla base de video y canvas en vez de agregarlo por JS. El `height: 100%` que queda es el de video/canvas respecto del wrapper, que es lo correcto.
+
+28. **Caja de cámara nativa con la proporción exacta.** `TestScreen` ya no usa `flex: 1` para el alto de la cámara: usa `aspectRatio: 0.75` con `width: '100%'`, dentro de un `ScrollView`. El `flex: 1` anterior repartía el espacio con los controles y el log, y en pantallas bajas la cámara quedaba en cero. Los HUD absolutos (contador, gate, liveness, tilt) están dentro de dos wrappers (`camStack` + `camBox`) para que se midan contra la caja de la cámara y no contra la ventana del `ScrollView`.
+
+**Tests:** 74 en verde, 4 nuevos de layout que fijan que el body no declare `height: 100%`, que no exista `position: absolute; inset: 0`, que el wrapper tenga `aspect-ratio: 3/4`, y que el espejo esté en la regla base de CSS.
+
+**Verificación:** 74 tests del tester, 303 del repo, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto.
