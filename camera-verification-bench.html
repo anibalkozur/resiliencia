@@ -559,7 +559,7 @@
         plancha:
           'Pará en plancha con los brazos extendidos y el cuerpo formando una línea recta de la cabeza a los pies. Mantené la posición sin bajar la cadera hasta completar el tiempo.',
         zancadas:
-          'Parate derecho mirando a la cámara. Da un paso largo hacia adelante y bajá hasta que ambas rodillas queden cerca de 90°. Volvé a la posición inicial y repetí con la otra pierna.',
+          'Ponete de perfil a la cámara, mirando hacia un costado. Da un paso largo hacia adelante y bajá flexionando las rodillas hasta cerca de 90°; volvé a subir y repetí alternando la pierna. Cada subida completa cuenta como 1.',
         puente_gluteo:
           'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Elevá la cadera apretando los glúteos, mantené un segundo y bajá hasta apoyarla. Cada subida cuenta como 1.',
         mountain_climbers:
@@ -714,14 +714,21 @@
         zancadas: {
           name: 'Zancadas',
           unit: 'reps',
-          type: 'frontal',
-          left: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
-          right: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
-          downThresh: 115,
-          upThresh: 160,
-          downDelta: 0,
-          upDelta: 0,
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              angle: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              angle: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+            },
+          },
+          downDelta: 45,
+          upDelta: 18,
           liveness: 'hand',
+          startMsg: 'Ponete de perfil a la cámara, parado y quieto un segundo',
         },
         puente_gluteo: {
           name: 'Puente de glúteo',
