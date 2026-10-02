@@ -62,22 +62,30 @@ Están portadas tal cual, no simplificadas:
 
 ## Ver la postura
 
-Sobre la cámara se dibuja el esqueleto completo y los puntos que el ejercicio
-exige, con el mismo criterio que la app real (`camera-verification.html:1699-1731`):
+La cámara **es** el WebView: el banco carga el mismo HTML que el prototipo
+(`src/lib/poseWorker.ts`), con `<video>` + `getUserMedia`, `PoseLandmarker` en
+`runningMode: 'VIDEO'` y `detectForVideo` sobre el stream, deduplicando por
+`video.currentTime` en un `requestAnimationFrame`. Es una copia de
+`camera-verification.html:1906-1959` y `:1760-1770`, no una variante.
 
-- conexiones en `#3A4552`, grosor 2, las 35 de `PoseLandmarker.POSE_CONNECTIONS`
+Sobre ese video se dibuja el esqueleto en el canvas, con `DrawingUtils` igual que
+la app real (`camera-verification.html:1699-1731`):
+
+- conexiones en `#3A4552`, grosor 2, las de `PoseLandmarker.POSE_CONNECTIONS`
 - punto **verde** `#C8FF3D` si el landmark se ve (radio 5), **rojo** `#FF5A5A` con
   anillo si no (radio 6 + anillo de radio 10)
 - se resaltan solo los puntos que el ejercicio exige, no los 33
 - se espeja con la cámara frontal, igual que `applyMirror`
-- respeta la proporción real de la foto, con letterbox y centrado
+- el canvas toma el tamaño real del video (`videoWidth`/`videoHeight`)
 
 Abajo va el **checklist de landmarks** (`renderChecklist` en la app real): dice
 qué falta ver por nombre, tipo "falta ver: rodilla izq, tobillo der". Es lo que
 distingue "no te ve" de "te ve pero le falta una rodilla".
 
-Si MediaPipe no devuelve pose, el panel muestra "sin pose en el frame" en vez de
-congelar el último esqueleto.
+La app nativa manda por el puente los landmarks de cada cuadro y corre el motor
+de conteo con ellos; el puente también expone `__start`, `__stop`, `__facing`,
+`__setHighlight` y `__snap` (evidencia: un frame limpio del video, sin el
+overlay del esqueleto).
 
 Además replica las reglas que hacen que el conteo sea confiable:
 
@@ -124,13 +132,12 @@ están** en el banco:
 
 ### Otras limitaciones
 
-- El conteo corre por **snapshots** de la cámara (cada ~700 ms) porque
-  `expo-camera` no expone frames en vivo dentro de Expo Go. La app real analiza
-  video continuo en un WebView con MediaPipe. Sirve para calibrar umbrales y
-  detectar gates mal puestos; el ritmo real de cada rep hay que confirmarlo en la
-  app.
 - MediaPipe se descarga de `cdn.jsdelivr.net` y `storage.googleapis.com`: la
   primera carga necesita internet. Si no carga en 45 s la app lo avisa en vez de
   quedarse en blanco.
-- El puente de pose usa `runningMode: 'IMAGE'` + `detect()` porque la entrada son
-  fotos fijas; `detectForVideo` exige timestamps crecientes de un stream.
+- El motor de conteo sigue siendo el del banco (`src/lib/repEngine.ts`), no el
+  `processPose` del prototipo: la paridad está verificada por tests cuadro a
+  cuadro, pero no es el mismo archivo.
+- El esqueleto se dibuja en el canvas del WebView, igual que producción, pero los
+  _puntos resaltados_ los elige la app nativa (`resolveSide` + `lateralPoints`) y
+  se inyectan con `__setHighlight`, en vez de calcularse en el DOM.

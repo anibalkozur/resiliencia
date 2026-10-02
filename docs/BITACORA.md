@@ -1,4 +1,4 @@
-﻿# Bitácora de ResiliencIA
+# Bitácora de ResiliencIA
 
 Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medida que se planifica y desarrolla cada fase.
 
@@ -859,70 +859,94 @@ Verificación: typecheck OK, **39 tests console / 268 repo en verde**.
 **Pendiente:** prueba física en Android con Expo Go para los 3 ejercicios y la prueba de vida, y recién después portar los ajustes a `apps/mobile`.
 ---
 
-## Banco de pruebas: catalogo completo (8 ejercicios) y fix de carga de pose
+## Banco de pruebas: catálogo completo (8 ejercicios) y fix de carga de pose
 
-**Punto de partida:** el usuario probó el banco en su Android y la pose no cargaba. Ademas pidio cubrir los 8 ejercicios de la app, no solo los 3 gratuitos.
+**Punto de partida:** el usuario probó el banco en su Android y la pose no cargaba. Además pidió cubrir los 8 ejercicios de la app, no solo los 3 gratuitos.
 
 ### Causa de la pose que no cargaba
 
-El WebView que corre MediaPipe se servia con source={{ html }} sin aseUrl, o sea desde bout:blank. Desde ahi el CDN del script, el WASM y el modelo fallan por CORS y la app se quedaba esperando en silencio. Ademas el poseWorker usaba detectForVideo() sobre un <img> fijo, que exige timestamps crecientes de un stream: con snapshots nunca iba a funcionar.
+El WebView que corre MediaPipe se servía con `source={{ html }}` sin `baseUrl`, o sea desde `about:blank`. Desde ahí el CDN del script, el WASM y el modelo fallan por CORS y la app se quedaba esperando en silencio.
 
 **Cambios:**
 
-1. source={{ html, baseUrl: POSE_BRIDGE_BASE_URL }} con origen https://cdn.jsdelivr.net.
-2.
+1. `source={{ html, baseUrl: POSE_BRIDGE_BASE_URL }}` con origen `https://cdn.jsdelivr.net`.
+2. `runningMode: 'IMAGE'` + `landmarker.detect(img)`.
+3. Reporte de etapas (arrancando / script / wasm / modelo / lista), `window.onerror` y `unhandledrejection` reenviados a la app, fallback GPU → CPU, y `onError` del WebView.
+4. Timeout de 45 s: si MediaPipe no dice `ready`, la app lo dice en vez de quedar en blanco.
+5. El WebView era 1x1 con `opacity: 0.01`; Android lo deja en 1 fps o lo congela y la imagen nunca decodifica. Pasó a 2x2 casi transparente y fuera de pantalla.
 
-unningMode: 'IMAGE' + landmarker.detect(img). 3. Reporte de etapas (rrancando / script / wasm / modelo / lista), window.onerror y unhandledrejection reenviados a la app, fallback GPU -> CPU, y onError del WebView. 4. Timeout de 45 s: si MediaPipe no dice
-eady, la app lo dice en vez de quedar en blanco. 5. El WebView era 1x1 con opacity: 0.01; Android lo deja en 1 fps o lo congela y la imagen nunca decodifica. Paso a 2x2 casi transparente y fuera de pantalla.
+> El punto 2 fue un parche, no una solución: está registrado más abajo que la causa real de que el modelo no cargara era otra.
 
-### Catalogo completo
+### Catálogo completo
 
-Se replicaron los 8 ejercicios de camera-verification.html:609-764 con unit, ier, objetivo de catalog.ts:24-33 y los umbrales exactos. La geometria paso de if (id === ...) dispersos a campos declarativos (ngle, knee, kneeFold, lineMin, groundedMax, standingKneeMargin, points), resueltos con ngleByNames y lateralPoints, para que agregar un ejercicio no pueda olvidarse de un landmark.
+Se replicaron los 8 ejercicios de `camera-verification.html:609-764` con `unit`, `kind`, objetivo de `catalog.ts:24-33` y los umbrales exactos. La geometría pasó de `if (id === ...)` dispersos a campos declarativos (`angle`, `knee`, `kneeFold`, `lineMin`, `groundedMax`, `standingKneeMargin`, `points`), resueltos con `angleByNames` y `lateralPoints`, para que agregar un ejercicio no pueda olvidarse de un landmark.
 
 **Cuatro bugs reales encontrados al portar:**
 
-15. **Suavizado de mountain climbers.** El motor suavizaba con ventana 7 (lateral); produccion suaviza el angulo de rodilla con **5** (:1594). Con ventana 7 el pliegue nunca cruzaba 105 grados y **no contaba ninguna rep**.
-16. **Hold de isométricos invertido en frontal.** El hold lateral es smoothed > dynamicUpThresh (:1669), pero el frontal es cand === 'down', o sea **ambas rodillas bajo downThresh** (:1450 + :1420-1422). El tester aplicaba la regla lateral a los dos, asi que la sentadilla isometrica contaba segundos **de pie** y no en sentadilla.
-17. **Calibracion faltante.** Mountain climbers calibra con deltas 0/0 (:1597-1607) y todo ejercicio en segundos pide "quedate quieto" antes de arrancar (:1435-1449), aunque use umbrales fijos. El gate solo cubria el perfil deltas, asi que ninguno de los dos podia contar. Se unifico en
-    eedsCalibration(cfg), usada por el motor y por la pantalla.
-18. **Landmarks incompletos en puente.** sides[].points del puente pide tambien el **tobillo**, que el mapa hardcodeado no exigia, y plancha y mountain_climbers no existian en el mapa: lateralPoints(cfg, side) paso a derivarlos de cfg.points.
+15. **Suavizado de mountain climbers.** El motor suavizaba con ventana 7 (lateral); producción suaviza el ángulo de rodilla con **5** (`:1594`). Con ventana 7 el pliegue nunca cruzaba 105 grados y **no contaba ninguna rep**.
+16. **Hold de isométricos invertido en frontal.** El hold lateral es `smoothed > dynamicUpThresh` (`:1669`), pero el frontal es `cand === 'down'`, o sea **ambas rodillas bajo `downThresh`** (`:1450` + `:1420-1422`). El tester aplicaba la regla lateral a los dos, así que la sentadilla isométrica contaba segundos **de pie** y no en sentadilla.
+17. **Calibración faltante.** Mountain climbers calibra con `deltas 0/0` (`:1597-1607`) y todo ejercicio en segundos pide "quedate quieto" antes de arrancar (`:1435-1449`), aunque use umbrales fijos. El gate solo cubría el perfil `deltas`, así que ninguno de los dos podía contar. Se unificó en `needsCalibration(cfg)`, usada por el motor y por la pantalla.
+18. **Landmarks incompletos en puente.** `sides[].points` del puente pide también el **tobillo**, que el mapa hardcodeado no exigía, y `plancha` y `mountain_climbers` no existían en el mapa: `lateralPoints(cfg, side)` pasó a derivarlos de `cfg.points`.
 
-Ademas livenessRequired comparaba kind === 'isometrico' cuando produccion usa unit === 'seconds' || target > 5 (:768).
+Además `livenessRequired` comparaba `kind === 'isometrico'` cuando producción usa `unit === 'seconds' || target > 5` (`:768`).
 
 ### Discrepancia de mountain climbers (no normalizada)
 
-camera-verification.html:723 declara unit: 'reps' y cuenta una rep por rodilla al pecho. pps/mobile/src/retos/catalog.ts:20 declara unit: 'seconds'. El tester usa
-eps porque reproduce el motor, pero lo deja asentado con catalogUnit y el informe lo marca con [! unidad] para que no pase despercibido al portar el cambio.
+`camera-verification.html:723` declara `unit: 'reps'` y cuenta una rep por rodilla al pecho. `apps/mobile/src/retos/catalog.ts:20` declara `unit: 'seconds'`. El tester usa `reps` porque reproduce el motor, pero lo deja asentado con `catalogUnit` y el informe lo marca con `[! unidad]` para que no pase despercibido al portar el cambio.
 
-**Tests:** la suite paso de 27 a **45**, con cobertura por ejercicio (umbrales contra el HTML, tier, unidad, sides[].points, indice de lateralPoints por lado, isometrico frontal y lateral con y sin calibracion, conteo por pliegue con mesetas, y el triangulo generico ngleByNames).
+**Tests:** la suite pasó de 27 a **45**, con cobertura por ejercicio (umbrales contra el HTML, tier, unidad, `sides[].points`, índice de `lateralPoints` por lado, isométrico frontal y lateral con y sin calibración, conteo por pliegue con mesetas, y el triángulo genérico `angleByNames`).
 
-**Verificacion:** 45 tests en verde, sc --noEmit limpio, ESLint sin warnings.
+**Verificación:** 45 tests en verde, `tsc --noEmit` limpio, ESLint sin warnings.
 
-**Pendiente:** prueba fisica en Android para confirmar que la pose carga y que los 8 ejercicios cuentan, y resolver la unidad de mountain climbers antes de portar nada a pps/mobile.
+**Pendiente:** prueba física en Android para confirmar que la pose carga y que los 8 ejercicios cuentan, y resolver la unidad de mountain climbers antes de portar nada a `apps/mobile`.
 
 ### Esqueleto y checklist de landmarks (lo que faltaba para ver la postura)
 
-El usuario reporto que no aparecia el esqueleto que sigue el movimiento. Causa: **la app real dibuja el esqueleto y el tester no dibujaba nada**. En produccion (HTML:1699-1731) un canvas encima del <video> pinta drawConnectors(lm, POSE_CONNECTIONS) en #3A4552 y un punto por landmark exigido, verde #C8FF3D si isibility >= VIS, rojo #FF5A5A con anillo si no. El tester tiene la camara en expo-camera (nativa) y el WebView de MediaPipe **oculto**, asi que no hay canvas donde pintar y el esqueleto nunca existio.
+El usuario reportó que no aparecía el esqueleto que sigue el movimiento. Causa: **la app real dibuja el esqueleto y el tester no dibujaba nada**. En producción (`HTML:1699-1731`) un canvas encima del `<video>` pinta `drawConnectors(lm, POSE_CONNECTIONS)` en `#3A4552` y un punto por landmark exigido, verde `#C8FF3D` si `visibility >= VIS`, rojo `#FF5A5A` con anillo si no. El tester tenía la cámara en `expo-camera` (nativa) y el WebView de MediaPipe **oculto**, así que no había canvas donde pintar y el esqueleto nunca existió.
 
-19. **Esqueleto dibujado con Views.** Se agrego POSE_CONNECTIONS (las 35 conexiones de PoseLandmarker.POSE_CONNECTIONS) y LANDMARK_LABELS a pose.ts, y src/components/PoseOverlay.tsx arma el mismo grafo con Views absolutas: una por conexion (anclada por el punto medio y rotada) y una por punto exigido, replicando radios 5/6, el anillo de radio 10 y los colores de produccion. Se respeta la proporcion real de la foto ( akePictureAsync devuelve width/height) con letterbox y centrado, y se espeja cuando la camara es frontal, igual que pplyMirror (HTML:1734-1737). Sin dependencias nuevas: no hay
-    eact-native-svg.
+19. **Esqueleto dibujado con Views.** Se agregó `POSE_CONNECTIONS` (las 35 conexiones de `PoseLandmarker.POSE_CONNECTIONS`) y `LANDMARK_LABELS` a `pose.ts`, y `src/components/PoseOverlay.tsx` armaba el mismo grafo con Views absolutas: una por conexión (anclada por el punto medio y rotada) y una por punto exigido, replicando radios 5/6, el anillo de radio 10 y los colores de producción. Se respetaba la proporción real de la foto (`takePictureAsync` devuelve `width`/`height`) con letterbox y centrado, y se espejaba cuando la cámara es frontal, igual que `applyMirror` (`HTML:1734-1737`). Sin dependencias nuevas: no hay `react-native-svg`.
+20. **Checklist de landmarks, equivalente a `renderChecklist` (`HTML:1050`).** Un panel rojo abajo decía qué landmark falta por nombre ("falta ver: rodilla izq, tobillo der"). Es lo que permite distinguir "no te ve" de "te ve pero le falta una rodilla", que era imposible diagnosticar antes.
 
-20. **Checklist de landmarks, equivalente a
-    enderChecklist (HTML:1050).** Un panel rojo abajo dice que landmark falta por nombre ("falta ver: rodilla izq, tobillo der"). Es lo que permite distinguir "no te ve" de "te ve pero le falta una rodilla", que era imposible diagnosticar antes.
+El esqueleto y el checklist se actualizaban **también cuando MediaPipe no devolvía pose**: en ese caso el panel mostraba "sin pose en el frame" o el estado de carga, en vez de congelar el último frame válido.
 
-El esqueleto y el checklist se actualizan **tambien cuando MediaPipe no devuelve pose**: en ese caso el panel muestra "sin pose en el frame" o el estado de carga, en vez de congelar el ultimo frame valido.
+**Verificación:** 58 tests en verde (13 nuevos de esqueleto, checklist y puntos exigidos), `tsc --noEmit` limpio, ESLint sin warnings, `expo export --platform android` correcto (622 módulos, 1.6 MB).
 
-**Sigue faltando** (existe en produccion, no portado): eep/masterGain, nnounceSession con cuenta 3-2-1, paceWarnedIdx + cadenceDeadline (aviso de ritmo), MODE_RANKED con gesto de mano arriba, seriesOk (cierre de serie) y
-epTimestamps. El puerto de estas piezas queda pendiente.
-
-**Verificacion:** 58 tests en verde (13 nuevos de esqueleto, checklist y puntos exigidos), sc --noEmit limpio, ESLint sin warnings, expo export --platform android correcto (622 modulos, 1.6 MB).
+> Todo este trabajo fue **deshecho** en la sección siguiente: el esqueleto pasó a dibujarse en el canvas del WebView, igual que producción, y `PoseOverlay.tsx` se eliminó.
 
 ### CONFIRM_FRAMES no estaba implementado (cuándo se habilita el conteo)
 
-Al comparar el orden de decision de produccion aparecio un quinto bug: produccion exige CONFIRM_FRAMES = 4 **cuadros consecutivos** con los landmarks completos antes de habilitar el conteo (HTML:1405-1408 frontal, :1519-1520 lateral), y en el medio muestra "Confirmando cuerpo…". El tester solo hacia odyOk = checkComplete(...) de un cuadro: **un solo frame con las rodillas visibles alcanzaba para contar**. El campo odyOkStreak existia en RepEngineState pero nunca se leia ni se escribia, y CONFIRM_FRAMES estaba exportado sin usarse.
+Al comparar el orden de decisión de producción apareció un quinto bug: producción exige `CONFIRM_FRAMES = 4` **cuadros consecutivos** con los landmarks completos antes de habilitar el conteo (`HTML:1405-1408` frontal, `:1519-1520` lateral), y en el medio muestra "Confirmando cuerpo…". El tester solo hacía `bodyOk = checkComplete(...)` de un cuadro: **un solo frame con las rodillas visibles alcanzaba para contar**. El campo `bodyOkStreak` existía en `RepEngineState` pero nunca se leía ni se escribía, y `CONFIRM_FRAMES` estaba exportado sin usarse.
 
-21. **Confirmacion de cuerpo implementada.** processFrame ahora lleva el streak, satura en CONFIRM_FRAMES, y devuelve gate landmarks con mensaje "Confirmando cuerpo… n/4" hasta llegar a 4. Cualquier gate roto lo reinicia, igual que odyOkStreak = 0 en produccion.
+21. **Confirmación de cuerpo implementada.** `processFrame` ahora lleva el streak, satura en `CONFIRM_FRAMES`, y devuelve gate `landmarks` con mensaje "Confirmando cuerpo… n/4" hasta llegar a 4. Cualquier gate roto lo reinicia, igual que `bodyOkStreak = 0` en producción.
 
-**Tests:** 62 en verde (4 nuevos de la confirmacion de cuerpo). Los 3 tests que fallaron al agregarlo estaban mal planteados: chamaban un solo cuadro y esperaban un gate de conteo; ahora usan warmBody() para pasar los 4 cuadros primero, que es lo que hace la app real.
+**Tests:** 62 en verde (4 nuevos de la confirmación de cuerpo). Los 3 tests que fallaron al agregarlo estaban mal planteados: chamaban un solo cuadro y esperaban un gate de conteo; ahora usan `warmBody()` para pasar los 4 cuadros primero, que es lo que hace la app real.
 
-**Verificacion:** 62 tests del tester, 291 del repo, sc --noEmit y ESLint limpios, expo export --platform android correcto.
+**Verificación:** 62 tests del tester, 291 del repo, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto.
+
+### El modelo de seguimiento no cargaba: la arquitectura estaba mal
+
+El banco nunca cargó el modelo, y la causa no era la red: **la arquitectura era distinta por diseño mío**. `TestScreen` usaba `expo-camera` con `takePictureAsync` en un bucle de ~700 ms, mandaba cada foto en base64 a un WebView **oculto** de 2x2 con `runningMode: 'IMAGE'` + `detect()`. Resiliencia hace otra cosa (`HTML:1906-1959`, `:1760-1770`): todo ocurre dentro del WebView, con un `<video>` real, `getUserMedia`, `runningMode: 'VIDEO'` y `detectForVideo` sobre el stream, deduplicando por `video.currentTime` dentro de un `requestAnimationFrame`.
+
+Además había un bug concreto en el puente: se llamaba a `PoseLandmarker.createFromOptions(vision, ...)` **sin haber asignado nunca `vision`**, porque faltaba el `FilesetResolver.forVisionTasks(WASM_URL)` de `HTML:1810-1814`. Eso es un `ReferenceError` que el `catch` reportaba como `fatal`, y la app se quedaba esperando. El modelo tampoco se descargaba nunca: faltaba el `.task` entero. Y la URL apuntaba a `/float16/1/` en vez de `/float16/latest/` como producción.
+
+**Consecuencia de fondo:** lo que se había "arreglado" en la sección de arriba (`baseUrl`,IMAGE, timeout, WebView 2x2) no era la causa. El `baseUrl` sí era necesario, pero el modelo nunca llegó a intentsarse a descargar.
+
+22. **WebView de pose reescrito como copia de producción.** `src/lib/poseWorker.ts` ahora es el HTML del prototipo: `<video>` + `<canvas>`, `getUserMedia`, `FilesetResolver` + `PoseLandmarker` en `VIDEO`/`numPoses: 1`, `detectForVideo`, `draw()` con `DrawingUtils`, `renderChecklist`, `applyMirror`, `__resilienciaSetNativeOrientation` y `attemptCreate` GPU→CPU con timeout de 20 s. Se exporta como `POSE_VIEW_HTML`.
+23. **El WebView pasó a ser la vista de cámara.** Se eliminó el `<CameraView>` nativo y el bucle de capturas: `TestScreen` inyecta `__start` / `__stop` / `__facing` / `__setHighlight` / `__snap` y corre el motor con los landmarks que llegan por el puente a la frecuencia del video. `expo-camera` queda solo para pedir el permiso runtime de `CAMERA`, que es lo que `react-native-webview` necesita para conceder `getUserMedia` (`RNCWebChromeClient.java:143` mapea `RESOURCE_VIDEO_CAPTURE` a `Manifest.permission.CAMERA`; no hace falta `onPermissionRequest`).
+24. **Overlay nativo eliminado.** `components/PoseOverlay.tsx` y su test quedaron muertos al pasar el dibujo al canvas; también se borraron `POSE_CONNECTIONS` y `LANDMARK_LABELS` de `pose.ts`, que solo existían para armar el esqueleto con Views. Ahora el esqueleto se dibuja con `DrawingUtils` como en producción.
+25. **Cuarto deadlock corregido.** El botón "Iniciar" exigía que MediaPipe ya estuviera `ready`, pero `ready` solo se emitía dentro de `startCamera()`, que era lo que el botón disparaba: no se podía arrancar nunca. Producción resuelve el modelo _dentro_ de `startCamera`, así que el botón ahora solo dispara eso y la UI va mostrando "bajando MediaPipe…" → "cargando WASM…" → "bajando modelo…" → "pidiendo cámara…".
+26. **UI a ~12 fps.** El engine corre a la frecuencia del video como producción, pero los `setState` se agrupan cada 80 ms: 30 renders por segundo del árbol completo en el hilo de JS de React Native se sienten.
+
+**Tests:** 70 en verde, 21 nuevos en `src/__tests__/poseWorker.test.ts` que fijan el contrato de carga e inferencia: `FilesetResolver` antes de `createFromOptions`, `runningMode: 'VIDEO'`, `detectForVideo`, `getUserMedia`, `detectForVideo` antes de `requestAnimationFrame`, colores del canvas, `/latest/`, y que no reaparezca `runningMode: 'IMAGE'` ni `takePictureAsync`. Ese bug de `vision` era testeable y por eso ahora hay un test que lo cubre.
+
+**Verificación:** 70 tests del tester, 299 del repo, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto.
+
+**Lección:** antes de "arreglar" el síntoma, comparar la ejecución completa del original. El `baseUrl` y el timeout parecían la causa y eran condiciones necesarias pero no suficientes.
+
+### Reparación de esta bitácora
+
+Al escribir estas secciones con un here-string de PowerShell `@"..."@` (expandible), los backticks de markdown se consumieron como caracteres de escape: `` `r ``, `` `t ``, `` `v ``, `` `f ``, `` `a `` y `` `b `` borraron la letra siguiente y, en el caso de `` `r ``, partieron palabras en dos.
+
+Se reparó el tramo desde "Banco de pruebas: catálogo completo" hasta acá. Las secciones anteriores nunca estuvieron dañadas: mantienen sus backticks y sus identificadores intactos.
+
+**Para escribir markdown técnico hay que usar here-strings literales `@'...'@` o el editor, nunca `@"..."@`.** Un `@"..."@` con backticks corrompe el texto en silencio: no da error, solo pierde letras.

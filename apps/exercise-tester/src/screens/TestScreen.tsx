@@ -1,20 +1,13 @@
-import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
 import { Accelerometer, type AccelerometerMeasurement } from 'expo-sensors';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-import {
-  PoseOverlay,
-  landmarkLabel,
-  missingLandmarks,
-  requiredIndices,
-} from '../components/PoseOverlay';
 import type { ExerciseConfig } from '../lib/exercises';
 import { needsCalibration } from '../lib/exercises';
 import { handStreak, livenessDue, livenessRequired, scheduleLiveness } from '../lib/liveness';
 import {
-  CALIB_RANGE_MAX,
   FRONTAL_POINTS,
   SIDE_IDX,
   angleByNames,
@@ -30,7 +23,7 @@ import {
   type Pt,
   type SideKey,
 } from '../lib/pose';
-import { POSE_BRIDGE_BASE_URL, POSE_BRIDGE_HTML, type Landmark } from '../lib/poseWorker';
+import { POSE_BRIDGE_BASE_URL, POSE_VIEW_HTML, type Landmark } from '../lib/poseWorker';
 import {
   initEngine,
   postureGate,
@@ -50,8 +43,6 @@ import {
   type AccelSample,
   type TiltState,
 } from '../lib/tilt';
-
-const CAPTURE_INTERVAL_MS = 700;
 
 type LogLine = { id: number; text: string; kind: 'info' | 'ok' | 'warn' };
 
@@ -93,7 +84,7 @@ type Props = {
 
 export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [facing, setFacing] = useState<CameraType>('front');
+  const [facing, setFacing] = useState<'front' | 'back'>('front');
   const [running, setRunning] = useState(false);
   const [reps, setReps] = useState(0);
   const [holdMs, setHoldMs] = useState(0);
@@ -102,17 +93,8 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
   const [angle, setAngle] = useState(0);
   const [tilt, setTilt] = useState<TiltState>(initialTiltState());
   const [backend, setBackend] = useState<string | null>(null);
-  const [poseState, setPoseState] = useState('cargando modelo…');
+  const [poseState, setPoseState] = useState('cargando MediaPipe…');
   const [calibInfo, setCalibInfo] = useState('sin calibrar');
-  // Estado solo de presentación: el esqueleto y el checklist de landmarks.
-  const [view, setView] = useState<{
-    landmarks: Landmark[] | null;
-    side: SideKey;
-    photoWidth: number;
-    photoHeight: number;
-    missing: number[];
-  }>({ landmarks: null, side: 'front', photoWidth: 0, photoHeight: 0, missing: [] });
-  const [camSize, setCamSize] = useState({ width: 0, height: 0 });
   const [livenessUi, setLivenessUi] = useState({
     active: false,
     passed: false,
@@ -121,12 +103,13 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
   });
   const [logs, setLogs] = useState<LogLine[]>([]);
 
-  const camRef = useRef<CameraView>(null);
   const webRef = useRef<WebView<object>>(null);
   const sessionRef = useRef<Session | null>(null);
-  const pendingRef = useRef(new Map<number, (v: Landmark[] | null) => void>());
-  const idRef = useRef(0);
   const logIdRef = useRef(0);
+  // El engine corre a la frecuencia del video (~30 fps, igual que producción),
+  // pero los setState de UI se agrupan: 30 renders por segundo del árbol entero
+  // en el hilo de JS de React Native sí se sienten.
+  const uiRef = useRef<{ t: number }>({ t: 0 });
 
   const required = cfg ? livenessRequired(cfg) : false;
 
@@ -134,12 +117,41 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
     setLogs((prev) => [{ id: ++logIdRef.current, text, kind }, ...prev].slice(0, 40));
   }, []);
 
+  /** Puntos a resaltar en el canvas, como los `pts` de producción (HTML:1705-1706). */
+  const highlightFor = useCallback(
+    (side: SideKey): { title: string; pts: number[] } => {
+      if (!cfg) return { title: 'Cuerpo', pts: [...FRONTAL_POINTS] };
+      if (cfg.side === 'frontal') return { title: 'Cuerpo', pts: [...FRONTAL_POINTS] };
+      return { title: cfg.name, pts: lateralPoints(cfg, side) };
+    },
+    [cfg],
+  );
+
+  const pushHighlight = useCallback(
+    (side: SideKey) => {
+      const h = highlightFor(side);
+      webRef.current?.injectJavaScript(
+        `window.__setHighlight(${JSON.stringify(h.title)}, ${JSON.stringify(h.pts)}); true;`,
+      );
+    },
+    [highlightFor],
+  );
+
   useEffect(() => {
     Accelerometer.setUpdateInterval(SENSOR_UPDATE_INTERVAL_MS);
     const sub = Accelerometer.addListener((m: AccelerometerMeasurement) => {
       const sample: AccelSample = { x: m.x, y: m.y, z: m.z };
       if (sessionRef.current) sessionRef.current.accel = sample;
       setTilt((prev) => pushSample(prev, sample, Date.now()));
+      // Puente de orientación de producción (HTML:1896-1904): la app lee el
+      // sensor y lo inyecta al WebView.
+      webRef.current?.injectJavaScript(
+        `window.__resilienciaSetNativeOrientation(${JSON.stringify({
+          available: true,
+          vertical: isVertical(sample),
+          beta: tiltDeg(sample),
+        })}); true;`,
+      );
     });
     return () => sub.remove();
   }, []);
@@ -147,7 +159,7 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
   // Si MediaPipe no announces "ready" en 45 s no va a hacerlo: el WASM y el
   // modelo se quedan colgados sin internet y la pantalla queda en blanco.
   useEffect(() => {
-    if (poseState === 'pose lista' || poseState === 'error al cargar') return;
+    if (poseState === 'pose lista' || poseState.startsWith('error')) return;
     const t = setTimeout(() => {
       setPoseState('error al cargar');
       log(
@@ -157,80 +169,6 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
     }, 45_000);
     return () => clearTimeout(t);
   }, [poseState, log]);
-
-  const onWebMessage = useCallback(
-    (event: { nativeEvent: { data: string } }) => {
-      let msg: Record<string, unknown>;
-      try {
-        msg = JSON.parse(event.nativeEvent.data) as Record<string, unknown>;
-      } catch {
-        return;
-      }
-      if (msg['type'] === 'stage') {
-        const s = String(msg['stage'] ?? '');
-        const label =
-          s === 'arrancando'
-            ? 'iniciando pose…'
-            : s === 'script'
-              ? 'bajando MediaPipe…'
-              : s === 'wasm'
-                ? 'cargando WASM…'
-                : s === 'modelo'
-                  ? 'bajando modelo…'
-                  : s;
-        setPoseState(label);
-        return;
-      }
-      if (msg['type'] === 'log') {
-        log(String(msg['text'] ?? ''), 'warn');
-        return;
-      }
-      if (msg['type'] === 'ready') {
-        const be = String(msg['backend'] ?? '?');
-        setPoseState('pose lista');
-        setBackend(be);
-        log(`pose lista (${be})`, 'ok');
-        return;
-      }
-      if (msg['type'] === 'fatal') {
-        setPoseState('error al cargar');
-        log(`pose no pudo cargar: ${String(msg['error'] ?? '?')}`, 'warn');
-        return;
-      }
-      const cb = pendingRef.current.get(Number(msg['id']));
-      if (cb) {
-        pendingRef.current.delete(Number(msg['id']));
-        const ok = msg['ok'] === true;
-        cb(ok ? ((msg['landmarks'] as Landmark[]) ?? null) : null);
-      }
-    },
-    [log],
-  );
-
-  const analyze = useCallback((base64: string): Promise<Landmark[] | null> => {
-    const id = ++idRef.current;
-    return new Promise((resolve) => {
-      pendingRef.current.set(id, resolve);
-      webRef.current?.injectJavaScript(`window.__analyze(${id}, ${JSON.stringify(base64)}); true;`);
-      setTimeout(() => {
-        if (pendingRef.current.has(id)) {
-          pendingRef.current.delete(id);
-          resolve(null);
-        }
-      }, 5000);
-    });
-  }, []);
-
-  const snapshot = useCallback(async (rep: number) => {
-    try {
-      const photo = await camRef.current?.takePictureAsync({ quality: 0.5, base64: false });
-      if (photo?.uri && sessionRef.current) {
-        sessionRef.current.evidence.push({ rep, uri: photo.uri, at: Date.now() });
-      }
-    } catch {
-      // evidencia best-effort: no debe cortar el conteo
-    }
-  }, []);
 
   const handleFrame = useCallback(
     (lms: Landmark[], now: number) => {
@@ -248,7 +186,10 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
         const winners = s.sideBuf.filter((v) => v >= 0.4 && v === maxV).length;
         sideOk = winners >= 6;
         useRight = maxV > 0 && s.sideBuf[s.sideBuf.length - 1]! < s.sideBuf[s.sideBuf.length - 2]!;
-        s.useRight = useRight;
+        if (useRight !== s.useRight) {
+          s.useRight = useRight;
+          pushHighlight(useRight ? 'back' : 'front');
+        }
       }
       const idx: (typeof SIDE_IDX)[SideKey] = useRight ? SIDE_IDX.back : SIDE_IDX.front;
 
@@ -301,31 +242,26 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
           s.calibBuf = [];
           s.engine = { ...s.engine, restAngle: null };
           setCalibInfo('posición de reposo no válida');
-          setGate('calibrando');
-          setMessage(
-            cfg.restTorsoMax === 35
-              ? 'Acomodate acostado para calibrar'
-              : 'Acomodate en posición para calibrar',
-          );
         } else {
           const { buf, calib } = attemptCalibration(rawAngle, s.calibBuf, cfg);
           s.calibBuf = buf;
           if (calib) {
-            s.engine = { ...s.engine, restAngle: calib.restAngle, down: calib.down, up: calib.up };
-            setCalibInfo(`calibrado ${calib.restAngle.toFixed(1)}° (rango ≤${CALIB_RANGE_MAX}°)`);
+            s.engine = {
+              ...s.engine,
+              restAngle: calib.restAngle,
+              down: calib.down,
+              up: calib.up,
+            };
+            setCalibInfo(`calibrado ${calib.restAngle.toFixed(1)}°`);
             log(
               `calibración reposo ${calib.restAngle.toFixed(1)}° → down ${calib.down.toFixed(1)} up ${calib.up.toFixed(1)}`,
               'ok',
             );
-          } else {
-            setCalibInfo(`calibrando ${buf.length}/10…`);
           }
         }
         calibDone = s.engine.restAngle !== null;
       }
 
-      // El motor compara el ángulo CRUDO contra umbrales derivados de la
-      // calibración; no hay que restar el reposo (como en producción).
       const inputAngle = rawAngle;
 
       const g = postureGate(cfg, {
@@ -386,78 +322,123 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
           `rep ${out.completedRep.index}: ${out.completedRep.amplitude.toFixed(0)}° en ${Math.round(out.completedRep.durationMs)}ms`,
           'ok',
         );
-        void snapshot(out.completedRep.index);
+        webRef.current?.injectJavaScript('window.__snap(); true;');
       }
 
-      setReps(out.result.reps);
-      setHoldMs(out.result.holdMs);
-      setGate(out.result.gate);
-      setMessage(out.result.message);
-      setAngle(inputAngle);
-      setLivenessUi({
-        active: s.liveness.active,
-        passed: s.liveness.passed,
-        holdMs: s.liveness.holdMs,
-        type: cfg.liveness,
-      });
+      // El engine ya corrió con este cuadro; la UI se refresca a ~12 fps.
+      if (now - uiRef.current.t > 80) {
+        uiRef.current.t = now;
+        setReps(out.result.reps);
+        setHoldMs(out.result.holdMs);
+        setGate(out.result.gate);
+        setMessage(out.result.message);
+        setAngle(inputAngle);
+        setLivenessUi({
+          active: s.liveness.active,
+          passed: s.liveness.passed,
+          holdMs: s.liveness.holdMs,
+          type: cfg.liveness,
+        });
+      }
     },
-    [cfg, log, snapshot, required],
+    [cfg, log, pushHighlight, required],
   );
 
-  useEffect(() => {
-    if (!running || !cfg) return;
-    let alive = true;
-    const tick = async () => {
-      while (alive && sessionRef.current) {
-        const now = Date.now();
-        try {
-          const photo = await camRef.current?.takePictureAsync({ quality: 0.3, base64: true });
-          if (photo?.base64) {
-            const lms = await analyze(photo.base64);
-            // El esqueleto y el checklist se actualizan aunque no haya pose: si
-            // MediaPipe no devuelve nada, `landmarks` queda en null y el panel
-            // muestra "sin pose" en vez de congelarse en el último frame bueno.
-            const s = sessionRef.current;
-            const side: SideKey = s?.useRight ? 'back' : 'front';
-            const req = cfg ? requiredIndices(cfg, side) : [];
-            setView({
-              landmarks: lms && lms.length > 0 ? lms : null,
-              side,
-              photoWidth: photo.width ?? 0,
-              photoHeight: photo.height ?? 0,
-              missing: lms && lms.length > 0 ? missingLandmarks(lms, req) : req,
-            });
-            if (lms && lms.length > 0) handleFrame(lms, now);
-            else log('sin pose en el frame', 'warn');
-          }
-        } catch (e) {
-          log(`error de captura: ${String(e)}`, 'warn');
-        }
-        await new Promise((r) => setTimeout(r, CAPTURE_INTERVAL_MS));
+  const onWebMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      let msg: Record<string, unknown>;
+      try {
+        msg = JSON.parse(event.nativeEvent.data) as Record<string, unknown>;
+      } catch {
+        return;
       }
-    };
-    void tick();
-    return () => {
-      alive = false;
-    };
-  }, [running, cfg, analyze, handleFrame, log]);
+      const type = String(msg['type'] ?? '');
 
+      if (type === 'stage') {
+        const s = String(msg['stage'] ?? '');
+        setPoseState(
+          s === 'script'
+            ? 'bajando MediaPipe…'
+            : s === 'modelo'
+              ? 'bajando modelo…'
+              : s === 'wasm'
+                ? 'cargando WASM…'
+                : s === 'camara'
+                  ? 'pidiendo cámara…'
+                  : s,
+        );
+        return;
+      }
+      if (type === 'log') {
+        log(String(msg['text'] ?? ''));
+        return;
+      }
+      if (type === 'orientation') {
+        return;
+      }
+      if (type === 'sensor_request') {
+        return;
+      }
+      if (type === 'ready') {
+        setBackend(String(msg['backend'] ?? '?'));
+        setPoseState('pose lista');
+        log(`pose lista (${String(msg['backend'] ?? '?')})`, 'ok');
+        return;
+      }
+      if (type === 'running') {
+        setPoseState('pose lista');
+        return;
+      }
+      if (type === 'fatal') {
+        setPoseState(`error: ${String(msg['error'] ?? '?')}`);
+        log(`pose: ${String(msg['error'] ?? '?')}`, 'warn');
+        return;
+      }
+      if (type === 'snap') {
+        const s = sessionRef.current;
+        const uri = String(msg['uri'] ?? '');
+        if (s && uri.startsWith('data:image')) {
+          s.evidence.push({ rep: s.telemetry.length, uri, at: Date.now() });
+        }
+        return;
+      }
+      if (type === 'pose') {
+        const flat = (msg['flat'] as number[] | undefined) ?? [];
+        if (!running || !cfg) return;
+        if (flat.length === 0) {
+          uiRef.current.t = Number(msg['t'] ?? 0);
+          return;
+        }
+        const lms: Landmark[] = [];
+        for (let i = 0; i + 3 < flat.length; i += 4) {
+          lms.push({ x: flat[i]!, y: flat[i + 1]!, z: flat[i + 2]!, visibility: flat[i + 3]! });
+        }
+        handleFrame(lms, Number(msg['t'] ?? Date.now()));
+        return;
+      }
+    },
+    [cfg, log, running, handleFrame],
+  );
   const start = useCallback(() => {
     if (!cfg) return;
     const accel = sessionRef.current?.accel ?? { x: 0, y: 1, z: 0 };
     sessionRef.current = newSession(cfg, accel);
+    uiRef.current.t = 0;
     setReps(0);
     setHoldMs(0);
     setCalibInfo('sin calibrar');
     setLivenessUi({ active: false, passed: false, holdMs: 0, type: cfg.liveness });
     setLogs([]);
+    pushHighlight('front');
     setRunning(true);
+    webRef.current?.injectJavaScript('window.__start(); true;');
     log(`sesión iniciada: ${cfg.name}, objetivo ${cfg.target}`);
-  }, [cfg, log]);
+  }, [cfg, log, pushHighlight]);
 
   const finish = useCallback(() => {
     if (!cfg) return;
     setRunning(false);
+    webRef.current?.injectJavaScript('window.__stop(); true;');
     const s = sessionRef.current;
     const result = summarizeExercise(cfg, {
       reps: s?.engine?.reps ?? 0,
@@ -476,6 +457,12 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
     log(`informe: ${result.summary}`, result.reached ? 'ok' : 'warn');
     onFinish(result);
   }, [cfg, onFinish, required, log]);
+
+  const flip = useCallback(() => {
+    const next = facing === 'front' ? 'back' : 'front';
+    setFacing(next);
+    webRef.current?.injectJavaScript(`window.__facing(${JSON.stringify(next)}); true;`);
+  }, [facing]);
 
   const gateColor = useMemo(() => {
     if (gate === 'ok') return '#39D98A';
@@ -499,7 +486,9 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
   if (!permission.granted) {
     return (
       <View style={styles.box}>
-        <Text style={styles.msg}>El banco de pruebas necesita la cámara para contar reps.</Text>
+        <Text style={styles.msg}>
+          El banco de pruebas necesita la cámara para seguir tus movimientos.
+        </Text>
         <Pressable style={styles.btn} onPress={requestPermission}>
           <Text style={styles.btnText}>Dar permiso</Text>
         </Pressable>
@@ -514,85 +503,65 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
 
   return (
     <View style={styles.wrap}>
-      <View
-        style={styles.camBox}
-        onLayout={(e) =>
-          setCamSize({
-            width: e.nativeEvent.layout.width,
-            height: e.nativeEvent.layout.height,
-          })
-        }
-      >
-        <CameraView
-          ref={camRef}
-          style={styles.cam}
-          facing={facing}
-          mode="picture"
-          animateShutter={false}
-        />
-        <PoseOverlay
-          landmarks={view.landmarks}
-          cfg={cfg}
-          side={view.side}
-          mirrored={facing === 'front'}
-          photoWidth={view.photoWidth}
-          photoHeight={view.photoHeight}
-          boxWidth={camSize.width}
-          boxHeight={camSize.height}
-          missing={view.missing}
-        />
-        {view.missing.length > 0 && view.landmarks ? (
-          <View style={styles.missingBox}>
-            <Text style={styles.missingTitle}>
-              falta ver: {view.missing.map(landmarkLabel).join(', ')}
-            </Text>
-          </View>
-        ) : null}
-        {!view.landmarks && running ? (
-          <View style={styles.missingBox}>
-            <Text style={styles.missingTitle}>
-              {poseState === 'pose lista' ? 'sin pose en el frame' : poseState}
-            </Text>
-          </View>
-        ) : null}
-        <View style={styles.overlayTop}>
-          <Text style={styles.exName}>{cfg.name}</Text>
-          <Text style={styles.counter}>{value}</Text>
-          <Text style={[styles.gate, { color: gateColor }]}>{message}</Text>
-          <Text style={styles.meta}>
-            ángulo {angle.toFixed(0)}° · tilt {tilt.lastDeg.toFixed(0)}° (
-            {tilt.vertical ? 'vertical' : 'NO vertical'})
-          </Text>
-          <Text style={styles.meta}>
-            {poseState}
-            {backend ? ` (${backend})` : ''} · {calibInfo}
-          </Text>
-        </View>
-        {livenessUi.active && !livenessUi.passed ? (
-          <View style={styles.banner}>
-            <Text style={styles.bannerText}>
-              PRUEBA DE VIDA:{' '}
-              {livenessUi.type === 'hand' ? 'levantá la mano' : 'bajá y aguantá 2 s'}
-              {livenessUi.type === 'hold' && livenessUi.holdMs > 0
-                ? ` (${Math.round(livenessUi.holdMs / 100) / 10}s)`
-                : ''}
-            </Text>
-          </View>
-        ) : null}
-        {!tilt.confirmed ? (
-          <View style={styles.tiltWarn}>
-            <Text style={styles.tiltWarnText}>
-              Vertical — {Math.round(confirmProgress(tilt) * 100)}%
-            </Text>
-          </View>
-        ) : null}
+      {/* El WebView ES la vista de cámara, igual que el <video> del prototipo.
+          `onPermissionRequest` es lo que concede getUserMedia en Android: sin
+          esto el WebView deniega la cámara aunque el permiso de la app esté
+          dado, y no hay ni video ni landmarks. */}
+      <WebView<object>
+        ref={webRef}
+        source={{ html: POSE_VIEW_HTML, baseUrl: POSE_BRIDGE_BASE_URL }}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        domStorageEnabled
+        allowsInlineMediaPlayback
+        // No hace falta onPermissionRequest: react-native-webview concede
+        // getUserMedia internamente mapeando RESOURCE_VIDEO_CAPTURE a
+        // Manifest.permission.CAMERA (RNCWebChromeClient.java:143). Lo que sí
+        // importa es el permiso runtime, que da useCameraPermissions arriba.
+        onMessage={onWebMessage}
+        onError={(e) => {
+          setPoseState('error de red');
+          log(`WebView de pose no pudo cargar: ${e.nativeEvent.description}`, 'warn');
+        }}
+        style={styles.cam}
+        containerStyle={styles.camBox}
+      />
+
+      <View style={styles.overlayTop} pointerEvents="none">
+        <Text style={styles.exName}>{cfg.name}</Text>
+        <Text style={styles.counter}>{value}</Text>
+        <Text style={[styles.gate, { color: gateColor }]}>{message}</Text>
+        <Text style={styles.meta}>
+          ángulo {angle.toFixed(0)}° · tilt {tilt.lastDeg.toFixed(0)}° (
+          {tilt.vertical ? 'vertical' : 'NO vertical'})
+        </Text>
+        <Text style={styles.meta}>
+          {poseState}
+          {backend ? ` (${backend})` : ''} · {calibInfo}
+        </Text>
       </View>
 
+      {livenessUi.active && !livenessUi.passed ? (
+        <View style={styles.banner} pointerEvents="none">
+          <Text style={styles.bannerText}>
+            PRUEBA DE VIDA: {livenessUi.type === 'hand' ? 'levantá la mano' : 'bajá y aguantá 2 s'}
+            {livenessUi.type === 'hold' && livenessUi.holdMs > 0
+              ? ` (${Math.round(livenessUi.holdMs / 100) / 10}s)`
+              : ''}
+          </Text>
+        </View>
+      ) : null}
+
+      {!tilt.confirmed ? (
+        <View style={styles.tiltWarn} pointerEvents="none">
+          <Text style={styles.tiltWarnText}>
+            Vertical — {Math.round(confirmProgress(tilt) * 100)}%
+          </Text>
+        </View>
+      ) : null}
+
       <View style={styles.controls}>
-        <Pressable
-          style={styles.btnSmall}
-          onPress={() => setFacing(facing === 'front' ? 'back' : 'front')}
-        >
+        <Pressable style={styles.btnSmall} onPress={flip}>
           <Text style={styles.btnTextSmall}>Girar cámara</Text>
         </Pressable>
         <Pressable style={styles.btnSmall} onPress={() => (running ? finish() : start())}>
@@ -618,19 +587,6 @@ export function TestScreen({ exercise: cfg, exerciseId, onExit, onFinish }: Prop
       <Pressable style={styles.back} onPress={onExit}>
         <Text style={styles.backText}>← Salir del test</Text>
       </Pressable>
-
-      <WebView<object>
-        ref={webRef}
-        source={{ html: POSE_BRIDGE_HTML, baseUrl: POSE_BRIDGE_BASE_URL }}
-        originWhitelist={['*']}
-        javaScriptEnabled
-        onMessage={onWebMessage}
-        onError={(e) => {
-          setPoseState('error de red');
-          log(`WebView de pose no pudo cargar: ${e.nativeEvent.description}`, 'warn');
-        }}
-        style={styles.hidden}
-      />
     </View>
   );
 }
@@ -639,8 +595,8 @@ const styles = StyleSheet.create({
   wrap: { flex: 1 },
   box: { padding: 18, paddingTop: 20 },
   msg: { color: '#9FB0C6', fontSize: 13, lineHeight: 19, marginBottom: 14 },
-  camBox: { height: 420, borderRadius: 14, overflow: 'hidden', backgroundColor: '#000' },
-  cam: { flex: 1 },
+  camBox: { flex: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: '#000' },
+  cam: { flex: 1, backgroundColor: '#000' },
   overlayTop: {
     position: 'absolute',
     top: 10,
@@ -649,25 +605,9 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
   },
-  // Equivalente al checklist de landmarks del prototipo (HTML:1050): dice qué
-  // falta ver, que es lo que explica que no se detecte postura.
-  missingBox: {
-    position: 'absolute',
-    bottom: 10,
-    left: 10,
-    right: 10,
-    backgroundColor: 'rgba(3,4,5,0.72)',
-    padding: 7,
-    borderRadius: 8,
-  },
-  missingTitle: { color: '#FF5A5A', fontSize: 11, fontWeight: '600' },
-  exName: { color: '#EAF2FF', fontSize: 13, fontWeight: '700' },
-  counter: { color: '#39D98A', fontSize: 28, fontWeight: '800', marginTop: 2 },
-  gate: { fontSize: 12, fontWeight: '700' },
-  meta: { color: '#9FB0C6', fontSize: 10, marginTop: 2 },
   banner: {
     position: 'absolute',
-    bottom: 60,
+    bottom: 150,
     left: 10,
     right: 10,
     backgroundColor: 'rgba(244,197,66,0.94)',
@@ -685,6 +625,10 @@ const styles = StyleSheet.create({
     maxWidth: 130,
   },
   tiltWarnText: { color: '#2A0A0A', fontWeight: '800', fontSize: 11, textAlign: 'center' },
+  exName: { color: '#EAF2FF', fontSize: 13, fontWeight: '700' },
+  counter: { color: '#39D98A', fontSize: 28, fontWeight: '800', marginTop: 2 },
+  gate: { fontSize: 12, fontWeight: '700' },
+  meta: { color: '#9FB0C6', fontSize: 10, marginTop: 2 },
   controls: { flexDirection: 'row', gap: 10, marginTop: 12 },
   btn: { backgroundColor: '#39D98A', paddingVertical: 13, borderRadius: 10, alignItems: 'center' },
   btnText: { color: '#06210F', fontWeight: '800', fontSize: 14 },
@@ -708,8 +652,4 @@ const styles = StyleSheet.create({
   logWarn: { color: '#F4C542' },
   back: { paddingVertical: 12, alignItems: 'center' },
   backText: { color: '#39D98A', fontSize: 13, fontWeight: '700' },
-  // El WebView tiene que existir "de verdad" para que Android no lo pause:
-  // 1x1 con opacity 0.01 lo deja en 1 fps o lo congela, y entonces la imagen
-  // nunca termina de decodificar. Va 2x2 casi transparente y fuera de pantalla.
-  hidden: { width: 2, height: 2, opacity: 0.02, position: 'absolute', left: -30, top: -30 },
 });
