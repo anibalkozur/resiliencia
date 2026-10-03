@@ -553,7 +553,7 @@
         sentadillas:
           'Parate derecho frente a la cámara con los pies al ancho de los hombros. Bajá llevando la cadera hacia atrás hasta que tus rodillas queden cerca de 90° y volvé a subir. Cada bajada y subida completa cuenta como 1.',
         flexiones:
-          'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo.',
+          'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo. Para arrancar, ponete en cuclillas listo para tomar la posición de plancha: tenés 10 segundos para hacer la primera flexión.',
         abdominales:
           'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Llevá el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
         plancha:
@@ -658,9 +658,11 @@
           upDelta: 12,
           lineMin: 150,
           groundedMax: 0.9,
+          // Margen extra para la primera rep: hay que pasar de cuclillas a plancha.
+          firstRepGraceMs: 10000,
           liveness: 'hold',
-          postureMsg: 'Ponete en plancha horizontal para contar flexiones',
-          startMsg: 'Extendé los brazos en plancha, quieto un segundo',
+          postureMsg: 'Ponete en cuclillas y pasá a plancha horizontal para contar',
+          startMsg: 'Ponete en cuclillas y estirá a plancha, quieto un segundo',
         },
         abdominales: {
           name: 'Abdominales',
@@ -1299,7 +1301,7 @@
           countdownOverlay.style.display = 'none';
           gestureStarted = true;
           speak('¡Ya!');
-          if (targetUnit === 'reps') beginCadence(now);
+          if (targetUnit === 'reps') beginCadence(now, cfg.firstRepGraceMs);
           return;
         }
         const sec = Math.ceil((readyCountEnd - now) / 1000);
@@ -1309,10 +1311,11 @@
           beep({ freq: 1100, dur: 0.09, gain: 0.8 });
         }
       }
-      function beginCadence(now) {
-        cadenceDeadline = now + CADENCE_MS;
+      function beginCadence(now, ms) {
+        const durMs = ms || CADENCE_MS;
+        cadenceDeadline = now + durMs;
         cadenceHud.style.display = 'flex';
-        cadenceHud.textContent = String(CADENCE_SEC);
+        cadenceHud.textContent = String(Math.ceil(durMs / 1000));
         cadenceHud.classList.remove('urgent');
       }
       function cadenceTick(now) {
