@@ -547,6 +547,20 @@
         puente_gluteo: 'Puente de glúteo',
         mountain_climbers: 'Mountain Climbers',
         sentadilla_isometrica: 'Sentadilla isométrica',
+        zancada_reversa: 'Zancada reversa',
+        zancada_lateral: 'Zancada lateral',
+        sentadilla_bulgara: 'Sentadilla búlgara',
+        patada_gluteo: 'Patada de glúteo',
+        elevacion_lateral_pierna: 'Elevación lateral de pierna',
+        flexion_rodillas: 'Flexión de rodillas',
+        flexion_declinada: 'Flexión declinada',
+        flexion_pica: 'Flexión pica',
+        fondos_silla: 'Fondos en silla',
+        superman: 'Superman',
+        encogimiento_inverso: 'Encogimiento inverso',
+        encogimiento_bicicleta: 'Encogimiento bicicleta',
+        burpee: 'Burpee',
+        rodillas_altas: 'Rodillas altas',
       };
       document.title = NAME[EX_ID] || 'Verificación';
 
@@ -569,6 +583,34 @@
           'Ponete de perfil a la cámara (de costado), en plancha apoyando las manos. Llevá una rodilla rápido al pecho y volvé, alternando las piernas en ritmo continuo. Cada rodilla al pecho cuenta como 1.',
         sentadilla_isometrica:
           'Parate derecho y bajá a una sentadilla hasta que tus rodillas queden cerca de 90°. Mantené la posición sin subir hasta completar el tiempo.',
+        zancada_reversa:
+          'Ponete de perfil a la cámara, mirando hacia un costado. Da un paso largo hacia atrás y bajá flexionando las rodillas hasta cerca de 90°; volvé a subir y repetí alternando la pierna. Cada subida completa cuenta como 1.',
+        zancada_lateral:
+          'Ponete de perfil (o levemente de costado) a la cámara. Da un paso amplio hacia un costado y bajá flexionando esa rodilla mientras la otra pierna queda estirada; volvé al centro. Cada bajada y subida cuenta como 1.',
+        sentadilla_bulgara:
+          'Ponete de perfil a la cámara con el empeine del pie de atrás apoyado en una silla. Bajá flexionando la pierna de adelante hasta cerca de 90° y volvé a subir. Cada subida completa cuenta como 1.',
+        patada_gluteo:
+          'Ponete en cuadrupedia de perfil a la cámara (manos y rodillas apoyadas). Mantené la rodilla flexionada y llevá el pie hacia arriba y atrás apretando el glúteo; volvé sin apoyar. Cada patada cuenta como 1.',
+        elevacion_lateral_pierna:
+          'Recostate de costado mirando a la cámara, con las piernas juntas y estiradas. Elevá la pierna de arriba sin mover la cadera y bajala con control. Cada elevación cuenta como 1.',
+        flexion_rodillas:
+          'Apoyá las rodillas en el piso y las manos a la altura de los hombros. Mantené el cuerpo recto desde la cabeza hasta las rodillas, bajá doblando los codos y volvé a subir. Cada flexión completa cuenta como 1.',
+        flexion_declinada:
+          'Ponete de perfil en plancha con los pies elevados sobre una silla y las manos en el piso. Bajá el pecho doblando los codos y volvé a subir manteniendo el cuerpo recto. Cada flexión completa cuenta como 1.',
+        flexion_pica:
+          'Ponete de perfil con las manos y los pies en el piso y la cadera bien alta (V invertida). Bajá la cabeza doblando los codos y volvé a subir. Cada flexión cuenta como 1.',
+        fondos_silla:
+          'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás. Bajá la cadera flexionando los codos y volvé a subir. Cada fondo cuenta como 1.',
+        superman:
+          'Recostate boca abajo con brazos y piernas extendidos. Elevá al mismo tiempo brazos y piernas del piso apretando la espalda baja y bajá con control. Cada elevación cuenta como 1.',
+        encogimiento_inverso:
+          'Recostate boca arriba con las rodillas flexionadas sobre la cadera. Llevá las rodillas hacia el pecho despegando la cadera del piso y bajá con control. Cada subida cuenta como 1.',
+        encogimiento_bicicleta:
+          'Recostate boca arriba con las manos en la nuca. Llevá el codo hacia la rodilla opuesta alternando, como pedaleando. Cada vez que llevás un codo a la rodilla contraria cuenta como 1.',
+        burpee:
+          'Ponete de perfil a la cámara. De parado, bajá a apoyar las manos, pateá los pies hacia atrás a plancha, hacé una flexión, volvé con los pies a las manos y saltá arriba. Cada repetición completa cuenta como 1.',
+        rodillas_altas:
+          'Ponete de perfil a la cámara, parado. Corré en el lugar elevando las rodillas a la altura de la cadera, alternando las piernas. Cada rodilla que sube cuenta como 1.',
       };
       document.getElementById('desc').textContent =
         HOWTO[EX_ID] || 'Segui la guía en pantalla para completar el ejercicio.';
@@ -817,6 +859,293 @@
           downDelta: 0,
           upDelta: 0,
           liveness: 'hand',
+        },
+        zancada_reversa: {
+          name: 'Zancada reversa',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              angle: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              angle: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+            },
+          },
+          downDelta: 45,
+          upDelta: 18,
+          liveness: 'hand',
+          startMsg: 'Ponete de perfil a la cámara, parado y quieto un segundo',
+        },
+        zancada_lateral: {
+          name: 'Zancada lateral',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              angle: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              angle: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+            },
+          },
+          downDelta: 45,
+          upDelta: 18,
+          liveness: 'hand',
+          postureMsg: 'Ponete levemente de costado para que se vea la pierna que flexiona',
+          startMsg: 'Parado y quieto un segundo para calibrar',
+        },
+        sentadilla_bulgara: {
+          name: 'Sentadilla búlgara',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              angle: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              angle: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+            },
+          },
+          downDelta: 45,
+          upDelta: 18,
+          liveness: 'hand',
+          postureMsg: 'Ponete de perfil, con el pie de atrás apoyado en la silla',
+          startMsg: 'Ponete de perfil y quieto un segundo para calibrar',
+        },
+        patada_gluteo: {
+          name: 'Patada de glúteo',
+          unit: 'reps',
+          type: 'lateral',
+          bridge: true,
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 30,
+          upDelta: 12,
+          liveness: 'hand',
+          postureMsg: 'Ponete en cuadrupedia de perfil (manos y rodillas en el piso)',
+          startMsg: 'En cuadrupedia de perfil, quieto un segundo',
+        },
+        elevacion_lateral_pierna: {
+          name: 'Elevación lateral de pierna',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 22,
+          upDelta: 9,
+          restTorsoMax: 45,
+          liveness: 'hand',
+          postureMsg: 'Recostate de costado mirando a la cámara, piernas juntas',
+          startMsg: 'De costado, quieto un segundo para calibrar',
+        },
+        flexion_rodillas: {
+          name: 'Flexión de rodillas',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+            },
+          },
+          downDelta: 40,
+          upDelta: 12,
+          firstRepGraceMs: 10000,
+          liveness: 'hold',
+          postureMsg: 'Ponete de perfil en cuadrupedia baja con las rodillas apoyadas',
+          startMsg: 'Apoyá las rodillas y los brazos, quieto un segundo',
+        },
+        flexion_declinada: {
+          name: 'Flexión declinada',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+            },
+          },
+          downDelta: 40,
+          upDelta: 12,
+          firstRepGraceMs: 10000,
+          liveness: 'hold',
+          postureMsg: 'Ponete de perfil en plancha con los pies elevados',
+          startMsg: 'Pies arriba, cuerpo en plancha, quieto un segundo',
+        },
+        flexion_pica: {
+          name: 'Flexión pica',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+            },
+          },
+          downDelta: 40,
+          upDelta: 12,
+          firstRepGraceMs: 10000,
+          liveness: 'hold',
+          postureMsg: 'Ponete de perfil en V invertida (cadera alta)',
+          startMsg: 'Cadera alta, apoyá las manos, quieto un segundo',
+        },
+        fondos_silla: {
+          name: 'Fondos en silla',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+            },
+          },
+          downDelta: 35,
+          upDelta: 12,
+          liveness: 'hand',
+          postureMsg: 'Ponete de perfil con las manos apoyadas atrás en la silla',
+          startMsg: 'Sentate al borde de la silla, manos atrás, quieto un segundo',
+        },
+        superman: {
+          name: 'Superman',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 12,
+          upDelta: 5,
+          restTorsoMax: 45,
+          liveness: 'hand',
+          postureMsg: 'Recostate boca abajo con brazos y piernas extendidos',
+          startMsg: 'Boca abajo, quieto un segundo para calibrar',
+        },
+        encogimiento_inverso: {
+          name: 'Encogimiento inverso',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 25,
+          upDelta: 10,
+          standingKneeMargin: 0.45,
+          restTorsoMax: 35,
+          liveness: 'hand',
+          postureMsg: 'Recostate boca arriba con las rodillas flexionadas',
+          startMsg: 'Recostate boca arriba, quieto un segundo',
+        },
+        encogimiento_bicicleta: {
+          name: 'Encogimiento bicicleta',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 25,
+          upDelta: 10,
+          standingKneeMargin: 0.45,
+          restTorsoMax: 35,
+          liveness: 'hand',
+          postureMsg: 'Recostate boca arriba con las manos en la nuca',
+          startMsg: 'Recostate boca arriba, quieto un segundo',
+        },
+        burpee: {
+          name: 'Burpee',
+          unit: 'reps',
+          type: 'lateral',
+          metric: 'ratio',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_ankle'],
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_ankle'],
+            },
+          },
+          downDelta: 1.0,
+          upDelta: 0.4,
+          liveness: 'hand',
+          postureMsg: 'Ponete de perfil a la cámara, parado',
+          startMsg: 'De perfil, parado y quieto un segundo para calibrar',
+        },
+        rodillas_altas: {
+          name: 'Rodillas altas',
+          unit: 'reps',
+          type: 'lateral',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee', 'left_ankle'],
+              knee: { a: 'left_hip', b: 'left_knee', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee', 'right_ankle'],
+              knee: { a: 'right_hip', b: 'right_knee', c: 'right_ankle' },
+            },
+          },
+          kneeFold: 110,
+          liveness: 'hand',
+          postureMsg: 'Ponete de perfil a la cámara, parado',
+          startMsg: 'De perfil y quieto un segundo para calibrar',
         },
       };
       const cfg = CFG[EX_ID] || CFG.sentadillas;
@@ -1675,8 +2004,8 @@
         }
         if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
 
-        // mountain climbers: conteo por pliegue de rodilla
-        if (cfg.name === 'Mountain Climbers') {
+        // mountain climbers / rodillas altas: conteo por pliegue de rodilla
+        if (cfg.kneeFold) {
           const ka = angleBetween(lm[LID[sc.knee.a]], lm[LID[sc.knee.b]], lm[LID[sc.knee.c]]);
           if (ka == null) return;
           angleHistory.push(ka);
@@ -1718,7 +2047,16 @@
           return;
         }
 
-        const ang = angleBetween(lm[LID[sc.angle.a]], lm[LID[sc.angle.b]], lm[LID[sc.angle.c]]);
+        // metric 'ratio': usa la altura cadera-tobillo normalizada por el torso
+        // en vez de un ángulo (p. ej. burpee: parado = ratio alto, plancha = ratio bajo).
+        const ang =
+          cfg.metric === 'ratio'
+            ? groundedRatio(
+                lm[LID[side + '_hip']],
+                lm[LID[side + '_ankle']],
+                lm[LID[side + '_shoulder']],
+              )
+            : angleBetween(lm[LID[sc.angle.a]], lm[LID[sc.angle.b]], lm[LID[sc.angle.c]]);
         if (ang == null) return;
         angleHistory.push(ang);
         if (angleHistory.length > 7) angleHistory.shift();
@@ -1793,7 +2131,7 @@
           return;
         }
         evaluateTransitionCalibrated(cand);
-        const tag = ' (' + Math.round(smoothed) + '°)';
+        const tag = cfg.metric === 'ratio' ? '' : ' (' + Math.round(smoothed) + '°)';
         if (cand === 'down') showState('state-msg down', 'ABAJO' + tag);
         else if (cand === 'up') showState('state-msg up', 'ARRIBA' + tag);
       }
