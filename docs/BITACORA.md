@@ -996,3 +996,102 @@ Nota: un `HEAD` sobre la ruta de directorio `/wasm` da 404 aunque los archivos d
 **Tests:** 76 en verde, 2 nuevos que fijan el patrón de carga: que exista `<script type="module">` con el import de los tres símbolos, que no haya ningún `script src`, y que el código (sin comentarios) no espere `window.PoseLandmarker` / `window.FilesetResolver` / `window.DrawingUtils`. Un test que verifique URLs reales contra el CDN no puede ir en la suite porque rompe sin internet; la verificación de arriba es manual y queda registrada acá.
 
 **Verificación:** 76 tests del tester, 305 del repo, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto.
+
+### 2026-10-01 — El banco deja de reimplementar: carga la misma página que la app
+
+**Petición del PO:** el banco de pruebas tiene que **copiar tal cual** la ejecución de la app real, no una variante. Dejar registrado el relevamiento en un archivo de contexto.
+
+**Diagnóstico:** el banco venía reimplementando el prototipo en TypeScript (motor de conteo, geometría, liveness, dibujo del esqueleto en el canvas del WebView de pose). Aun con "paridad verificada por tests cuadro a cuadro", no era el mismo archivo: cualquier cambio en `camera-verification.html` dejaba al banco midiendo otra cosa. Y el banco no mostraba cámara en el dispositivo.
+
+**Cambio de arquitectura:** el banco pasa a cargar **la misma página, por URL**, en la WebView. La página prende la cámara sola, carga MediaPipe, dibuja el esqueleto y cuenta; el banco solo observa e inyecta el sensor.
+
+1. **`src/lib/verify.ts`** es copia 1:1 de `apps/mobile/src/retos/verify.ts` (`VERIFY_URL` de gh-pages, `VERIFY_VERSION = 16`, `buildVerifyUri`). Se carga con `source={{ uri }}`, no con `source={{ html }}`: un documento con `html` usa `loadDataWithBaseURL` y no reproduce el origen HTTPS que exige `getUserMedia`.
+2. **`TestScreen`** monta la página con los mismos props de WebView que producción (`camretos.tsx:193-209`) y el mismo puente de sensor (`DeviceMotion` con `setUpdateInterval(200)`, `tilt = atan2(|gz|,|gy|)·180/π`, `vertical = tilt ≤ 35`, inyección de `__resilienciaSetNativeOrientation`). La app **solo** escucha `complete`; el conteo, la calibración, el liveness y la cadencia quedan en la página.
+3. **`src/lib/report.ts`** dejó de calcular: traduce el payload de `complete` a informe (objetivo/logrado/progreso, ranked con serie y vida, evidencia, y la discrepancia de unidad si la hay).
+4. **`src/lib/exercises.ts`** quedó como catálogo puro (id, nombre, unidad de la página, `catalogUnit` cuando difiere, tier, objetivo, liveness). Se borraron `pose.ts`, `repEngine.ts`, `liveness.ts`, `tilt.ts` y `poseWorker.ts`, y sus tests.
+5. **Se eliminó la carga por `<script type="module">` embebido** junto con el resto: ahora la página es externa y su propio import de MediaPipe es el de producción.
+
+Esto deja **sin efecto** las secciones anteriores sobre el esqueleto en el canvas, la confirmación de cuerpo, la calibración, los cuatro bugs de portado y la carga ESM: eran correcciones a una reimplementación que ya no existe. El aprendizaje queda (las reglas del prototipo están documentadas), pero el código del banco ya no las reproduce, las ejecuta el original.
+
+**Discrepancia que el banco ahora hereda sin tocar:** `mountain_climbers` sigue siendo `reps` en la página y `seconds` en `catalog.ts`; el informe lo marca con `[⚠ unidad]`.
+
+**Tests:** 7 en verde (2 suites nuevas: contrato de `buildVerifyUri` y traducción del payload `complete`, incluida la discrepancia de mountain climbers). Se borraron las suites del motor reimplementado.
+
+**Verificación:** 7 tests del tester, `tsc --noEmit` y ESLint limpios.
+
+**Pendiente:** validar en Android físico que la página publicada carga y muestra el esqueleto con la cámara; el banco prueba la página de gh-pages, así que para probar un HTML local hay que servirlo por HTTPS.
+
+**Relevamiento de contexto:** `apps/exercise-tester/RELEVAMIENTO_CAMARA.md` (anatomía del HTML con `archivo:línea`, integración nativa, tabla CFG y desvíos).
+
+### 2026-10-01 — La cámara seguía sin verse: la WebView colapsaba a 0 px
+
+El usuario probó en Android y la cámara no aparecía. La página ya era la correcta; el problema era de layout del banco.
+
+**Causa:** `TestScreen` se renderizaba **dentro del `ScrollView`** de `App.tsx`. Un `WebView` con `flex: 1` dentro de un `ScrollView` no tiene una altura resoluble (el scroll da altura ilimitada), así que colapsa a **0 px de alto**: el video existe pero no se ve. Producción no tiene este problema porque la WebView vive en un `View` a pantalla completa (`camretos.tsx:334-335`).
+
+30. **La prueba va a pantalla completa, fuera del `ScrollView`.** En `App.tsx`, cuando la pantalla es `test` se renderiza `TestScreen` directo bajo `SafeAreaView`, junto al `StatusBar`, sin header ni scroll. El resto (home/informe) sigue dentro del `ScrollView`.
+31. **`react-native-safe-area-context`.** Se reemplazó el `SafeAreaView` de `react-native` (deprecado, el warning que reportó el usuario) por `SafeAreaProvider` + `SafeAreaView` de `react-native-safe-area-context` (`~5.7.0`, `npx expo install`).
+32. **Setup centrado.** Ahora que la pantalla tiene alto completo, el setup se centra como en producción (`camretos.tsx:231-236`).
+
+**`onPermissionRequest` no era la causa.** Producción pasa `onPermissionRequest={(request) => request.grant()}` (`camretos.tsx:208`), pero en `react-native-webview` 14.0.1 ese prop **no existe en los tipos JS** y no se reenvía: el `RNCWebChromeClient.java:143` concede la captura por su cuenta cuando el permiso runtime `CAMERA` ya está otorgado. El banco pide ese permiso con `useCameraPermissions` antes de montar la WebView, así que la condición se cumple y no hace falta el prop.
+
+**Verificación:** 7 tests del tester, `tsc --noEmit` y ESLint limpios, `expo export --platform android` correcto (626 módulos).
+
+**Confirmado por el usuario (2026-10-01):** en Android físico la cámara ya se ve. La prueba completa de los 8 ejercicios y del esqueleto/conteo queda para la sesión siguiente.
+
+**Próxima sesión:** correr los 8 ejercicios en el celular, mirar que la página cuente bien, que el sensor la deje arrancar y que el mensaje `complete` llegue al informe. Ahí se decide qué portar a `apps/mobile` (empezando por la unidad de `mountain_climbers`).
+
+### 2026-10-02 — "Se pierde la cámara y queda en confirmando sensor": es la cadencia de ranking
+
+Reporte del usuario: en sentadillas, levanta la mano para empezar, cuenta una rep y a los segundos **se apaga la cámara** y abajo aparece **"Confirmando sensor"**; el sensor se ve bien (en vertical y al inclinar).
+
+**No es un bug del banco: es la página apagando la cámara a propósito.** El camino, en `camera-verification.html`:
+
+- En modo ranking y `unit === 'reps'`, cada rep llama a `beginCadence(now)`, que fija un deadline (`:1271-1275`).
+- `cadenceTick` compara contra ese deadline y, si se pasó, llama a `failSeries('Descanso muy largo — fuera de ranking')` (`:1276-1282`).
+- `failSeries` hace `stopCamera()` (`:1284-1291`): corta los tracks (`:1962-1963`) y vuelve a mostrar el botón de inicio.
+- El texto del botón quedó en **`"Confirmando sensor…"`** desde `startCamera` (`:1908`) y nunca se restaura: `postComplete`/`stopCamera` solo lo muestran de nuevo (`:1194`, `:1967`). Por eso parece "trabado en confirmando sensor" cuando en realidad es el botón **Reiniciar mal rotulado** (un defecto de la página, no del banco).
+
+**Cómo distinguir ranking de verificado:** el gesto de levantar la mano para empezar (`startGesture`, `:1217`, y `announceSession`, `:1119`) **solo existe en `MODE_RANKED`** (`:1939-1941`). Si levantar la mano arranca la sesión, estás en ranking y la cadencia aplica. En verificado (`ranked` apagado) no hay gesto ni corte por cadencia.
+
+**Riesgo del banco que sí se corrigió.** El banner de resultado se renderizaba de forma condicional (`{last ? <Text/> : null}`) **antes** de la WebView. Al insertarse un hermano delante, React podía remontar la WebView (por índice) y recargar la página a mitad de sesión, apagando la cámara. Ahora el banner se renderiza **siempre** (como el `resultBar` de producción, `camretos.tsx:140-146`), así el número de hermanos de la WebView no cambia y no puede remontarse. De paso muestra un hint del límite de cadencia cuando `ranked` está activo.
+
+**Para mañana:** primero validar el conteo con **ranking apagado** (sin gesto ni cadencia); después, con ranking, respetar la cadencia (~5 s por rep en sentadillas) para que no rompa la serie. Y reportar a producción el botón que no restaura el texto (`"Confirmando sensor…"` debería decir "Reiniciar").
+
+**Verificación:** 7 tests del tester, `tsc --noEmit` y ESLint limpios.
+
+### 2026-10-02 — Arreglos de cadencia en un fork aparte (sin tocar ResiliencIA)
+
+El usuario pidió aplicar los arreglos detectados al analizar la cadencia, pero sin mezclar el banco con ResiliencIA. Decisión: **la página de producción
+`camera-verification.html` queda intacta** (funciona bien) y los arreglos van a un
+fork que usa **solo el banco**, `apps/exercise-tester/camera-verification-bench.html`,
+publicado en `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`.
+El banco (`src/lib/verify.ts`) apunta a esa copia. Cuando se validen, se portan a mano.
+
+33. **Botón con texto viejo.** En el fork, `postComplete` y `stopCamera` restauran `startBtn.textContent = 'Reiniciar'`. En producción quedaba el `"Confirmando sensor…"` de `startCamera` cuando la cámara se detenía por completar o por romper la serie.
+34. **Una rep durante la cuenta 5-4-3-2-1 ya no rompe la serie.** `registerRep` separa los dos motivos: si `!gestureStarted` **ignora** la rep (antes hacía `failSeries` → apagaba la cámara); solo la demora entre reps (`now > cadenceDeadline`) rompe el ranking. Además se agregó el guard `MODE_RANKED && !gestureStarted` a los tres caminos de reps (frontal, lateral y mountain climbers), que muestra "Levantá la mano arriba de la cabeza para empezar a contar" en vez de contar antes del "¡Ya!". Los caminos de segundos ya lo tenían.
+35. **Segundero de cadencia más claro.** `#cadenceHud` pasó de 56 px a 72 px con sombra, y en los últimos 2 s se pone en rojo y pulsa (clase `urgent` + `@keyframes cadencePulse`); `cadenceTick` marca `urgent` cuando quedan ≤2 s.
+
+36. **Sentadilla frontal: menos profundidad.** `downThresh` de `sentadillas` pasó de 100 a 130 en el fork. Con la cámara de frente el ángulo de rodilla se achata (la flexión va hacia cámara), así que con 100 había que bajar casi hasta alinear rodillas con caderas. Con 130 la rep cuenta bastante antes. **Falta validar** si 130 es cómodo o si conviene 120/140. La isométrica también quedó en 130 (mismo criterio, misma vista frontal).
+
+37. **El informe respeta el objetivo elegido.** Bug del banco: `report.ts` comparaba contra `cfg.target` (el del catálogo, ej. 20) e ignoraba el objetivo que el usuario elige en la pantalla de prueba. La página **sí** usa el target del query y lo devuelve en `evidence.targetVal`/`targetMet`, pero el resumen decía "No llegó al objetivo (5/20)" aunque la página hubiera contado 5/5. Ahora `summarizeCompletion` toma `payload.targetVal ?? evidence.targetVal ?? cfg.target` como meta real (afecta `reached`, `target`, el resumen y el progreso). Sirve para todos los ejercicios.
+
+38. **Zancadas de perfil (lateral).** De frente, en la zancada larga y baja la rodilla de la pierna de atrás tapaba el pie: el tobillo caía por debajo de `VIS = 0.65`, `checkComplete` marcaba "Falta ver" y `processFrontal` reseteaba el estado, así que no contaba. En el fork, `zancadas` pasa de `type: 'frontal'` (`downThresh: 115`) a `type: 'lateral'` con `sides` (shoulder/hip/knee/ankle por lado), `downDelta: 45`, `upDelta: 18` y `startMsg` de perfil; se autocalibra con el ángulo de rodilla de la pierna cercana. También se cambió `HOWTO.zancadas` a "de perfil". Requiere que el usuario se pare de costado; los deltas quedan a afinar probando.
+
+39. **Mountain Climbers avisa que es de perfil.** El ejercicio ya se detectaba `lateral` (`kneeFold 105`, `lineMin 150`), pero ni el instructivo ni los mensajes lo decían. Se agregó "de perfil a la cámara" al `HOWTO.mountain_climbers`, al `postureMsg` y al `startMsg` del fork. Queda la duda de si conviene aclarar lo mismo en los demás `lateral` (flexiones, abdominales, plancha, puente de glúteo).
+
+40. **Zancadas con objetivo par.** El usuario confirmó que la zancada de perfil funciona muy bien, pero como alterna piernas el objetivo debe ser par. Se decidió (por ahora) no intentar detectar la pierna —en perfil puro MediaPipe no distingue de forma fiable cuál va adelante— y en cambio hacer que el selector avance de 2 en 2: `ExerciseInfo.step: 2` para `zancadas` y `TestScreen` usa `exercise.step ?? (seconds ? 5 : 1)`, con `minTarget = step` para no caer en impar. Documentado para producción (`camretos.tsx`, modo libre premium) en `PORTAR_A_PRODUCCION.md` (punto 5).
+
+41. **El inicio por mano levantada exige el cuerpo completo.** Bug del fork: `gestureTick` aceptaba la mano sobre la cabeza sin mirar el checklist, así que la sesión arrancaba aunque faltara ver partes del cuerpo (los pies, por ejemplo). Se agregó `bodyComplete`/`bodyMissing`: `processPose` lo resetea al entrar y cada camino (`processFrontal` y `processLateral`) guarda el resultado de `checkComplete`; `gestureTick` solo cuenta la mano si `bodyComplete` y, mientras falte algo, muestra "Completá el cuerpo en cámara — falta ver: …" en vez de arrancar. Verificado en la página publicada (`0050a5b`).
+
+42. **Flexiones: cuclillas de arranque y 10 s para la primera rep.** La primera flexión necesita tiempo para pasar de cuclillas a plancha, así que se aclaró en `HOWTO.flexiones`, `postureMsg` y `startMsg`, y se agregó `firstRepGraceMs: 10000` a `CFG.flexiones`. `beginCadence(now, ms)` acepta duración y `readyTick` le pasa el margen solo al arranque; las reps siguientes vuelven a la cadencia normal (5 s). El campo es reutilizable para otros ejercicios que necesiten margen de arranque. Verificado en la página publicada (`6169a61`).
+
+**Recordatorio:** la cadencia sigue siendo `CADENCE_SEC` (5 s por defecto) y la prueba de vida la extiende garantizando 10 s desde la señal (`extendCadenceForLiveness`). El corte por demora entre reps en ranking es **intencional**; lo que se arregló es que no corte por reps durante la cuenta y que el aviso sea visible.
+
+**Cómo probarlo:** el banco carga la copia `camera-verification-bench.html` de
+gh-pages. La app real sigue con `camera-verification.html`, sin cambios.
+
+**Portado pendiente:** los cambios a aplicar en producción quedaron documentados con
+diffs exactos en `apps/exercise-tester/PORTAR_A_PRODUCCION.md`.
+
+**Verificación:** `node --check` del módulo del HTML OK.

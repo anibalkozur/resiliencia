@@ -1,14 +1,14 @@
-// Reportes: qué quedó al final de cada prueba. Sirven para comparar dos
-// corridas (antes/después de tocar un umbral) y para portar learnings a la app.
+// Informe del banco de pruebas.
+//
+// A diferencia de la versión anterior, acá NO hay motor de conteo en TypeScript:
+// el resultado llega hecho desde la página (mensaje `complete` de
+// camera-verification.html:1149-1205). Este módulo solo lo traduce a un informe
+// legible y comparable.
 
-import type { ExerciseConfig, ExerciseUnit } from './exercises';
-import { cadenceSec } from './exercises';
-import { avgAmplitude, avgDuration, type RepTelemetry } from './repEngine';
-
-export type TestKind = 'ejercicio' | 'vida';
+import type { ExerciseInfo, ExerciseUnit } from './exercises';
 
 export type TestResult = {
-  kind: TestKind;
+  kind: 'ejercicio';
   exerciseId: string;
   name: string;
   tier: 'free' | 'premium';
@@ -16,73 +16,79 @@ export type TestResult = {
   target: number;
   finishedAt: number;
   reached: boolean;
-  /** El motor no coincide con la unidad del catálogo de la app. */
+  /** El motor mide una unidad distinta de la que declara catalog.ts. */
   unitMismatch: boolean;
   summary: string;
   detail: string[];
-  telemetry: RepTelemetry[];
+  /** Payload crudo de `complete`, tal cual lo mandó la página. */
+  payload: Record<string, unknown>;
 };
 
-export function summarizeExercise(
-  cfg: ExerciseConfig,
-  args: {
-    reps: number;
-    holdMs: number;
-    restAngle: number | null;
-    livenessRequired: boolean;
-    livenessPassed: boolean;
-    telemetry: RepTelemetry[];
-    finalMetrics: Record<string, number>;
-    finishedAt: number;
-  },
+function num(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function summarizeCompletion(
+  cfg: ExerciseInfo,
+  payload: Record<string, unknown>,
+  finishedAt: number,
 ): TestResult {
-  // La meta se mide en segundos si el ejercicio es isométrico, en reps si no:
-  // es la misma regla que usa la app (catalog.ts: unit).
-  const bySeconds = cfg.unit === 'seconds';
-  const done = bySeconds ? Math.floor(args.holdMs / 1000) : args.reps;
-  const reached = done >= cfg.target;
-  const unitLabel = bySeconds ? 's' : 'reps';
+  const unit: ExerciseUnit = payload.unit === 'seconds' ? 'seconds' : cfg.unit;
+  const value = num(payload.value) ?? num(payload.reps) ?? 0;
+  const unitLabel = unit === 'seconds' ? 's' : 'reps';
+
+  const ranked = payload.ranked === true;
+  const seriesOk = payload.seriesOk === true;
+  const livenessOk = payload.livenessOk === true;
+  const evidence =
+    typeof payload.evidence === 'object' &&
+    payload.evidence !== null &&
+    !Array.isArray(payload.evidence)
+      ? (payload.evidence as Record<string, unknown>)
+      : {};
+
+  // El objetivo lo puede haber elegido el usuario en el banco: la página lo
+  // manda en `evidence.targetVal`. Si no viene, se usa el del catálogo.
+  const pageTarget = num(payload.targetVal) ?? num(evidence.targetVal);
+  const goal = pageTarget !== null && pageTarget > 0 ? pageTarget : cfg.target;
+  const reached = value >= goal;
 
   const detail: string[] = [];
-  detail.push(`objetivo: ${cfg.target} ${unitLabel}`);
-  detail.push(`logrado: ${done} ${unitLabel}`);
-  detail.push(`progreso: ${Math.min(100, Math.round((done / cfg.target) * 100))}%`);
+  detail.push(`objetivo: ${goal} ${unitLabel}`);
+  detail.push(`logrado: ${value} ${unitLabel}`);
+  detail.push(`progreso: ${Math.min(100, Math.round((value / goal) * 100))}%`);
+  detail.push(`detalle de la página: ${String(payload.detail ?? '(sin detalle)')}`);
+  if (ranked) {
+    detail.push(`ranked: serie ${seriesOk ? 'ok' : 'ROTA'} · vida ${livenessOk ? 'ok' : 'NO'}`);
+    const cadence = num(payload.cadence);
+    if (cadence) detail.push(`cadencia objetivo: ${cadence} s/rep`);
+  } else {
+    detail.push('modo: verificado (sin ranking)');
+  }
+  const verifyVersion = num(evidence.verifyVersion);
+  if (verifyVersion !== null) detail.push(`verifyVersion: ${verifyVersion}`);
+  const durationMs = num(evidence.durationMs);
+  if (durationMs !== null) detail.push(`duración: ${Math.round(durationMs / 1000)}s`);
   if (cfg.catalogUnit && cfg.catalogUnit !== cfg.unit) {
     detail.push(
-      `⚠ motor mide ${cfg.unit} pero catalog.ts declara ${cfg.catalogUnit}: el objetivo de la app no es el mismo que cuenta el motor`,
+      `⚠ el motor mide ${cfg.unit} pero catalog.ts declara ${cfg.catalogUnit}: la meta de la app no es la que cuenta la página`,
     );
   }
-  if (args.restAngle !== null) detail.push(`ángulo de calibración: ${args.restAngle.toFixed(1)}°`);
-  if (args.telemetry.length > 0) {
-    detail.push(`amplitud media: ${avgAmplitude(args.telemetry).toFixed(1)}°`);
-    detail.push(`duración media/rep: ${Math.round(avgDuration(args.telemetry))} ms`);
-    detail.push(`amplitud mín: ${Math.min(...args.telemetry.map((r) => r.amplitude)).toFixed(1)}°`);
-    const cad = cadenceSec(cfg.id);
-    if (cad) {
-      detail.push(`cadencia objetivo: ${cad} s/rep`);
-    }
-  }
-  detail.push(
-    `prueba de vida: ${args.livenessRequired ? (args.livenessPassed ? 'ok' : 'NO pasó') : 'no requerida'}`,
-  );
-  const keys = Object.keys(args.finalMetrics).sort();
-  for (const k of keys) {
-    const v = args.finalMetrics[k];
-    if (typeof v === 'number') detail.push(`${k}: ${v.toFixed(1)}`);
-  }
+
   return {
     kind: 'ejercicio',
     exerciseId: cfg.id,
     name: cfg.name,
     tier: cfg.tier,
-    unit: cfg.unit,
-    target: cfg.target,
-    finishedAt: args.finishedAt,
+    unit,
+    target: goal,
+    finishedAt,
     reached,
     unitMismatch: cfg.catalogUnit !== undefined && cfg.catalogUnit !== cfg.unit,
-    summary: reached ? 'OK' : `No llegó al objetivo (${done}/${cfg.target})`,
+    summary: reached ? 'OK' : `No llegó al objetivo (${value}/${goal})`,
     detail,
-    telemetry: args.telemetry,
+    payload,
   };
 }
 

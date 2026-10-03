@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { EXERCISES } from '../lib/exercises';
+import { EXERCISES, type ExerciseInfo } from '../lib/exercises';
 import { verdict, type TestResult } from '../lib/report';
-import { tiltSummary } from '../lib/tilt';
 
 type Props = {
   results: TestResult[];
@@ -14,7 +13,7 @@ export function HomeScreen({ results, onSelect, onReport }: Props) {
   const free = EXERCISES.filter((e) => e.tier === 'free');
   const premium = EXERCISES.filter((e) => e.tier === 'premium');
 
-  const card = (e: (typeof EXERCISES)[number]) => (
+  const card = (e: ExerciseInfo) => (
     <Pressable key={e.id} style={styles.card} onPress={() => onSelect(e.id)}>
       <View style={styles.cardHead}>
         <Text style={styles.cardTitle}>{e.name}</Text>
@@ -22,14 +21,14 @@ export function HomeScreen({ results, onSelect, onReport }: Props) {
           <Text style={[styles.tag, e.tier === 'premium' ? styles.tagPremium : null]}>
             {e.tier}
           </Text>
-          <Text style={styles.tag}>{e.side}</Text>
           <Text style={styles.tag}>{e.unit === 'seconds' ? 'segundos' : 'reps'}</Text>
         </View>
       </View>
       <Text style={styles.cardBody}>
-        objetivo {e.target} {e.unit === 'seconds' ? 'segundos' : 'reps'} · vida: {e.liveness} ·{' '}
-        {e.unit === 'seconds' ? 'isométrico' : 'por repeticiones'}
-        {e.postureMsg ? `\n${e.postureMsg}` : ''}
+        objetivo {e.target} {e.unit === 'seconds' ? 'segundos' : 'reps'} · vida: {e.liveness}
+        {e.catalogUnit && e.catalogUnit !== e.unit
+          ? `\n⚠ la página mide ${e.unit}; catalog.ts declara ${e.catalogUnit}`
+          : ''}
       </Text>
     </Pressable>
   );
@@ -38,8 +37,8 @@ export function HomeScreen({ results, onSelect, onReport }: Props) {
     <View>
       <Text style={styles.h1}>Banco de pruebas</Text>
       <Text style={styles.hint}>
-        Los 8 ejercicios de la app real, con los umbrales de camera-verification.html. Sirve para
-        ajustar el conteo y completar series antes de portarlo.
+        Carga la misma página que la app real (camera-verification.html) en una WebView: la cámara,
+        el modelo, el esqueleto y el conteo son los de producción, no una reimplementación.
       </Text>
 
       <Text style={styles.h2}>Gratuitos ({free.length})</Text>
@@ -48,16 +47,17 @@ export function HomeScreen({ results, onSelect, onReport }: Props) {
       <Text style={styles.h2}>Premium ({premium.length})</Text>
       {premium.map(card)}
 
-      <Text style={styles.h1}>Prueba de vida</Text>
+      <Text style={styles.h1}>Cómo funciona</Text>
       <View style={styles.card}>
         <Text style={styles.cardBody}>
-          Se dispara sola, una vez por sesión, entre los 4 y 13 s. Tipo “mano” (muñeca 5% sobre el
-          hombro, 5 cuadros) para sentadillas, abdominales, zancadas, puente, mountain climbers y
-          sentadilla isométrica; tipo “hold” (2 s abajo) para flexiones y plancha.
-          {'\n'}Con objetivo mayor a 5 tiene que dispararse: si con ningún ejercicio te pide la
-          prueba, el antifraude quedó roto.
+          Al tocar Iniciar, la página arranca sola: pide el sensor de inclinación (se lo inyecta el
+          celular con expo-sensors, igual que la app), enciende la cámara, carga MediaPipe y cuenta
+          reps. Al terminar manda `complete` y acá se guarda el resultado para comparar.
         </Text>
-        <Text style={styles.cardBody}>{tiltSummary()}</Text>
+        <Text style={styles.cardBody}>
+          Si la prueba de vida no salta en un ejercicio con objetivo mayor a 5, el antifraude quedó
+          roto: tiene que dispararse en los 8.
+        </Text>
       </View>
 
       <Pressable style={styles.btn} onPress={onReport}>

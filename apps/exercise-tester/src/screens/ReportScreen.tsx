@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { toJson, type TestResult } from '../lib/report';
+import { toJson, verdict, type TestResult } from '../lib/report';
 
 type Props = {
   results: TestResult[];
@@ -25,24 +25,12 @@ export function ReportScreen({ results, onBack, onSelect }: Props) {
       ) : (
         results.map((r, i) => (
           <View key={`${r.exerciseId}-${r.finishedAt}-${i}`} style={styles.card}>
-            <Text style={styles.title}>
-              {r.reached ? '✅' : '⚠️'} {r.name} — {r.summary}
-            </Text>
+            <Text style={styles.title}>{verdict(r)}</Text>
             {r.detail.map((d, j) => (
               <Text key={j} style={styles.line}>
                 {d}
               </Text>
             ))}
-            {r.telemetry.length > 0 ? (
-              <Text style={styles.tele}>
-                reps:{' '}
-                {r.telemetry
-                  .map(
-                    (t) => `#${t.index}:${t.amplitude.toFixed(0)}°/${Math.round(t.durationMs)}ms`,
-                  )
-                  .join('  ')}
-              </Text>
-            ) : null}
           </View>
         ))
       )}
@@ -70,7 +58,6 @@ const styles = StyleSheet.create({
   },
   title: { color: '#EAF2FF', fontSize: 15, fontWeight: '700', marginBottom: 6 },
   line: { color: '#9FB0C6', fontSize: 12, lineHeight: 17 },
-  tele: { color: '#6E7F96', fontSize: 11, marginTop: 8, lineHeight: 16 },
   json: { color: '#7C8AA0', fontSize: 12, marginTop: 14, marginBottom: 6 },
   jsonBox: {
     backgroundColor: '#070A0E',

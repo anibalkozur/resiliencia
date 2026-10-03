@@ -1,13 +1,15 @@
 // Banco de pruebas de ejercicios (solo para QA). App independiente: NO comparte
 // código con apps/mobile, no escribe en Supabase y no toca la app real.
 //
-// Corre en Expo Go: el conteo se hace acá mismo con la cámara nativa
-// (expo-camera, snapshots) + inclinación (expo-sensors), en lugar del WebView
-// con MediaPipe que usa la app de producción.
+// Copia la ejecución de producción: monta camera-verification.html por URL en
+// una WebView, con el mismo puente de inclinación (expo-sensors) y el mismo
+// mensaje `complete`. La cámara, el modelo, el esqueleto y el conteo son los de
+// la página, no una reimplementación.
 
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { HomeScreen } from './screens/HomeScreen';
 import { ReportScreen } from './screens/ReportScreen';
@@ -22,58 +24,66 @@ export default function App() {
   const [results, setResults] = useState<TestResult[]>([]);
   const mounted = useRef(true);
 
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const onFinish = useCallback((r: TestResult) => {
+  const onRecorded = useCallback((r: TestResult) => {
     if (!mounted.current) return;
     setResults((prev) => [r, ...prev].slice(0, 20));
-    setScreen({ name: 'report' });
   }, []);
 
-  return (
-    <SafeAreaView style={styles.root}>
-      <StatusBar style="light" />
-      <View style={styles.header}>
-        <Text style={styles.title}>Banco de pruebas</Text>
-        <Text style={styles.subtitle}>QA ejercicios libres · sin Supabase · sin ranking</Text>
-      </View>
+  const selected =
+    screen.name === 'test' ? EXERCISES.find((e) => e.id === screen.exerciseId) : null;
 
-      <ScrollView
-        contentContainerStyle={styles.body}
-        style={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-      >
-        {screen.name === 'home' ? (
-          <HomeScreen
-            results={results}
-            onSelect={(exerciseId) => setScreen({ name: 'test', exerciseId })}
-            onReport={() => setScreen({ name: 'report' })}
-          />
-        ) : null}
-
-        {screen.name === 'test' ? (
+  // La prueba va a PANTALLA COMPLETA, fuera del ScrollView: una WebView con
+  // `flex: 1` dentro de un ScrollView colapsa a 0 px de alto y la cámara no se ve.
+  if (screen.name === 'test' && selected) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+          <StatusBar style="light" />
           <TestScreen
             exerciseId={screen.exerciseId}
-            exercise={EXERCISES.find((e) => e.id === screen.exerciseId) ?? null}
+            exercise={selected}
             onExit={() => setScreen({ name: 'home' })}
-            onFinish={onFinish}
+            onRecorded={onRecorded}
           />
-        ) : null}
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
-        {screen.name === 'report' ? (
-          <ReportScreen
-            results={results}
-            onBack={() => setScreen({ name: 'home' })}
-            onSelect={(exerciseId) => setScreen({ name: 'test', exerciseId })}
-          />
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <StatusBar style="light" />
+        <View style={styles.header}>
+          <Text style={styles.title}>Banco de pruebas</Text>
+          <Text style={styles.subtitle}>
+            QA ejercicios · misma página que producción · sin Supabase
+          </Text>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.body}
+          style={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          {screen.name === 'home' ? (
+            <HomeScreen
+              results={results}
+              onSelect={(exerciseId) => setScreen({ name: 'test', exerciseId })}
+              onReport={() => setScreen({ name: 'report' })}
+            />
+          ) : null}
+
+          {screen.name === 'report' ? (
+            <ReportScreen
+              results={results}
+              onBack={() => setScreen({ name: 'home' })}
+              onSelect={(exerciseId) => setScreen({ name: 'test', exerciseId })}
+            />
+          ) : null}
+        </ScrollView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
