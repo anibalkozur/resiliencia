@@ -541,6 +541,7 @@
         sentadillas: 'Sentadillas',
         flexiones: 'Flexiones',
         abdominales: 'Abdominales',
+        elevacion_piernas: 'Elevación de piernas',
         plancha: 'Plancha',
         zancadas: 'Zancadas',
         puente_gluteo: 'Puente de glúteo',
@@ -556,6 +557,8 @@
           'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo. Para arrancar, ponete en cuclillas listo para tomar la posición de plancha: tenés 10 segundos para hacer la primera flexión.',
         abdominales:
           'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Llevá el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
+        elevacion_piernas:
+          'Recostate boca arriba con las piernas extendidas y los brazos a los costados. Mantené la espalda baja apoyada y elevá las piernas rectas hasta que queden perpendiculares al torso; bajalas con control sin tocar el piso. Cada subida completa cuenta como 1.',
         plancha:
           'Pará en plancha con los brazos extendidos y el cuerpo formando una línea recta de la cabeza a los pies. Mantené la posición sin bajar la cadera hasta completar el tiempo.',
         zancadas:
@@ -688,6 +691,32 @@
           liveness: 'hand',
           postureMsg: 'Recostate en el piso para contar abdominales — te detectamos de pie',
           startMsg: 'Recostate boca arriba, quieto un segundo',
+        },
+        elevacion_piernas: {
+          name: 'Elevación de piernas',
+          unit: 'reps',
+          type: 'lateral',
+          // Misma geometría de cadera que abdominales (shoulder-hip-knee), pero
+          // la parte que se mueve son las piernas extendidas en vez del torso.
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_hip', 'left_knee'],
+              angle: { a: 'left_shoulder', b: 'left_hip', c: 'left_knee' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_hip', 'right_knee'],
+              angle: { a: 'right_shoulder', b: 'right_hip', c: 'right_knee' },
+            },
+          },
+          downDelta: 30,
+          upDelta: 12,
+          // Gate anti-pararse: si la rodilla queda por debajo de la cadera (de
+          // pie) se bloquea y se pide volver a acostarse.
+          standingKneeMargin: 0.45,
+          restTorsoMax: 35,
+          liveness: 'hand',
+          postureMsg: 'Recostate boca arriba con las piernas extendidas',
+          startMsg: 'Recostate boca arriba, piernas extendidas, quieto un segundo',
         },
         plancha: {
           name: 'Plancha',
