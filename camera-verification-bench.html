@@ -841,6 +841,8 @@
         lastBeeped = -1,
         cadenceDeadline = 0,
         seriesOk = true;
+      let bodyComplete = false,
+        bodyMissing = [];
       let livenessChallengeActive = false,
         livenessPassed = false,
         livenessNextTriggerAt = null,
@@ -1263,6 +1265,15 @@
           return;
         }
         if (!pose) return;
+        if (!bodyComplete) {
+          raiseStreak = 0;
+          gestureText.textContent = bodyMissing.length
+            ? 'Completá el cuerpo en cámara — falta ver: ' +
+              bodyMissing.map((m) => LABEL[m]).join(', ')
+            : 'Cuerpo incompleto — acomodate frente a la cámara';
+          return;
+        }
+        gestureText.textContent = 'Levantá la mano arriba de la cabeza para empezar';
         if (handIsRaised(pose)) {
           if (++raiseStreak >= RAISE_MIN_FRAMES) {
             waitingGesture = false;
@@ -1373,6 +1384,7 @@
 
       // ---------- procesar pose ----------
       function processPose(result) {
+        bodyComplete = false;
         if (orientationSupported && !deviceIsVertical) {
           bodyOkStreak = 0;
           candidateState = null;
@@ -1422,6 +1434,8 @@
 
       function processFrontal(lm) {
         const { complete, missing } = checkComplete(lm, FRONTAL_POINTS);
+        bodyComplete = complete;
+        bodyMissing = complete ? [] : missing;
         renderChecklist('Cuerpo', FRONTAL_POINTS, missing);
         if (!complete) {
           bodyOkStreak = 0;
@@ -1543,6 +1557,8 @@
         const sc = cfg.sides[side];
         const mp = cfg.name === 'Mountain Climbers' ? sc.points : sc.points;
         const { complete, missing } = checkComplete(lm, mp);
+        bodyComplete = complete;
+        bodyMissing = complete ? [] : missing;
         renderChecklist(cfg.name, mp, missing);
         if (!complete) {
           bodyOkStreak = 0;
