@@ -304,6 +304,22 @@
         transform: translateX(-50%);
         z-index: 5;
       }
+      .voice-badge {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 5;
+        max-width: 88%;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.62);
+        color: #e8f5e9;
+        font-size: 12px;
+        line-height: 1.35;
+        text-align: center;
+        pointer-events: none;
+      }
       .gesture-hud {
         position: absolute;
         top: 40%;
@@ -442,6 +458,7 @@
           </div>
         </div>
         <div class="target-chip"><div class="badge" id="targetBadge">0/0</div></div>
+        <div class="voice-badge" id="voiceBadge" style="display: none"></div>
         <div class="orientation-row">
           <div class="badge" id="orientationBadge" style="display: none">
             <span id="orientationIcon"></span><span id="orientationText">Vertical</span>
@@ -541,6 +558,7 @@
       const liveDot = document.getElementById('liveDot');
       const logEl = document.getElementById('log');
       const targetBadge = document.getElementById('targetBadge');
+      const voiceBadge = document.getElementById('voiceBadge');
       const checklistHud = document.getElementById('checklistHud');
       const clTitle = document.getElementById('clTitle');
       const clRows = document.getElementById('clRows');
@@ -1502,6 +1520,134 @@
           window.speechSynthesis.speak(u);
         } catch (e) {}
       }
+
+      // ---------------------------------------------------------------------
+      // Voz del entrenador
+      //
+      // No hay modelo acá: son 40 frases escritas, repartidas en 5 puestos
+      // (pre / mid / last / done / rest) con 8 frases cada uno. Cada serie
+      // consume como máximo una frase de cada puesto, así que una secuencia
+      // de 8 ejercicios da una vuelta completa de las 40 sin repetirse y la
+      // siguiente sesión arranca en el grupo siguiente.
+      //
+      // El índice sale de `seqDone`, no de un cursor propio: no hay estado que
+      // se desincronice si un puesto no dispara (por ejemplo `mid`, que en
+      // ranking está desactivado).
+      //
+      // Dos reglas que no son negociables:
+      //  - Los números los pone el código, nunca la frase. La única con cuenta
+      //    es `last`, y solo dispara cuando faltan exactamente 3.
+      //  - En isométricos (unit 'seconds') no se habla dentro de la serie: la
+      //    fonación no deja vaciar los pulmones y rompe el braceo que sostiene
+      //    la columna. Por eso `mid` y `last` solo aplican a 'reps'.
+      // ---------------------------------------------------------------------
+      const VOICE_MIN_GAP_MS = 2500;
+      const VOICE_MID_MIN_TARGET = 10;
+      const VOICE_SLOT_OFFSET = { pre: 0, mid: 3, last: 6, done: 1, rest: 4 };
+      const VOICE_INSIDE_SET = { pre: false, mid: true, last: true, done: false, rest: false };
+      const VOICE_UNITS = {
+        pre: ['reps', 'seconds'],
+        mid: ['reps'],
+        last: ['reps'],
+        done: ['reps', 'seconds'],
+        rest: ['reps', 'seconds'],
+      };
+      const VOICE_CORPUS = {
+        pre: [
+          'Prepará la postura. Cuando quieras, arrancá.',
+          'Acomodate bien. Esta serie va con control.',
+          'Todo listo. Empezá cuando te sientas cómodo.',
+          'Buscá un ritmo que puedas sostener.',
+          'Mirá fijo al frente. Arrancá.',
+          'Controlá la respiración. Empezá.',
+          'Esta serie va a tu ritmo, sin apurarte.',
+          'Vamos con esta. Prestá atención a la técnica.',
+        ],
+        mid: [
+          'Vas por la mitad. Seguí así.',
+          'Buen ritmo. Mantenelo.',
+          'Mirá la técnica, no el número.',
+          'Aguantá bien. Viene más.',
+          'Sin apuro. El control es lo que suma.',
+          'Eso. Mismo ritmo.',
+          'Vamos bien. No aflojes ahora.',
+          'Seguí con la misma intensidad.',
+        ],
+        last: [
+          'Últimas tres. Vamos.',
+          'Faltan tres. Aguántá.',
+          'Últimas tres: la más técnica.',
+          'Quedan tres. Sostené el ritmo.',
+          'Faltan tres. Dá.',
+          'Últimas tres. No aflojes.',
+          'Tres más. Con ritmo.',
+          'Faltan tres. Cerrá fuerte.',
+        ],
+        done: [
+          'Listo. Buen trabajo.',
+          'Serie completa. Recuperate.',
+          'Terminaste. Buen ritmo.',
+          'Bien. Descansá un momento.',
+          'Completaste la serie.',
+          'Esa fue. Tomá agua.',
+          'Listo, esa serie quedó.',
+          'Completaste. Ahora descansá.',
+        ],
+        rest: [
+          'Acomodate y respirá.',
+          'Tiempo de descanso. Respirá bien.',
+          'Sostené la respiración un momento.',
+          'Frená acá y tomá aire.',
+          'Descansá. Respirá lento.',
+          'Ahora es para recuperar.',
+          'Sostenete. Tomá aire.',
+          'Descansá bien antes de seguir.',
+        ],
+      };
+      const voiceFired = {};
+      let voiceLastAt = -1e9;
+
+      function voiceInsideSetOk() {
+        // En ranking la cadencia de 6 s se mide entre reps. Si la voz entra en
+        // la serie, el usuario la escucha y la pausa siguiente puede romper el
+        // ranking solo por hablarle. Ranking manda: silencio.
+        return !MODE_RANKED;
+      }
+      function voiceLine(slot) {
+        const pool = VOICE_CORPUS[slot];
+        if (!pool || !pool.length) return '';
+        const units = VOICE_UNITS[slot] || [];
+        if (units.indexOf(targetUnit) === -1) return '';
+        if (VOICE_INSIDE_SET[slot] && !voiceInsideSetOk()) return '';
+        const i = (Math.max(0, seqDone) + VOICE_SLOT_OFFSET[slot]) % pool.length;
+        return pool[i];
+      }
+      // Devuelve la frase y la marca como gastada. No habla: `advance()`
+      // necesita componer la frase de descanso con el mensaje de transición
+      // en un solo utterance, porque `speak()` cancela lo anterior.
+      function voiceTake(slot) {
+        if (voiceFired[slot]) return '';
+        voiceFired[slot] = true;
+        if (performance.now() - voiceLastAt < VOICE_MIN_GAP_MS) return '';
+        const line = voiceLine(slot);
+        if (!line) return '';
+        voiceLastAt = performance.now();
+        return line;
+      }
+      function voiceFlash(text) {
+        if (voiceBadge) {
+          voiceBadge.style.display = 'block';
+          voiceBadge.textContent = text;
+        }
+        log('VOZ: ' + text);
+      }
+      function voiceSay(slot) {
+        const text = voiceTake(slot);
+        if (!text) return '';
+        speak(text);
+        voiceFlash(text);
+        return text;
+      }
       function refreshHud() {
         targetBadge.textContent = repCount + '/' + targetVal;
         if (repLabelEl)
@@ -1541,6 +1687,12 @@
         readyCountEnd = 0;
         lastBeeped = -1;
         cadenceDeadline = 0;
+        // Cada serie consume como máximo una frase de cada puesto, así que al
+        // cargar el ejercicio se reabren los cinco.
+        Object.keys(VOICE_SLOT_OFFSET).forEach(function (slot) {
+          voiceFired[slot] = false;
+        });
+        if (voiceBadge) voiceBadge.style.display = 'none';
         cadenceHud.style.display = 'none';
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'none';
@@ -1557,7 +1709,9 @@
       function announceSession() {
         if (!sessionStartTime) {
           sessionStartTime = performance.now();
-          speak('Empezá cuando quieras');
+          // La frase de arranque reemplaza al texto fijo: `speak()` cancela lo
+          // anterior, así que hablar las dos cosas sonaba a arranque cortado.
+          speak(voiceSay('pre') || 'Empezá cuando quieras');
         }
       }
 
@@ -1580,6 +1734,13 @@
         playRep();
         refreshHud();
         if (MODE_RANKED && targetUnit === 'reps') beginCadence(now);
+        // Voz: los números salen de acá, no de la frase. `last` dispara
+        // exactamente cuando faltan 3, así que la cuenta nunca se desincroniza.
+        if (targetUnit === 'reps') {
+          if (targetVal >= VOICE_MID_MIN_TARGET && repCount >= Math.ceil(targetVal / 2))
+            voiceSay('mid');
+          if (repCount === targetVal - 3) voiceSay('last');
+        }
         if (targetUnit === 'reps' && repCount >= targetVal) {
           postComplete('Meta cumplida: ' + repCount);
         }
@@ -1689,7 +1850,14 @@
         const isLast = seqIndex + 1 >= SEQ.length;
         const go = (msg) => {
           if (MODE_RANKED) beginReadyCount(performance.now());
-          if (msg) speak(msg);
+          // Una sola locución: `speak()` cancela lo anterior, así que la
+          // frase de descanso y el nombre del siguiente van juntas.
+          const rest = voiceTake('rest');
+          const full = rest && msg ? rest + ' ' + msg : msg || rest;
+          if (full) {
+            speak(full);
+            voiceFlash(full);
+          }
         };
         if (awaitingReason === 'failed') {
           loadExercise(seqIndex);
@@ -1729,6 +1897,10 @@
         advance();
       }
       function postComplete(detail) {
+        // `done` se toma antes de incrementar `seqDone`: el índice de grupo es
+        // `seqDone`, así que si se hablara después usaría el grupo siguiente y
+        // la rotación se desalinearía en una frase por serie.
+        voiceSay('done');
         seqDone++;
         if (SEQ.length > 1 && !MODE_RANKED) {
           // Sin gesto no hay paso a mano: la cámara sigue viva y avanza sola.

@@ -85,3 +85,50 @@ Lo que sigue sin decidirse para producción:
 - Resumen de sesión (completados / total, reps totales, tiempo) y si todas las
   series calificaron: todavía no está.
 - Si en producción la señal de vida va una sola vez por sesión o por ejercicio.
+
+## Voz del entrenador (prototipo, sin modelo)
+
+El entrenador **no usa IA durante la serie**: son 40 frases escritas, repartidas en
+5 puestos con 8 frases cada uno.
+
+| puesto | cuándo                                               | aplica a        |
+| ------ | ---------------------------------------------------- | --------------- |
+| `pre`  | arranca la serie (reemplaza "Empezá cuando quieras") | reps y segundos |
+| `mid`  | mitad de la serie, solo si la meta es ≥ 10           | solo reps       |
+| `last` | cuando faltan exactamente 3                          | solo reps       |
+| `done` | al completar la meta                                 | reps y segundos |
+| `rest` | en la transición al siguiente ejercicio              | reps y segundos |
+
+Cada serie consume como máximo una frase de cada puesto, así que una secuencia de
+8 ejercicios da **una vuelta completa de las 40 sin repetirse**, y la sesión
+siguiente arranca en el grupo siguiente. El índice sale de `seqDone`, no de un
+cursor propio: si un puesto no dispara (por ejemplo `mid`, que en ranking está
+desactivado) los demás no se desalinean.
+
+Cuatro reglas que no son negociables:
+
+- **Los números los pone el código.** La única frase con cuenta es `last`, y
+  dispara en `repCount === targetVal - 3`. No hay forma de que diga "faltan dos"
+  cuando faltan tres.
+- **En isométricos no se habla dentro de la serie.** La fonación no deja vaciar
+  los pulmones y rompe el braceo que sostiene la columna, así que `mid` y `last`
+  solo aplican a `reps`. Una plancha de 45 s dice dos frases en total: `pre` y
+  `done`.
+- **En ranking hay silencio dentro de la serie.** La cadencia de 6 s se mide
+  entre reps; si entra la voz, la pausa siguiente puede romper el ranking solo
+  por hablarle. Ranking manda.
+- **Gap de 2,5 s entre locuciones**, y el descanso se compone en un solo
+  utterance con el nombre del siguiente ejercicio (`speak()` cancela lo anterior,
+  así que hablar las dos cosas sonaba a arranque cortado).
+
+El selector es determinístico y no necesita modelo: sin descarga, sin RAM, sin
+conflictos con los 30 fps, y no puede decir nada fuera de lo escrito. El badge
+gris de abajo de la cámara muestra la última frase dicha y el log marca `VOZ:`.
+
+Pendiente para cuando se valide en el teléfono:
+
+- Probar si la pausa de la voz arruina la cuenta de reps a 3 s en modo libre
+  (con ranking ya está silenciado, pero en modo libre el contador corre libre).
+- Decidir si `mid` y `last` juntos son demasiado en una serie de 10.
+- Portar a producción requiere antes cerrar el `originWhitelist={['*']}` con
+  `onPermissionRequest={(r) => r.grant()}` de `camretos.tsx` y `retos.tsx`.
