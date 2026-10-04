@@ -1897,14 +1897,20 @@
         advance();
       }
       function postComplete(detail) {
-        // `done` se toma antes de incrementar `seqDone`: el índice de grupo es
+        // `done` se toma antes de.incrementar `seqDone`: el índice de grupo es
         // `seqDone`, así que si se hablara después usaría el grupo siguiente y
         // la rotación se desalinearía en una frase por serie.
-        voiceSay('done');
+        //
+        // Y se compone con el mensaje de `waitForRestart` en una sola locución:
+        // `speak()` cancela lo anterior, así que hablar `done` y después
+        // "Meta cumplida" cortaba la frase a media palabra.
+        const done = voiceTake('done');
+        const withDone = (msg) => (done && msg ? done + ' ' + msg : msg || done);
+        if (done) voiceFlash(done);
         seqDone++;
         if (SEQ.length > 1 && !MODE_RANKED) {
           // Sin gesto no hay paso a mano: la cámara sigue viva y avanza sola.
-          waitForRestart('', 'complete');
+          waitForRestart(withDone(''), 'complete');
           statusText.textContent = 'Completado';
           showState('state-msg up', 'META CUMPLIDA');
           log(detail || 'Completado');
@@ -1916,14 +1922,20 @@
         }
         if (MODE_RANKED) {
           waitForRestart(
-            SEQ.length > 1
-              ? 'Meta cumplida. ' + (NAME[SEQ[seqIndex].id] || '') + ' listo'
-              : 'Meta cumplida. Levantá la mano para repetir la serie',
+            withDone(
+              SEQ.length > 1
+                ? 'Meta cumplida. ' + (NAME[SEQ[seqIndex].id] || '') + ' listo'
+                : 'Meta cumplida. Levantá la mano para repetir la serie',
+            ),
             'complete',
           );
           statusText.textContent = 'Completado';
           showState('state-msg up', 'META CUMPLIDA');
         } else {
+          // Ejercicio suelto sin ranking: antes no decía nada al terminar. Acá la
+          // cámara ya está apagada, así que no se puede pedir la mano: el paso
+          // es el botón "Reiniciar".
+          const closing = withDone('Tocá Reiniciar para repetir la serie');
           running = false;
           const s = video.srcObject;
           if (s) s.getTracks().forEach((t) => t.stop());
@@ -1933,6 +1945,10 @@
           startBtn.style.display = 'block';
           startBtn.disabled = false;
           startBtn.textContent = 'Reiniciar';
+          if (closing) {
+            speak(closing);
+            voiceFlash(closing);
+          }
         }
         log(detail || 'Completado');
         renderResultCard(detail || 'Completado');

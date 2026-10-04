@@ -9,7 +9,7 @@
 
 export const VERIFY_URL =
   'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html';
-export const VERIFY_VERSION = 27;
+export const VERIFY_VERSION = 28;
 
 export interface VerifyOptions {
   ranked?: boolean;

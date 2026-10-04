@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { ChatPanel } from '../components/ChatPanel';
 import { EXERCISES, type ExerciseInfo } from '../lib/exercises';
 import { verdict, type TestResult } from '../lib/report';
 import type { SequenceItem } from '../lib/verify';
@@ -101,6 +102,8 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
           {seqOpen ? '▾' : '▸'} Secuencia de ejercicios {seq.length ? `(${seq.length})` : ''}
         </Text>
       </Pressable>
+
+      <ChatPanel />
 
       {seqOpen ? (
         <View style={styles.seqBox}>

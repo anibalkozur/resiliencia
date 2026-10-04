@@ -132,3 +132,43 @@ Pendiente para cuando se valide en el teléfono:
 - Decidir si `mid` y `last` juntos son demasiado en una serie de 10.
 - Portar a producción requiere antes cerrar el `originWhitelist={['*']}` con
   `onPermissionRequest={(r) => r.grant()}` de `camretos.tsx` y `retos.tsx`.
+
+### Fix: la frase de fin de serie se perdía
+
+`postComplete()` llamaba `voiceSay('done')` y enseguida `waitForRestart(...)`, que
+vuelve a llamar `speak()`. Como `speak()` hace `speechSynthesis.cancel()`, la
+locución de `done` se cortaba a media palabra: al terminar una serie no se oía
+nada. Ahora la frase se toma con `voiceTake()` y se compone con el mensaje de
+transición en **una sola** locución, igual que el descanso. Además el caso de un
+ejercicio suelto sin ranking no decía nada (la cámara ya está apagada, así que
+el mensaje es "tocá Reiniciar", no la mano).
+
+## Chat del entrenador (prototipo, sin modelo todavía)
+
+En la pantalla de selección, antes de arrancar. Dominio cerrado: la app, los
+ejercicios, los modos de ejecución y los datos del perfil. Todo sale de
+`src/lib/chat.ts`, así que no puede inventar ni dar consejo de salud.
+
+**No hay modelo todavía, y en Expo Go no se puede poner**: el banco corre en
+Expo Go, que no trae reconocimiento de voz (ni en el WebView ni nativo sin
+módulo), y `llama.rnn` exige dev build. Por eso el panel tiene entrada de texto
+y el micrófono está deshabilitado a propósito con la nota al pie. Con una dev
+build (`expo run:android` o EAS) el STT se enchufa en `ChatPanel` sin tocar el
+dominio.
+
+Las tres reglas están coded en `chat.ts` y tienen test, para que no dependan de
+que un modelo se porte bien:
+
+1. **Puerta de edad.** Con menos de 18 años el chat no devuelve datos del
+   perfil ni entra en consejo. Se evalúa antes que cualquier otra intención, y
+   un menor no la esquiva preguntando de otra forma.
+2. **Los datos del perfil no se hablan.** Se LEE en pantalla; `habla: false`
+   impide mandarlos al TTS. El TTS de Android por defecto es el de Google, que es
+   cloud: decir "pesás 84 kilos" por ahí manda el dato fuera del teléfono aunque
+   el modelo sea local.
+3. **El perfil no genera consejo.** Puede leer un dato si lo piden; no puede
+   derivar una recomendación de peso, edad u objetivo. Pasa con cualquier
+   fraseo ("¿me conviene...", "¿cuánto tengo que bajar?").
+
+Perfil de prueba en `PERFIL_FALSO` (Aníbal, 34, 84 kg) y `PERFIL_MENOR` para
+probar la puerta sin tocar el principal.
