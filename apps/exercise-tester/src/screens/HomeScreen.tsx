@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { EXERCISES, type ExerciseInfo } from '../lib/exercises';
 import { verdict, type TestResult } from '../lib/report';
@@ -8,7 +8,7 @@ import type { SequenceItem } from '../lib/verify';
 type Props = {
   results: TestResult[];
   onSelect: (exerciseId: string) => void;
-  onStartSequence: (items: SequenceItem[]) => void;
+  onStartSequence: (items: SequenceItem[], ranked: boolean) => void;
   onReport: () => void;
 };
 
@@ -19,6 +19,9 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
   const premium = EXERCISES.filter((e) => e.tier === 'premium');
   const [seqOpen, setSeqOpen] = useState(false);
   const [seq, setSeq] = useState<SequenceItem[]>([]);
+  // La prueba de vida (y con ella el gesto de mano y la cadencia) se elige acá,
+  // junto con la secuencia, no después de arrancar.
+  const [ranked, setRanked] = useState(false);
 
   const move = (i: number, dir: -1 | 1) =>
     setSeq((prev) => {
@@ -35,6 +38,20 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
   const removeAt = (i: number) => setSeq((prev) => prev.filter((_, k) => k !== i));
   const add = (e: ExerciseInfo) =>
     setSeq((prev) => (prev.length >= MAX_SEQ ? prev : [...prev, { id: e.id, target: e.target }]));
+  // Objetivo de cada ejercicio de la secuencia, con el mismo paso y los mismos
+  // límites que usa la pantalla de prueba.
+  const bumpTarget = (i: number, dir: -1 | 1) =>
+    setSeq((prev) => {
+      const it = prev[i];
+      if (!it) return prev;
+      const info = EXERCISES.find((e) => e.id === it.id);
+      const by = info?.step ?? (info?.unit === 'seconds' ? 5 : 1);
+      const min = info?.unit === 'seconds' ? 5 : by;
+      const max = info?.unit === 'seconds' ? 120 : 200;
+      const next = [...prev];
+      next[i] = { ...it, target: Math.min(max, Math.max(min, it.target + dir * by)) };
+      return next;
+    });
 
   const picker = (e: ExerciseInfo) => (
     <View key={e.id} style={styles.pickRow}>
@@ -88,8 +105,9 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
       {seqOpen ? (
         <View style={styles.seqBox}>
           <Text style={styles.hint}>
-            Elegí varios y ordenalos con ▲▼. Empieza por el 1: al completar cada uno levantás la
-            mano para pasar al siguiente, y si la serie se rompe la misma mano reintenta ese.
+            Elegí varios, ajustá las reps de cada uno y ordenalos con ▲▼. Empieza por el 1: al
+            completar cada uno levantás la mano para pasar al siguiente, y si la serie se rompe la
+            misma mano reintenta ese.
           </Text>
 
           {seq.length === 0 ? (
@@ -103,10 +121,16 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
                   <Text style={styles.ordName} numberOfLines={1}>
                     {info?.name ?? it.id}
                   </Text>
+                  <Pressable style={styles.ordStep} onPress={() => bumpTarget(i, -1)} hitSlop={6}>
+                    <Text style={styles.ordStepText}>−</Text>
+                  </Pressable>
                   <Text style={styles.ordMeta}>
                     {it.target}
                     {info?.unit === 'seconds' ? 's' : ''}
                   </Text>
+                  <Pressable style={styles.ordStep} onPress={() => bumpTarget(i, 1)} hitSlop={6}>
+                    <Text style={styles.ordStepText}>+</Text>
+                  </Pressable>
                   <Pressable style={styles.ordBtn} onPress={() => move(i, -1)} hitSlop={6}>
                     <Text style={styles.ordBtnText}>▲</Text>
                   </Pressable>
@@ -121,6 +145,11 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
             })
           )}
 
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Prueba de vida (gesto de mano y cadencia de 6 s)</Text>
+            <Switch value={ranked} onValueChange={setRanked} />
+          </View>
+
           <Text style={styles.h2}>Agregar</Text>
           {free.map(picker)}
           {premium.map(picker)}
@@ -129,7 +158,7 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
             style={[styles.btn, seq.length === 0 ? styles.btnOff : null]}
             disabled={seq.length === 0}
             onPress={() => {
-              onStartSequence(seq);
+              onStartSequence(seq, ranked);
               setSeq([]);
               setSeqOpen(false);
             }}
@@ -225,7 +254,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 14,
   },
-  ordRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  ordRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
   ordPos: {
     color: '#030405',
     backgroundColor: '#39D98A',
@@ -239,16 +268,46 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   ordName: { color: '#EAF2FF', fontSize: 14, fontWeight: '600', flex: 1 },
-  ordMeta: { color: '#7C8AA0', fontSize: 13, fontWeight: '700' },
+  ordMeta: {
+    color: '#EAF2FF',
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 30,
+    textAlign: 'right',
+  },
+  ordStep: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1d5c3a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ordStepText: { color: '#39D98A', fontSize: 17, fontWeight: '800', lineHeight: 20 },
   ordBtn: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#1E2630',
     backgroundColor: '#0D1117',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  toggleLabel: {
+    color: '#EAF2FF',
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
+    marginRight: 12,
   },
   ordBtnText: { color: '#39D98A', fontSize: 13, fontWeight: '800' },
   pickRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },

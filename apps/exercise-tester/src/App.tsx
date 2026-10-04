@@ -19,7 +19,7 @@ import type { TestResult } from './lib/report';
 import type { SequenceItem } from './lib/verify';
 
 export type Screen =
-  { name: 'home' } | { name: 'test'; items: SequenceItem[] } | { name: 'report' };
+  { name: 'home' } | { name: 'test'; items: SequenceItem[]; ranked: boolean } | { name: 'report' };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
@@ -36,7 +36,12 @@ export default function App() {
     setScreen({
       name: 'test',
       items: [{ id: exerciseId, target: found?.target ?? 10 }],
+      ranked: false,
     });
+  }, []);
+
+  const startSequence = useCallback((items: SequenceItem[], ranked: boolean) => {
+    setScreen({ name: 'test', items, ranked });
   }, []);
 
   const items = screen.name === 'test' ? screen.items : null;
@@ -50,6 +55,7 @@ export default function App() {
           <StatusBar style="light" />
           <TestScreen
             items={items}
+            ranked={screen.name === 'test' ? screen.ranked : false}
             onExit={() => setScreen({ name: 'home' })}
             onRecorded={onRecorded}
           />
@@ -78,7 +84,7 @@ export default function App() {
             <HomeScreen
               results={results}
               onSelect={startSingle}
-              onStartSequence={(seq) => setScreen({ name: 'test', items: seq })}
+              onStartSequence={startSequence}
               onReport={() => setScreen({ name: 'report' })}
             />
           ) : null}

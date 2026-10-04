@@ -7,7 +7,7 @@
 import { useCameraPermissions } from 'expo-camera';
 import { DeviceMotion } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { FIRST_EXERCISE, exerciseById, type ExerciseInfo } from '../lib/exercises';
@@ -16,16 +16,18 @@ import { buildSequenceUri, buildVerifyUri, type SequenceItem } from '../lib/veri
 
 type Props = {
   items: SequenceItem[];
+  /** La prueba de vida se elige en la home, junto con la secuencia. */
+  ranked?: boolean;
   onExit: () => void;
   onRecorded: (r: TestResult) => void;
 };
 
-export function TestScreen({ items, onExit, onRecorded }: Props) {
+export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecorded }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const multi = items.length > 1;
   const first: ExerciseInfo = exerciseById(items[0]?.id ?? '') ?? FIRST_EXERCISE;
   const [targets, setTargets] = useState<number[]>(items.map((i) => i.target));
-  const [ranked, setRanked] = useState(false);
+  const [ranked, setRanked] = useState(rankedProp);
   const [live, setLive] = useState(false);
   const [restartKey, setRestartKey] = useState(0);
   const [last, setLast] = useState<string | null>(null);
@@ -120,7 +122,9 @@ export function TestScreen({ items, onExit, onRecorded }: Props) {
 
   if (!live) {
     return (
-      <View style={styles.box}>
+      // Con varios ejercicios la lista, el toggle y el botón no entran: sin
+      // scroll quedan inalcanzables.
+      <ScrollView contentContainerStyle={styles.box} style={styles.scroll}>
         <Text style={styles.name}>{multi ? `Secuencia de ${items.length}` : first.name}</Text>
 
         {multi ? (
@@ -194,7 +198,7 @@ export function TestScreen({ items, onExit, onRecorded }: Props) {
         <Pressable style={styles.back} onPress={onExit}>
           <Text style={styles.backText}>← Volver</Text>
         </Pressable>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -273,6 +277,7 @@ export function TestScreen({ items, onExit, onRecorded }: Props) {
 
 const styles = StyleSheet.create({
   box: { flex: 1, padding: 18, justifyContent: 'center' },
+  scroll: { flex: 1 },
   msg: { color: '#9FB0C6', fontSize: 13, lineHeight: 19, marginBottom: 14 },
   name: { color: '#EAF2FF', fontSize: 20, fontWeight: '800', marginBottom: 16 },
   label: { color: '#7C8AA0', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 8 },
