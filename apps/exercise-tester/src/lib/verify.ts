@@ -9,11 +9,32 @@
 
 export const VERIFY_URL =
   'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html';
-export const VERIFY_VERSION = 25;
+export const VERIFY_VERSION = 26;
 
 export interface VerifyOptions {
   ranked?: boolean;
   cadenceSec?: number;
+}
+
+/** Un ejercicio de la secuencia: id del catálogo + objetivo elegido. */
+export interface SequenceItem {
+  id: string;
+  target: number;
+}
+
+/**
+ * URL de una sesión con varios ejercicios. La página los recorre en orden sin
+ * recargar: al completar cada uno (o al fallar) espera el gesto de mano para
+ * pasar al siguiente o reintentar el mismo. La unidad de cada ejercicio sale de
+ * su CFG, así que no viaja en la URL.
+ */
+export function buildSequenceUri(items: SequenceItem[], opts: VerifyOptions = {}): string {
+  const p = new URLSearchParams({
+    seq: items.map((i) => `${i.id}:${i.target}`).join(','),
+  });
+  if (opts.ranked) p.set('ranked', '1');
+  if (opts.cadenceSec && opts.cadenceSec > 0) p.set('cadence', String(opts.cadenceSec));
+  return `${VERIFY_URL}?v=${VERIFY_VERSION}&${p.toString()}`;
 }
 
 export function buildVerifyUri(

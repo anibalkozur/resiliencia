@@ -495,11 +495,35 @@
       } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 
       const qs = new URLSearchParams(location.search);
-      const EX_ID = qs.get('exercise') || 'sentadillas';
-      const TARGET = Math.max(1, parseInt(qs.get('target') || '10', 10));
-      const UNIT = qs.get('unit') || 'reps';
+      const readTarget = (raw, fallback) => {
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) && n > 0 ? n : fallback;
+      };
+      // Secuencia: `seq=id:objetivo,id:objetivo,...`. Sin `seq` es un solo
+      // ejercicio (`exercise` + `target`), como antes. La unidad de cada
+      // ejercicio sale de su CFG, no de la URL.
+      const SEQ = (qs.get('seq') || '')
+        .split(',')
+        .map((part) => {
+          const [id, t] = part.split(':');
+          return { id: String(id || '').trim(), target: readTarget(t, 10) };
+        })
+        .filter((s) => s.id);
+      if (!SEQ.length) {
+        SEQ.push({
+          id: qs.get('exercise') || 'sentadillas',
+          target: readTarget(qs.get('target'), 10),
+        });
+      }
+      const EX_ID = SEQ[0].id;
       const MODE_RANKED = qs.get('ranked') === '1';
-      const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
+      const CADENCE_SEC = Math.min(
+        15,
+        Math.max(
+          2,
+          Number.isFinite(parseInt(qs.get('cadence'), 10)) ? parseInt(qs.get('cadence'), 10) : 6,
+        ),
+      );
       const CADENCE_MS = CADENCE_SEC * 1000;
       const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
         ? Math.max(1, parseInt(qs.get('v') || '1', 10))
@@ -536,6 +560,7 @@
       const cadenceHud = document.getElementById('cadenceHud');
       const livenessOverlay = document.getElementById('livenessOverlay');
       const livenessInstruct = document.getElementById('livenessInstruct');
+      const descEl = document.getElementById('desc');
 
       const NAME = {
         sentadillas: 'Sentadillas',
@@ -1148,10 +1173,32 @@
           startMsg: 'De perfil y quieto un segundo para calibrar',
         },
       };
-      const cfg = CFG[EX_ID] || CFG.sentadillas;
-      const targetUnit = cfg.unit;
-      const targetVal = TARGET;
-      const livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+      // El ejercicio activo cambia a lo largo de la secuencia, así que `cfg` y el
+      // objetivo son variables: las reemplaza loadExercise() sin recargar la página
+      // (ni la cámara ni el modelo).
+      let cfg = CFG.sentadillas,
+        targetUnit = 'reps',
+        targetVal = 10,
+        livenessEnabled = true;
+      let seqIndex = 0,
+        seqDone = 0,
+        seqFinished = false;
+      function loadExercise(i) {
+        // El índice se acota y se usa tal cual: `indexOf` no sirve porque la
+        // secuencia puede repetir el mismo ejercicio.
+        const idx = Math.max(0, Math.min(SEQ.length - 1, i));
+        seqIndex = idx;
+        const item = SEQ[idx];
+        cfg = CFG[item.id] || CFG.sentadillas;
+        targetVal = item.target;
+        targetUnit = cfg.unit;
+        livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+        document.title = NAME[item.id] || 'Verificación';
+        descEl.textContent =
+          HOWTO[item.id] || 'Segui la guía en pantalla para completar el ejercicio.';
+        resetRepState();
+        log('Ejercicio ' + (seqIndex + 1) + '/' + SEQ.length + ': ' + (NAME[item.id] || item.id));
+      }
       const FRONTAL_POINTS = [
         'left_shoulder',
         'right_shoulder',
@@ -1201,7 +1248,8 @@
         lastBeeped = -1,
         cadenceDeadline = 0,
         seriesOk = true,
-        awaitingRestart = false;
+        awaitingRestart = false,
+        awaitingReason = '';
       let bodyComplete = false,
         bodyMissing = [];
       let livenessChallengeActive = false,
@@ -1547,6 +1595,10 @@
         return {
           reps: value,
           detail,
+          exerciseId: SEQ[seqIndex].id,
+          seqIndex,
+          seqLength: SEQ.length,
+          seqDone,
           ranked: MODE_RANKED,
           seriesOk: MODE_RANKED && seriesOk,
           livenessOk: MODE_RANKED && (livenessPassed || !livenessEnabled),
@@ -1593,44 +1645,110 @@
           tagEl.classList.remove('broken');
         }
         resultReps.textContent = value;
+        const seqNote =
+          SEQ.length > 1
+            ? ' · ej ' + (seqIndex + 1) + '/' + SEQ.length + ' · ' + seqDone + ' completadas'
+            : '';
         resultDetail.textContent =
           (targetUnit === 'reps' ? value + ' reps' : 'Tiempo validado ' + holdMs + 's') +
           ' · ' +
           total +
-          's de sesión';
+          's de sesión' +
+          seqNote;
         resultCard.classList.add('show');
         if (detail) post('complete', completePayload(detail));
       }
-      function waitForRestart(msg) {
+      function waitForRestart(msg, reason) {
         // La cámara sigue encendida. El cartel de resultado queda visible hasta
-        // que se reinicia la serie levantando la mano.
+        // que se levanta la mano.
         awaitingRestart = true;
+        awaitingReason = reason || 'complete';
         waitingGesture = false;
         readyCountEnd = 0;
         raiseStreak = 0;
         cadenceHud.style.display = 'none';
         hideLiveness();
         gestureHud.style.display = 'block';
-        gestureText.textContent = 'Levantá la mano para repetir la serie';
-        speak(msg);
+        gestureText.textContent = restartHint();
+        if (msg) speak(msg);
+      }
+      function restartHint() {
+        if (awaitingReason === 'failed' || SEQ.length <= 1)
+          return 'Levantá la mano para repetir la serie';
+        if (seqFinished || seqIndex + 1 >= SEQ.length)
+          return 'Secuencia completa — levantá la mano para empezar de nuevo';
+        const next = SEQ[seqIndex + 1];
+        return 'Levantá la mano para el siguiente: ' + (NAME[next.id] || next.id);
+      }
+      function advance() {
+        // Un solo gesto para las dos transiciones: al completar pasa al
+        // siguiente de la secuencia, al fallar reintenta el mismo. La mano que
+        // habilita el paso es además la señal de arranque, así que no se pide
+        // un segundo gesto: va directo al 5-4-3-2-1.
+        awaitingRestart = false;
+        const isLast = seqIndex + 1 >= SEQ.length;
+        const go = (msg) => {
+          if (MODE_RANKED) beginReadyCount(performance.now());
+          if (msg) speak(msg);
+        };
+        if (awaitingReason === 'failed') {
+          loadExercise(seqIndex);
+          go('Otra vez: ' + (NAME[SEQ[seqIndex].id] || ''));
+          return;
+        }
+        if (SEQ.length <= 1) {
+          loadExercise(0);
+          go('Nueva serie');
+          return;
+        }
+        if (seqFinished) {
+          seqFinished = false;
+          loadExercise(0);
+          go('Empezamos de nuevo: ' + (NAME[SEQ[0].id] || ''));
+          return;
+        }
+        if (!isLast) {
+          loadExercise(seqIndex + 1);
+          go('Siguiente: ' + (NAME[SEQ[seqIndex].id] || ''));
+          return;
+        }
+        // Se terminó la última: el cartel queda visible hasta la mano que abre
+        // la próxima ronda.
+        seqFinished = true;
+        if (MODE_RANKED) speak('Secuencia completa. Levantá la mano para empezar de nuevo');
       }
       function restartTick(pose) {
         if (!awaitingRestart) return;
-        gestureText.textContent = 'Levantá la mano para repetir la serie';
+        gestureText.textContent = restartHint();
         if (!pose) return;
         if (!handIsRaised(pose)) {
           raiseStreak = 0;
           return;
         }
         if (++raiseStreak < RAISE_MIN_FRAMES) return;
-        awaitingRestart = false;
-        resetRepState();
-        startGesture();
-        speak('Nueva serie');
+        advance();
       }
       function postComplete(detail) {
+        seqDone++;
+        if (SEQ.length > 1 && !MODE_RANKED) {
+          // Sin gesto no hay paso a mano: la cámara sigue viva y avanza sola.
+          waitForRestart('', 'complete');
+          statusText.textContent = 'Completado';
+          showState('state-msg up', 'META CUMPLIDA');
+          log(detail || 'Completado');
+          renderResultCard(detail || 'Completado');
+          setTimeout(function () {
+            if (awaitingRestart) advance();
+          }, 3000);
+          return;
+        }
         if (MODE_RANKED) {
-          waitForRestart('Meta cumplida. Levantá la mano para repetir la serie');
+          waitForRestart(
+            SEQ.length > 1
+              ? 'Meta cumplida. ' + (NAME[SEQ[seqIndex].id] || '') + ' listo'
+              : 'Meta cumplida. Levantá la mano para repetir la serie',
+            'complete',
+          );
           statusText.textContent = 'Completado';
           showState('state-msg up', 'META CUMPLIDA');
         } else {
@@ -1743,7 +1861,7 @@
         if (!seriesOk) return;
         seriesOk = false;
         log('SERIE ROTA: ' + msg);
-        waitForRestart('Descanso muy largo. Levantá la mano para repetir la serie');
+        waitForRestart('Descanso muy largo. Levantá la mano para repetir la serie', 'failed');
         statusText.textContent = 'Serie rota';
         showState('state-msg blocked', 'SERIE ROTA');
         renderResultCard('Serie rota: ' + msg);
@@ -2475,7 +2593,7 @@
       }
       startBtn.onclick = startCamera;
       stopBtn.onclick = stopCamera;
-      refreshHud();
+      loadExercise(0);
 
       setTimeout(() => {
         if (!startBtn.disabled) startCamera();

@@ -1,7 +1,9 @@
-# Ideas para la app ResiliencIA (aún no implementadas)
+# Ideas para la app ResiliencIA
 
-Ideas del trabajo del banco de pruebas. **No están implementadas**: viven solo
-como documentación hasta que se decidan.
+Mezcla de ideas del trabajo del banco de pruebas. **Nada de esto está en
+producción**: la app móvil sigue con un ejercicio por sesión. Lo que sí está
+implementado, en el **banco de pruebas** (`camera-verification-bench.html` +
+app React Native del tester), está marcado como tal.
 
 ---
 
@@ -53,8 +55,33 @@ Cada elemento de la secuencia necesita su propio estado, no uno global:
 
 ### Qué ya se adelantó en el banco
 
-Como primer paso se implementó **solo el reinicio por mano de un ejercicio
-único**: al completar o al fallar, la cámara no se apaga, el cartel de resultado
-queda visible y levantar la mano reinicia la serie (contador en 0, con el mismo
-5-4-3-2-1). Es la misma mecánica de gesto que usaría el avance al siguiente
-ejercicio de la secuencia.
+**Reinicio por mano de un ejercicio único.** Al completar o al fallar, la cámara no
+se apaga, el cartel de resultado queda visible y levantar la mano reinicia la
+serie (contador en 0, con el mismo 5-4-3-2-1).
+
+**Secuencia de ejercicios (prototipo).** En el banco se puede elegir varios
+ejercicios, ordenarlos con ▲/▼ y darles su objetivo; la página los recorre en ese
+orden **sin recargar la cámara ni el modelo** (cambia `cfg`, objetivo y unidad en
+vivo). Al completar se levanta la mano para pasar al siguiente, al fallar se
+levanta para reintentar el mismo, y al terminar el último se levanta para empezar
+de cero. La mano que habilita el paso es además la señal de arranque: no hace
+falto un segundo gesto. Cada ejercicio genera su propio reporte
+(`exerciseId`, `seqIndex`, `seqLength`, `seqDone`).
+
+Decisiones que quedaron fijadas para el banco:
+
+- Máximo **8** ejercicios por secuencia; se permiten repetidos.
+- El objetivo se edita por ejercicio; la **unidad sale del CFG** de cada uno, no
+  de la URL.
+- La cadencia son **6 s/rep para todos** los ejercicios.
+- Sin ranking (verificación simple), la secuencia avanza sola a los 3 s de
+  completar; con ranking depende de la mano.
+- Con ranking la señal de vida se repite en cada ejercicio (12 s).
+
+Lo que sigue sin decidirse para producción:
+
+- ¿Dónde se guarda la secuencia? ¿Por día, por rutina, por último uso?
+- ¿Se puede saltear un ejercicio con otro gesto, o la secuencia es estricta?
+- Resumen de sesión (completados / total, reps totales, tiempo) y si todas las
+  series calificaron: todavía no está.
+- Si en producción la señal de vida va una sola vez por sesión o por ejercicio.

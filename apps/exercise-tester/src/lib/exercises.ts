@@ -210,6 +210,19 @@ export function exerciseById(id: string): ExerciseInfo | null {
   return EXERCISES.find((e) => e.id === id) ?? null;
 }
 
+/**
+ * Un ejercicio cualquiera, para cuando un id no está en el catálogo: la pantalla
+ * de prueba siempre tiene algo que cargar.
+ */
+export const FIRST_EXERCISE: ExerciseInfo = EXERCISES[0] ?? {
+  id: 'sentadillas',
+  name: 'Sentadillas',
+  unit: 'reps',
+  tier: 'free',
+  target: 20,
+  liveness: 'hand',
+};
+
 /** Cadencia objetivo en segundos por rep (catalog.ts: REP_CADENCE). */
 export const REP_CADENCE: Record<string, number> = {
   sentadillas: 5,

@@ -10,30 +10,41 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-import { cadenceSec, type ExerciseInfo } from '../lib/exercises';
+import { FIRST_EXERCISE, exerciseById, type ExerciseInfo } from '../lib/exercises';
 import { summarizeCompletion, type TestResult } from '../lib/report';
-import { buildVerifyUri } from '../lib/verify';
+import { buildSequenceUri, buildVerifyUri, type SequenceItem } from '../lib/verify';
 
 type Props = {
-  exercise: ExerciseInfo;
-  exerciseId: string;
+  items: SequenceItem[];
   onExit: () => void;
   onRecorded: (r: TestResult) => void;
 };
 
-export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) {
+export function TestScreen({ items, onExit, onRecorded }: Props) {
   const [permission, requestPermission] = useCameraPermissions();
-  const [target, setTarget] = useState(exercise.target);
+  const multi = items.length > 1;
+  const first: ExerciseInfo = exerciseById(items[0]?.id ?? '') ?? FIRST_EXERCISE;
+  const [targets, setTargets] = useState<number[]>(items.map((i) => i.target));
   const [ranked, setRanked] = useState(false);
   const [live, setLive] = useState(false);
   const [restartKey, setRestartKey] = useState(0);
   const [last, setLast] = useState<string | null>(null);
+  // Índice del último ejercicio que terminó, para marcar el avance en la lista.
+  const [doneIndex, setDoneIndex] = useState(-1);
   const webRef = useRef<WebView<object>>(null);
 
-  const step = exercise.step ?? (exercise.unit === 'seconds' ? 5 : 1);
-  const minTarget = exercise.unit === 'seconds' ? 5 : step;
-  const maxTarget = exercise.unit === 'seconds' ? 120 : 200;
-  const unitLabel = exercise.unit === 'seconds' ? 'segundos' : 'reps';
+  const step = first.step ?? (first.unit === 'seconds' ? 5 : 1);
+  const minTarget = first.unit === 'seconds' ? 5 : step;
+  const maxTarget = first.unit === 'seconds' ? 120 : 200;
+  const unitLabel = first.unit === 'seconds' ? 'segundos' : 'reps';
+  const target = targets[0] ?? first.target;
+  const bump = (i: number, dir: 1 | -1, min: number, max: number, by: number) =>
+    setTargets((prev) => {
+      const next = [...prev];
+      const cur = next[i] ?? items[i]?.target ?? FIRST_EXERCISE.target;
+      next[i] = Math.min(max, Math.max(min, cur + dir * by));
+      return next;
+    });
 
   // Puente de orientación: idéntico a producción. La página espera el sensor
   // antes de encender la cámara, y dentro del WebView no llegan los eventos
@@ -73,11 +84,20 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
       const type = String(data.type ?? '');
       if (type === 'sensor_request') return;
       if (type !== 'complete') return;
-      const result = summarizeCompletion(exercise, data, Date.now());
+      // En una secuencia cada `complete` es de un ejercicio distinto: la página
+      // manda cuál es (`exerciseId`), así que el informe usa ese y no el primero.
+      const doneId = String(data.exerciseId ?? '');
+      const info =
+        (doneId ? exerciseById(doneId) : null) ??
+        exerciseById(items[0]?.id ?? '') ??
+        FIRST_EXERCISE;
+      const result = summarizeCompletion(info, data, Date.now());
+      const seqIndex = Number(data.seqIndex);
+      if (Number.isFinite(seqIndex)) setDoneIndex(seqIndex);
       setLast(result.reached ? `✅ ${result.summary}` : `⚠️ ${result.summary}`);
       onRecorded(result);
     },
-    [exercise, onRecorded],
+    [items, onRecorded],
   );
 
   if (!permission) return <View style={styles.box} />;
@@ -101,27 +121,62 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
   if (!live) {
     return (
       <View style={styles.box}>
-        <Text style={styles.name}>{exercise.name}</Text>
+        <Text style={styles.name}>{multi ? `Secuencia de ${items.length}` : first.name}</Text>
 
-        <Text style={styles.label}>Objetivo</Text>
-        <View style={styles.row}>
-          <Pressable
-            style={styles.stepBtn}
-            onPress={() => setTarget((t) => Math.max(minTarget, t - step))}
-          >
-            <Text style={styles.stepText}>−</Text>
-          </Pressable>
-          <View style={styles.targetBox}>
-            <Text style={styles.targetNum}>{target}</Text>
-            <Text style={styles.targetUnit}>{unitLabel}</Text>
-          </View>
-          <Pressable
-            style={styles.stepBtn}
-            onPress={() => setTarget((t) => Math.min(maxTarget, t + step))}
-          >
-            <Text style={styles.stepText}>+</Text>
-          </Pressable>
-        </View>
+        {multi ? (
+          <>
+            <Text style={styles.label}>Orden de la sesión</Text>
+            {items.map((it, i) => {
+              const info = exerciseById(it.id);
+              const step0 = info?.step ?? (info?.unit === 'seconds' ? 5 : 1);
+              const min0 = info?.unit === 'seconds' ? 5 : step0;
+              const max0 = info?.unit === 'seconds' ? 120 : 200;
+              return (
+                <View key={`${it.id}-${i}`} style={styles.seqRow}>
+                  <Text style={styles.seqPos}>{i + 1}</Text>
+                  <Text style={styles.seqName} numberOfLines={1}>
+                    {info?.name ?? it.id}
+                  </Text>
+                  <Pressable style={styles.stepBtn} onPress={() => bump(i, -1, min0, max0, step0)}>
+                    <Text style={styles.stepText}>−</Text>
+                  </Pressable>
+                  <Text style={styles.seqTarget}>
+                    {targets[i] ?? it.target} {info?.unit === 'seconds' ? 's' : ''}
+                  </Text>
+                  <Pressable style={styles.stepBtn} onPress={() => bump(i, 1, min0, max0, step0)}>
+                    <Text style={styles.stepText}>+</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+            <Text style={styles.hint}>
+              Empezás por el 1. Al completar cada uno levantás la mano para pasar al siguiente; si
+              la serie se rompe, la misma mano reintenta ese ejercicio.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.label}>Objetivo</Text>
+            <View style={styles.row}>
+              <Pressable
+                style={styles.stepBtn}
+                onPress={() => bump(0, -1, minTarget, maxTarget, step)}
+              >
+                <Text style={styles.stepText}>−</Text>
+              </Pressable>
+              <View style={styles.targetBox}>
+                <Text style={styles.targetNum}>{target}</Text>
+                <Text style={styles.targetUnit}>{unitLabel}</Text>
+              </View>
+              <Pressable
+                style={styles.stepBtn}
+                onPress={() => bump(0, 1, minTarget, maxTarget, step)}
+              >
+                <Text style={styles.stepText}>+</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
 
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Ranking (gesto de mano, cadencia y prueba de vida)</Text>
@@ -143,6 +198,13 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
     );
   }
 
+  const seqItems: SequenceItem[] = items.map((it, i) => ({
+    id: it.id,
+    target: targets[i] ?? it.target,
+  }));
+  // 6 s/rep para todos los ejercicios, como se decidió para la sesión.
+  const cadence = ranked ? 6 : undefined;
+
   return (
     <View style={styles.live}>
       <View style={styles.bar}>
@@ -150,7 +212,7 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
           <Text style={styles.barText}>← Salir</Text>
         </Pressable>
         <Text style={styles.barTitle} numberOfLines={1}>
-          {exercise.name} · {target} {unitLabel}
+          {multi ? `Secuencia de ${items.length}` : `${first.name} · ${target} ${unitLabel}`}
           {ranked ? ' · ranking' : ''}
         </Text>
         <Pressable onPress={() => setRestartKey((k) => k + 1)} hitSlop={8}>
@@ -158,19 +220,45 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
         </Pressable>
       </View>
 
+      {multi ? (
+        <View style={styles.seqStrip}>
+          {seqItems.map((it, i) => {
+            const info = exerciseById(it.id);
+            const done = i <= doneIndex;
+            const active = i === doneIndex + 1;
+            return (
+              <Text
+                key={`${it.id}-${i}`}
+                style={[
+                  styles.seqChip,
+                  done ? styles.seqChipDone : null,
+                  active ? styles.seqChipActive : null,
+                ]}
+                numberOfLines={1}
+              >
+                {done ? '✓ ' : ''}
+                {i + 1}. {info?.name ?? it.id}
+              </Text>
+            );
+          })}
+        </View>
+      ) : null}
+
       <Text style={styles.resultBar} numberOfLines={2}>
         {last ?? `En vivo${ranked ? ' · ranking: ~6 s por rep o se rompe la serie' : ''}`}
       </Text>
 
       <WebView<object>
         ref={webRef}
-        key={`${exerciseId}-${target}-${ranked ? 'r' : 'f'}-${restartKey}`}
+        key={`${multi ? seqItems.map((i) => `${i.id}:${i.target}`).join(',') : `${first.id}:${target}`}-${ranked ? 'r' : 'f'}-${restartKey}`}
         originWhitelist={['*']}
         source={{
-          uri: buildVerifyUri(exerciseId, target, exercise.unit, {
-            ranked,
-            cadenceSec: ranked ? (cadenceSec(exerciseId) ?? 6) : undefined,
-          }),
+          uri: multi
+            ? buildSequenceUri(seqItems, { ranked, cadenceSec: cadence })
+            : buildVerifyUri(first.id, target, first.unit, {
+                ranked,
+                cadenceSec: cadence,
+              }),
         }}
         javaScriptEnabled
         domStorageEnabled
@@ -200,6 +288,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   stepText: { color: '#39D98A', fontSize: 26, fontWeight: '800', lineHeight: 30 },
+  seqRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  seqPos: {
+    color: '#030405',
+    backgroundColor: '#39D98A',
+    fontSize: 12,
+    fontWeight: '800',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    lineHeight: 22,
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
+  seqName: { color: '#EAF2FF', fontSize: 14, fontWeight: '600', flex: 1 },
+  seqTarget: {
+    color: '#EAF2FF',
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 42,
+    textAlign: 'right',
+  },
+  seqStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+  },
+  seqChip: {
+    color: '#7C8AA0',
+    fontSize: 11,
+    fontWeight: '600',
+    borderWidth: 1,
+    borderColor: '#1E2630',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    overflow: 'hidden',
+  },
+  seqChipDone: { color: '#39D98A', borderColor: '#1d5c3a' },
+  seqChipActive: { color: '#030405', backgroundColor: '#39D98A', borderColor: '#39D98A' },
   targetBox: { minWidth: 96, alignItems: 'center' },
   targetNum: { color: '#EAF2FF', fontSize: 44, fontWeight: '800' },
   targetUnit: { color: '#7C8AA0', fontSize: 13, fontWeight: '600' },

@@ -16,8 +16,10 @@ import { ReportScreen } from './screens/ReportScreen';
 import { TestScreen } from './screens/TestScreen';
 import { EXERCISES } from './lib/exercises';
 import type { TestResult } from './lib/report';
+import type { SequenceItem } from './lib/verify';
 
-export type Screen = { name: 'home' } | { name: 'test'; exerciseId: string } | { name: 'report' };
+export type Screen =
+  { name: 'home' } | { name: 'test'; items: SequenceItem[] } | { name: 'report' };
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
@@ -29,19 +31,25 @@ export default function App() {
     setResults((prev) => [r, ...prev].slice(0, 20));
   }, []);
 
-  const selected =
-    screen.name === 'test' ? EXERCISES.find((e) => e.id === screen.exerciseId) : null;
+  const startSingle = useCallback((exerciseId: string) => {
+    const found = EXERCISES.find((e) => e.id === exerciseId);
+    setScreen({
+      name: 'test',
+      items: [{ id: exerciseId, target: found?.target ?? 10 }],
+    });
+  }, []);
+
+  const items = screen.name === 'test' ? screen.items : null;
 
   // La prueba va a PANTALLA COMPLETA, fuera del ScrollView: una WebView con
   // `flex: 1` dentro de un ScrollView colapsa a 0 px de alto y la cámara no se ve.
-  if (screen.name === 'test' && selected) {
+  if (items && items.length > 0) {
     return (
       <SafeAreaProvider>
         <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
           <StatusBar style="light" />
           <TestScreen
-            exerciseId={screen.exerciseId}
-            exercise={selected}
+            items={items}
             onExit={() => setScreen({ name: 'home' })}
             onRecorded={onRecorded}
           />
@@ -69,7 +77,8 @@ export default function App() {
           {screen.name === 'home' ? (
             <HomeScreen
               results={results}
-              onSelect={(exerciseId) => setScreen({ name: 'test', exerciseId })}
+              onSelect={startSingle}
+              onStartSequence={(seq) => setScreen({ name: 'test', items: seq })}
               onReport={() => setScreen({ name: 'report' })}
             />
           ) : null}
@@ -78,7 +87,7 @@ export default function App() {
             <ReportScreen
               results={results}
               onBack={() => setScreen({ name: 'home' })}
-              onSelect={(exerciseId) => setScreen({ name: 'test', exerciseId })}
+              onSelect={startSingle}
             />
           ) : null}
         </ScrollView>

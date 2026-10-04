@@ -1,18 +1,18 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { buildVerifyUri, VERIFY_URL, VERIFY_VERSION } from '../lib/verify';
+import { buildSequenceUri, buildVerifyUri, VERIFY_URL, VERIFY_VERSION } from '../lib/verify';
 
 describe('buildVerifyUri', () => {
   it('apunta a la copia del banco, no a la página de producción', () => {
     expect(VERIFY_URL).toBe(
       'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html',
     );
-    expect(VERIFY_VERSION).toBe(25);
+    expect(VERIFY_VERSION).toBe(26);
   });
 
   it('pasa ejercicio, objetivo y unidad', () => {
     expect(buildVerifyUri('sentadillas', 20, 'reps')).toBe(
-      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=25&exercise=sentadillas&target=20&unit=reps',
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=26&exercise=sentadillas&target=20&unit=reps',
     );
   });
 
@@ -24,5 +24,34 @@ describe('buildVerifyUri', () => {
     const plain = buildVerifyUri('plancha', 30, 'seconds');
     expect(plain).not.toContain('ranked=1');
     expect(plain).not.toContain('cadence=');
+  });
+});
+
+describe('buildSequenceUri', () => {
+  it('manda los ejercicios en orden, con su objetivo', () => {
+    expect(
+      buildSequenceUri([
+        { id: 'elevacion_piernas', target: 15 },
+        { id: 'plancha', target: 30 },
+      ]),
+    ).toBe(
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=26&seq=elevacion_piernas%3A15%2Cplancha%3A30',
+    );
+  });
+
+  it('respeta el orden elegido y agrega ranked/cadencia', () => {
+    const uri = buildSequenceUri(
+      [
+        { id: 'plancha', target: 45 },
+        { id: 'flexiones', target: 8 },
+        { id: 'sentadillas', target: 20 },
+      ],
+      { ranked: true, cadenceSec: 6 },
+    );
+    expect(uri).toContain('ranked=1');
+    expect(uri).toContain('cadence=6');
+    expect(new URL(uri).searchParams.get('seq')).toBe('plancha:45,flexiones:8,sentadillas:20');
+    // La unidad no viaja: la página la saca del CFG de cada ejercicio.
+    expect(uri).not.toContain('unit=');
   });
 });

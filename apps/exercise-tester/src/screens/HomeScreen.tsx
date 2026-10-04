@@ -1,17 +1,55 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { EXERCISES, type ExerciseInfo } from '../lib/exercises';
 import { verdict, type TestResult } from '../lib/report';
+import type { SequenceItem } from '../lib/verify';
 
 type Props = {
   results: TestResult[];
   onSelect: (exerciseId: string) => void;
+  onStartSequence: (items: SequenceItem[]) => void;
   onReport: () => void;
 };
 
-export function HomeScreen({ results, onSelect, onReport }: Props) {
+const MAX_SEQ = 8;
+
+export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Props) {
   const free = EXERCISES.filter((e) => e.tier === 'free');
   const premium = EXERCISES.filter((e) => e.tier === 'premium');
+  const [seqOpen, setSeqOpen] = useState(false);
+  const [seq, setSeq] = useState<SequenceItem[]>([]);
+
+  const move = (i: number, dir: -1 | 1) =>
+    setSeq((prev) => {
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      const a = next[i];
+      const b = next[j];
+      if (a === undefined || b === undefined) return prev;
+      next[i] = b;
+      next[j] = a;
+      return next;
+    });
+  const removeAt = (i: number) => setSeq((prev) => prev.filter((_, k) => k !== i));
+  const add = (e: ExerciseInfo) =>
+    setSeq((prev) => (prev.length >= MAX_SEQ ? prev : [...prev, { id: e.id, target: e.target }]));
+
+  const picker = (e: ExerciseInfo) => (
+    <View key={e.id} style={styles.pickRow}>
+      <Text style={styles.pickName} numberOfLines={1}>
+        {e.name}
+      </Text>
+      <Text style={styles.pickMeta}>
+        {e.target}
+        {e.unit === 'seconds' ? 's' : ''}
+      </Text>
+      <Pressable style={styles.addBtn} onPress={() => add(e)} hitSlop={6}>
+        <Text style={styles.addText}>+</Text>
+      </Pressable>
+    </View>
+  );
 
   const card = (e: ExerciseInfo) => (
     <Pressable key={e.id} style={styles.card} onPress={() => onSelect(e.id)}>
@@ -40,6 +78,68 @@ export function HomeScreen({ results, onSelect, onReport }: Props) {
         Carga la misma página que la app real (camera-verification.html) en una WebView: la cámara,
         el modelo, el esqueleto y el conteo son los de producción, no una reimplementación.
       </Text>
+
+      <Pressable style={styles.seqToggle} onPress={() => setSeqOpen((v) => !v)}>
+        <Text style={styles.seqToggleText}>
+          {seqOpen ? '▾' : '▸'} Secuencia de ejercicios {seq.length ? `(${seq.length})` : ''}
+        </Text>
+      </Pressable>
+
+      {seqOpen ? (
+        <View style={styles.seqBox}>
+          <Text style={styles.hint}>
+            Elegí varios y ordenalos con ▲▼. Empieza por el 1: al completar cada uno levantás la
+            mano para pasar al siguiente, y si la serie se rompe la misma mano reintenta ese.
+          </Text>
+
+          {seq.length === 0 ? (
+            <Text style={styles.hint}>Todavía no agregaste ninguno.</Text>
+          ) : (
+            seq.map((it, i) => {
+              const info = EXERCISES.find((e) => e.id === it.id);
+              return (
+                <View key={`${it.id}-${i}`} style={styles.ordRow}>
+                  <Text style={styles.ordPos}>{i + 1}</Text>
+                  <Text style={styles.ordName} numberOfLines={1}>
+                    {info?.name ?? it.id}
+                  </Text>
+                  <Text style={styles.ordMeta}>
+                    {it.target}
+                    {info?.unit === 'seconds' ? 's' : ''}
+                  </Text>
+                  <Pressable style={styles.ordBtn} onPress={() => move(i, -1)} hitSlop={6}>
+                    <Text style={styles.ordBtnText}>▲</Text>
+                  </Pressable>
+                  <Pressable style={styles.ordBtn} onPress={() => move(i, 1)} hitSlop={6}>
+                    <Text style={styles.ordBtnText}>▼</Text>
+                  </Pressable>
+                  <Pressable style={styles.ordBtn} onPress={() => removeAt(i)} hitSlop={6}>
+                    <Text style={styles.ordBtnText}>✕</Text>
+                  </Pressable>
+                </View>
+              );
+            })
+          )}
+
+          <Text style={styles.h2}>Agregar</Text>
+          {free.map(picker)}
+          {premium.map(picker)}
+
+          <Pressable
+            style={[styles.btn, seq.length === 0 ? styles.btnOff : null]}
+            disabled={seq.length === 0}
+            onPress={() => {
+              onStartSequence(seq);
+              setSeq([]);
+              setSeqOpen(false);
+            }}
+          >
+            <Text style={seq.length === 0 ? styles.btnOffText : styles.btnText}>
+              Iniciar secuencia ({seq.length})
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <Text style={styles.h2}>Gratuitos ({free.length})</Text>
       {free.map(card)}
@@ -115,4 +215,55 @@ const styles = StyleSheet.create({
   btnText: { color: '#06210F', fontWeight: '800', fontSize: 14 },
   lastBox: { marginTop: 18 },
   lastLine: { color: '#9FB0C6', fontSize: 12, marginTop: 4 },
+  seqToggle: { marginBottom: 10 },
+  seqToggleText: { color: '#39D98A', fontSize: 14, fontWeight: '800' },
+  seqBox: {
+    backgroundColor: '#0A0F15',
+    borderColor: '#1E2630',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
+  },
+  ordRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  ordPos: {
+    color: '#030405',
+    backgroundColor: '#39D98A',
+    fontSize: 12,
+    fontWeight: '800',
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    lineHeight: 22,
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
+  ordName: { color: '#EAF2FF', fontSize: 14, fontWeight: '600', flex: 1 },
+  ordMeta: { color: '#7C8AA0', fontSize: 13, fontWeight: '700' },
+  ordBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1E2630',
+    backgroundColor: '#0D1117',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ordBtnText: { color: '#39D98A', fontSize: 13, fontWeight: '800' },
+  pickRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  pickName: { color: '#9FB0C6', fontSize: 13, flex: 1 },
+  pickMeta: { color: '#7C8AA0', fontSize: 12 },
+  addBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1d5c3a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addText: { color: '#39D98A', fontSize: 18, fontWeight: '800', lineHeight: 20 },
+  btnOff: { backgroundColor: '#1b2b23' },
+  btnOffText: { color: '#5b6b7c' },
 });
