@@ -1,5 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { hablarVoz } from '../lib/voz';
 
 import {
   ATAJOS,
@@ -16,27 +18,11 @@ type Msg = { autor: 'user' | 'bot'; texto: string };
 // reconocimiento de voz. `hablar()` degrada a texto si expo-speech no está, y
 // el micrófono avisa en vez de fingir que escuchó.
 //
+// El TTS está en `lib/voz` porque lo comparte también el entrenador de voz del
+// WebView, que avisa por `postMessage` en vez de hablar desde la página.
+//
 // En una dev build (EAS o `expo run:android`) el STT se enchufa acá y el resto
 // no cambia: el dominio, el perfil y la puerta de edad ya son estos.
-type Voz = { hablar: (t: string) => void; disponible: boolean };
-
-async function crearVoz(): Promise<Voz> {
-  try {
-    const mod = await import('expo-speech');
-    if (mod && typeof mod.speak === 'function') {
-      return {
-        disponible: true,
-        hablar: (t: string) => {
-          mod.stop();
-          mod.speak(t, { language: 'es-ES', rate: 1.05 });
-        },
-      };
-    }
-  } catch {
-    // expo-speech no está en este runtime: seguimos solo con texto.
-  }
-  return { disponible: false, hablar: () => {} };
-}
 
 export function ChatPanel({ perfil = PERFIL_FALSO }: { perfil?: UserProfile }) {
   const [msgs, setMsgs] = useState<Msg[]>([
@@ -46,7 +32,6 @@ export function ChatPanel({ perfil = PERFIL_FALSO }: { perfil?: UserProfile }) {
     },
   ]);
   const [texto, setTexto] = useState('');
-  const vozRef = useRef<Voz | null>(null);
 
   const enviar = useCallback(
     (consulta: string) => {
@@ -57,12 +42,7 @@ export function ChatPanel({ perfil = PERFIL_FALSO }: { perfil?: UserProfile }) {
       setMsgs((prev) => [...prev, { autor: 'user', texto: n }, { autor: 'bot', texto: res.texto }]);
       // Los datos del perfil van solo en texto: el TTS de Android es cloud y
       // decir el peso por ahí manda el dato fuera del teléfono.
-      if (res.habla) {
-        void crearVoz().then((v) => {
-          vozRef.current = v;
-          v.hablar(res.texto);
-        });
-      }
+      if (res.habla) hablarVoz(res.texto);
     },
     [perfil],
   );

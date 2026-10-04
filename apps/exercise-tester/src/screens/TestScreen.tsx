@@ -12,6 +12,7 @@ import { WebView } from 'react-native-webview';
 
 import { FIRST_EXERCISE, exerciseById, type ExerciseInfo } from '../lib/exercises';
 import { summarizeCompletion, type TestResult } from '../lib/report';
+import { hablarVoz } from '../lib/voz';
 import { buildSequenceUri, buildVerifyUri, type SequenceItem } from '../lib/verify';
 
 type Props = {
@@ -85,6 +86,19 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
       }
       const type = String(data.type ?? '');
       if (type === 'sensor_request') return;
+      // La página no habla: avisa qué frase tocar y el TTS nativo la dice. El
+      // `speechSynthesis` del WebView de Android no es confiable y desde la
+      // página no hay forma de saber si sonó.
+      if (type === 'voz') {
+        hablarVoz(String(data.text ?? ''));
+        return;
+      }
+      // Las frases que la página eligió, para poder verlas en la terminal de
+      // Metro cuando hay que saber por qué no sonó algo.
+      if (type === 'voz_log') {
+        console.log(`[bench] ${String(data.text ?? '')}`);
+        return;
+      }
       if (type !== 'complete') return;
       // En una secuencia cada `complete` es de un ejercicio distinto: la página
       // manda cuál es (`exerciseId`), así que el informe usa ese y no el primero.

@@ -17,6 +17,7 @@
 //    derivar una recomendación de peso, edad u objetivo.
 
 import { EXERCISES } from './exercises';
+import { TECNICA } from './tecnica';
 
 export type Nivel = 'principiante' | 'intermedio' | 'avanzado';
 
@@ -48,6 +49,7 @@ export const EDAD_MINIMA = 18;
 export type Intent =
   | 'saludo'
   | 'como_empezar'
+  | 'como_reiniciar'
   | 'que_ejercicios'
   | 'como_hacer_ejercicio'
   | 'modos'
@@ -110,28 +112,51 @@ function buscarCampo(n: string): CampoPerfil | null {
   if (contiene(n, 'mi nivel', 'que nivel')) return 'nivel';
   return null;
 }
-
-/** "¿Cómo hago sentadillas?" → la ficha del ejercicio, con la advertencia real. */
-function fichaEjercicio(n: string): ChatReply | null {
+/**
+ * Ficha de un ejercicio. Responde lo que un usuario que todavía no eligió
+ * reps necesita: cómo se hace la posición, cómo arranca, cómo da la señal de
+ * vida y cómo reinicia.
+ *
+ * NO dice cuántas reps, porque en la pantalla de selección todavía no se
+ * eligieron, y NO dice el tier: "premium" es jerga de la app, no información
+ * para alguien que pregunta cómo se hace una sentadilla.
+ */
+function fichaEjercicio(n: string, ranked: boolean): ChatReply | null {
   const ejercicio = EXERCISES.find(
     (e) => normalizar(e.name).includes(n) || n.includes(normalizar(e.name)),
   );
   if (!ejercicio) return null;
-  const unidad = ejercicio.unit === 'seconds' ? 'segundos' : 'reps';
-  const vida = ejercicio.liveness === 'hold' ? 'aguantando la posición' : 'levantando la mano';
-  const extra =
-    ejercicio.unit === 'seconds'
-      ? ' Mientras lo aguantás no te hablo: la fonación rompe el braceo.'
-      : '';
-  return {
-    texto:
-      `${ejercicio.name}: objetivo ${ejercicio.target} ${unidad}. ` +
-      `Es del tier ${ejercicio.tier === 'free' ? 'gratuito' : 'premium'}. ` +
-      `La señal de vida es ${vida}.${extra}`,
-    habla: true,
-    intencion: 'como_hacer_ejercicio',
-    regla: true,
-  };
+  const tec = TECNICA[ejercicio.id];
+  const posicion = tec ? tec.resumen : `${ejercicio.name}: no hay guía cargada.`;
+  const segundos = ejercicio.unit === 'seconds';
+
+  const arranque =
+    'Para arrancar, levantá la mano arriba de la cabeza y esperá la cuenta de 5 a 1.';
+  const vida =
+    ranked && !segundos
+      ? 'Con la prueba de vida activada tenés que llegar a 6 segundos entre reps y el sistema te avisa cada 12 segundos levantando la mano.'
+      : segundos
+        ? 'Como es un ejercicio por tiempo, no hay cuenta de reps ni límite de segundos entre repeticiones.'
+        : 'No hay límite de tiempo entre repeticiones en este modo.';
+  const cierre =
+    'Cuando termines, volvés a levantar la mano: pasa al siguiente ejercicio de la secuencia, o repetís este si era el único.';
+
+  const texto =
+    `${ejercicio.name}. ${posicion} ${arranque} ${vida} ${cierre}` +
+    (segundos ? ' Mientras lo aguantás no te hablo: la fonación rompe la postura.' : '');
+
+  return { texto, habla: true, intencion: 'como_hacer_ejercicio', regla: true };
+}
+
+/** Mismas tres cosas (arranque, vida, cierre) sin nombre de ejercicio. */
+function guiaEjercicio(ranked: boolean): string {
+  return (
+    'Para arrancar cualquier ejercicio, levantá la mano arriba de la cabeza y esperá la cuenta de 5 a 1. ' +
+    (ranked
+      ? 'Con la prueba de vida activada tenés que llegar a 6 segundos entre reps y te avisa cada 12 segundos. '
+      : 'En verificación simple no hay límite de tiempo entre repeticiones. ') +
+    'Cuando termines, levantás la mano otra vez para pasar al siguiente o para repetir.'
+  );
 }
 
 const MENOR =
@@ -142,7 +167,11 @@ const MENOR =
  * Resuelve una entrada. Devuelve siempre una respuesta de regla: cuando el
  * modelo esté conectado, esta función pasa a ser el fallback y la validación.
  */
-export function responder(entrada: string, perfil: UserProfile = PERFIL_FALSO): ChatReply {
+export function responder(
+  entrada: string,
+  perfil: UserProfile = PERFIL_FALSO,
+  ranked = false,
+): ChatReply {
   const n = normalizar(entrada);
   const menor = perfil.edad < EDAD_MINIMA;
 
@@ -185,7 +214,7 @@ export function responder(entrada: string, perfil: UserProfile = PERFIL_FALSO): 
   }
 
   // 4. Ficha de ejercicio.
-  const ficha = fichaEjercicio(n);
+  const ficha = fichaEjercicio(n, ranked);
   if (ficha) return ficha;
 
   // 5. Intenciones del dominio.
@@ -197,13 +226,34 @@ export function responder(entrada: string, perfil: UserProfile = PERFIL_FALSO): 
       regla: true,
     };
   }
-  if (contiene(n, 'como empiezo', 'como arranco', 'como empiezo', 'que hago primero')) {
+  if (
+    contiene(
+      n,
+      'como empiezo',
+      'como arranco',
+      'como empiezo',
+      'que hago primero',
+      'como arranco el ejercicio',
+      'como se empieza',
+    )
+  ) {
     return {
       texto:
         'Elegís hasta 8 ejercicios, les ajustás las reps, los ordenás y tocás Iniciar. ' +
-        'La cámara se enciende sola y contás las reps con el modelo de pose.',
+        guiaEjercicio(ranked),
       habla: true,
       intencion: 'como_empezar',
+      regla: true,
+    };
+  }
+  if (contiene(n, 'como reinicio', 'como repito', 'como vuelvo a empezar', 'reiniciar la serie')) {
+    return {
+      texto:
+        'Con la mano. Cuando terminás levantás la mano arriba de la cabeza y el sistema ' +
+        'entiende que querés seguir: pasa al siguiente ejercicio de la secuencia, o empezás de nuevo ' +
+        'el mismo si era el único. Si la serie se rompe por una pausa larga, la misma mano reintenta ese ejercicio.',
+      habla: true,
+      intencion: 'como_reiniciar',
       regla: true,
     };
   }
@@ -232,8 +282,12 @@ export function responder(entrada: string, perfil: UserProfile = PERFIL_FALSO): 
   if (contiene(n, 'prueba de vida', 'senal de vida', 'gesto', 'mano', 'antifraude')) {
     return {
       texto:
-        'La prueba de vida es levantar la mano arriba de la cabeza. En ranking salta cada 12 segundos ' +
-        'para confirmar que seguís ahí, y también sirve para pasar al siguiente ejercicio.',
+        'La señal de vida es levantar la mano arriba de la cabeza, igual que para arrancar. ' +
+        (ranked
+          ? 'Con ranking activada salta cada 12 segundos para confirmar que seguís ahí, y además te ' +
+            'exige llegar a 6 segundos entre reps.'
+          : 'En verificación simple no salta sola, pero la mano sigue siendo la que pasa al siguiente ejercicio.') +
+        ' Cuando terminás, levantás la mano otra vez para avanzar o para repetir.',
       habla: true,
       intencion: 'prueba_vida',
       regla: true,

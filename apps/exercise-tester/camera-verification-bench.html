@@ -1510,9 +1510,30 @@
         beep({ freq: 1300, dur: 0.09, delay: 0 });
         beep({ freq: 1300, dur: 0.09, delay: 0.1 });
       }
+      // TTS. El `speechSynthesis` del WebView de Android no está garantizado: en
+      // muchas versiones no existe o no suena, y desde ahí no hay forma de saber si
+      // la locución salió. Así que la página NO habla: avisa a React Native por
+      // `postMessage` y el TTS nativo (expo-speech) es el que habla. Recién si no hay
+      // puente (la página abierta en un navegador) se cae al `speechSynthesis`.
+      const RN_BRIDGE = typeof window.ReactNativeWebView !== 'undefined';
+      let ttsSoportado = null;
+      function ttsDiagnostic() {
+        if (ttsSoportado !== null) return ttsSoportado;
+        ttsSoportado =
+          typeof window.speechSynthesis !== 'undefined' &&
+          typeof window.SpeechSynthesisUtterance !== 'undefined';
+        return ttsSoportado;
+      }
       function speak(text) {
-        if (!soundEnabled || typeof window.speechSynthesis === 'undefined') return;
+        if (!soundEnabled || !text) return;
         try {
+          if (RN_BRIDGE) {
+            window.ReactNativeWebView.postMessage(
+              JSON.stringify({ type: 'voz', text: String(text) }),
+            );
+            return;
+          }
+          if (!ttsDiagnostic()) return;
           window.speechSynthesis.cancel();
           const u = new SpeechSynthesisUtterance(text);
           u.lang = 'es-ES';
@@ -1605,6 +1626,10 @@
         ],
       };
       const voiceFired = {};
+      // Guion de la serie: las cinco frases se eligen al CARGAR el ejercicio, no
+      // cuando toca hablar. Así la locución sale sin ninguna decisión en el
+      // medio de la serie, que es cuando el hilo está ocupado con la pose.
+      let voiceGuion = {};
       let voiceLastAt = -1e9;
 
       function voiceInsideSetOk() {
@@ -1614,6 +1639,19 @@
         return !MODE_RANKED;
       }
       function voiceLine(slot) {
+        if (voiceGuion[slot]) return voiceGuion[slot];
+        return '';
+      }
+      // Se llama desde loadExercise: fija las cinco frases de la serie de una
+      // vez. Los puestos que no aplican (mid/last en un isométrico, o en ranking)
+      // quedan vacíos y `voiceTake` los ignora.
+      function voiceBuildScript() {
+        voiceGuion = {};
+        Object.keys(VOICE_SLOT_OFFSET).forEach((slot) => {
+          voiceGuion[slot] = voiceLineFor(slot);
+        });
+      }
+      function voiceLineFor(slot) {
         const pool = VOICE_CORPUS[slot];
         if (!pool || !pool.length) return '';
         const units = VOICE_UNITS[slot] || [];
@@ -1640,6 +1678,16 @@
           voiceBadge.textContent = text;
         }
         log('VOZ: ' + text);
+        // Se reenvía a RN para que la línea aparezca en la terminal de Metro. El
+        // `console.log` de la página no se ve desde afuera, y sin esto no hay
+        // forma de saber si la frase llegó al TTS o si se perdió en el puente.
+        if (RN_BRIDGE) {
+          try {
+            window.ReactNativeWebView.postMessage(
+              JSON.stringify({ type: 'voz_log', text: 'VOZ: ' + text }),
+            );
+          } catch (e) {}
+        }
       }
       function voiceSay(slot) {
         const text = voiceTake(slot);
@@ -1692,6 +1740,7 @@
         Object.keys(VOICE_SLOT_OFFSET).forEach(function (slot) {
           voiceFired[slot] = false;
         });
+        voiceBuildScript();
         if (voiceBadge) voiceBadge.style.display = 'none';
         cadenceHud.style.display = 'none';
         gestureHud.style.display = 'none';

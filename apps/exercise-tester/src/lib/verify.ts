@@ -9,7 +9,12 @@
 
 export const VERIFY_URL =
   'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html';
-export const VERIFY_VERSION = 28;
+/**
+ * Sube esto cuando cambie `camera-verification-bench.html`. El `?v=` va en la
+ * URL del WebView y sin esto el teléfono sigue mostrando la versión vieja desde
+ * la caché del navegador.
+ */
+export const VERIFY_VERSION = 29;
 
 export interface VerifyOptions {
   ranked?: boolean;

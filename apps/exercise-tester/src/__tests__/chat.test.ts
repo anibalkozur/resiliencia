@@ -1,6 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { EDAD_MINIMA, PERFIL_FALSO, PERFIL_MENOR, responder, type ChatReply } from '../lib/chat';
+import { EXERCISES } from '../lib/exercises';
+import { TECNICA } from '../lib/tecnica';
 
 const r = (texto: string, perfil = PERFIL_FALSO): ChatReply => responder(texto, perfil);
 
@@ -111,5 +113,83 @@ describe('toda respuesta viene de regla, no del modelo', () => {
     for (const q of ['hola', '¿cuánto peso?', '¿cómo hago plancha?', 'zzz']) {
       expect(r(q).regla).toBe(true);
     }
+  });
+});
+
+describe('ficha de ejercicio', () => {
+  it('responde posición, arranque, vida y reinicio, y nada más', () => {
+    const res = responder('como realizo las sentadillas');
+    expect(res.texto).toMatch(/levant[aá] la mano/i);
+    expect(res.texto).toMatch(/5 a 1/);
+    expect(res.texto).toMatch(/6 segundos entre reps|no hay límite de tiempo entre repeticiones/i);
+    expect(res.texto).toMatch(/pas(a|á) al siguiente|repite/i);
+    // Lo que el usuario pidió que no aparezca.
+    expect(res.texto).not.toMatch(/tier/i);
+    expect(res.texto).not.toMatch(/gratuito|premium/i);
+    expect(res.texto).not.toMatch(/objetivo \d+/i);
+    expect(res.texto).not.toMatch(/\d+\s*reps/i);
+    expect(res.regla).toBe(true);
+  });
+
+  it('no menciona reps ni tier para ningún ejercicio del banco', () => {
+    for (const e of EXERCISES) {
+      const res = responder(`como hago ${e.name}`);
+      expect(res.texto).not.toMatch(/\d+\s*reps?/i);
+      expect(res.texto).not.toMatch(/tier/i);
+      expect(res.texto).not.toMatch(/gratuito|premium/i);
+    }
+  });
+
+  it('usa la guía de posición de cada ejercicio', () => {
+    for (const e of EXERCISES) {
+      const res = responder(`como hago ${e.name}`);
+      const tec = TECNICA[e.id];
+      // Si falta la guía, esta aserción falla: el chat no puede inventar técnica.
+      expect(tec).toBeDefined();
+      expect(res.texto).not.toMatch(/no hay guía cargada/);
+      expect(res.texto.length).toBeGreaterThan(140);
+      const resumen = tec?.resumen.replace(/\s+/g, ' ').trim() ?? '';
+      expect(resumen.length).toBeGreaterThan(30);
+      expect(res.texto).toContain(resumen.slice(0, 40));
+    }
+  });
+
+  it('avisa que en los isométricos no habla mientras aguantás', () => {
+    const res = responder('como hago plancha');
+    expect(res.texto).toMatch(/no te hablo|fonaci/i);
+    // Y no le inventa un límite de segundos entre reps.
+    expect(res.texto).not.toMatch(/6 segundos entre reps/i);
+  });
+
+  it('da el límite entre reps solo en modo ranking', () => {
+    expect(responder('como hago sentadillas', PERFIL_FALSO, true).texto).toMatch(
+      /6 segundos entre reps/i,
+    );
+    expect(responder('como hago sentadillas', PERFIL_FALSO, false).texto).not.toMatch(
+      /6 segundos entre reps/i,
+    );
+  });
+});
+
+describe('consultas de arranque, vida y reinicio', () => {
+  it('"como arranco" explica la mano y la cuenta regresiva', () => {
+    const res = responder('como arranco');
+    expect(res.texto).toMatch(/levant[aá] la mano/i);
+    expect(res.texto).toMatch(/5 a 1/);
+  });
+
+  it('"como reinicio" dice que se hace con la mano', () => {
+    const res = responder('como reinicio');
+    expect(res.texto).toMatch(/mano/i);
+    expect(res.texto).toMatch(/siguiente/i);
+  });
+
+  it('la señal de vida es la mano y dice qué pasa al terminar', () => {
+    const res = responder('como es la senal de vida');
+    expect(res.texto).toMatch(/mano/i);
+    expect(res.texto).toMatch(/12 segundos|6 segundos entre reps|no salta sola/i);
+    expect(res.texto).toMatch(/terminás/i);
+    // La gramática rota que reportó el usuario.
+    expect(res.texto).not.toMatch(/es levantando/i);
   });
 });
