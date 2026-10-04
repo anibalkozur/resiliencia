@@ -7,12 +7,12 @@ describe('buildVerifyUri', () => {
     expect(VERIFY_URL).toBe(
       'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html',
     );
-    expect(VERIFY_VERSION).toBe(24);
+    expect(VERIFY_VERSION).toBe(25);
   });
 
   it('pasa ejercicio, objetivo y unidad', () => {
     expect(buildVerifyUri('sentadillas', 20, 'reps')).toBe(
-      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=24&exercise=sentadillas&target=20&unit=reps',
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=25&exercise=sentadillas&target=20&unit=reps',
     );
   });
 

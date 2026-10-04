@@ -159,7 +159,7 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
       </View>
 
       <Text style={styles.resultBar} numberOfLines={2}>
-        {last ?? `En vivo${ranked ? ' · ranking: ~5 s por rep o se rompe la serie' : ''}`}
+        {last ?? `En vivo${ranked ? ' · ranking: ~6 s por rep o se rompe la serie' : ''}`}
       </Text>
 
       <WebView<object>
@@ -169,7 +169,7 @@ export function TestScreen({ exercise, exerciseId, onExit, onRecorded }: Props) 
         source={{
           uri: buildVerifyUri(exerciseId, target, exercise.unit, {
             ranked,
-            cadenceSec: ranked ? (cadenceSec(exerciseId) ?? 5) : undefined,
+            cadenceSec: ranked ? (cadenceSec(exerciseId) ?? 6) : undefined,
           }),
         }}
         javaScriptEnabled

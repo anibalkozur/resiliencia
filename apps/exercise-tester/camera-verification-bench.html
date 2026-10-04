@@ -499,7 +499,7 @@
       const TARGET = Math.max(1, parseInt(qs.get('target') || '10', 10));
       const UNIT = qs.get('unit') || 'reps';
       const MODE_RANKED = qs.get('ranked') === '1';
-      const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '5', 10)));
+      const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
       const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
         ? Math.max(1, parseInt(qs.get('v') || '1', 10))
@@ -1200,7 +1200,8 @@
         readyCountEnd = 0,
         lastBeeped = -1,
         cadenceDeadline = 0,
-        seriesOk = true;
+        seriesOk = true,
+        awaitingRestart = false;
       let bodyComplete = false,
         bodyMissing = [];
       let livenessChallengeActive = false,
@@ -1348,7 +1349,7 @@
       }
       function extendCadenceForLiveness(now) {
         if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
-          cadenceDeadline = Math.max(cadenceDeadline, now + 10000);
+          cadenceDeadline = Math.max(cadenceDeadline, now + 12000);
       }
       function checkHandLiveness(lm) {
         if (livenessPassed || !livenessEnabled) return false;
@@ -1483,6 +1484,7 @@
         sessionStartTime = null;
         repTimestamps = [];
         seriesOk = true;
+        awaitingRestart = false;
         waitingGesture = false;
         gestureStarted = false;
         gestureDeadlineAt = 0;
@@ -1574,26 +1576,76 @@
           (livenessPassed || !livenessEnabled)
         );
       }
-      function postComplete(detail) {
-        running = false;
-        hideLiveness();
-        const s = video.srcObject;
-        if (s) s.getTracks().forEach((t) => t.stop());
-        liveDot.classList.remove('live');
-        statusText.textContent = 'Completado';
-        stopBtn.style.display = 'none';
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
-        startBtn.textContent = 'Reiniciar';
-        resultReps.textContent = repCount + (targetUnit === 'seconds' ? 's' : '');
-        resultCard.classList.add('show');
-        verifyText.textContent = MODE_RANKED
-          ? qualifiedNow()
+      function renderResultCard(detail) {
+        const total = sessionStartTime
+          ? Math.round((performance.now() - sessionStartTime) / 1000)
+          : 0;
+        const value = currentValue();
+        const tagEl = resultCard.querySelector('.verify-tag');
+        const qualified = qualifiedNow();
+        if (MODE_RANKED) {
+          verifyText.textContent = qualified
             ? 'Sesión enviada para validación — pendiente de ranking'
-            : 'No califica para ranking'
-          : 'Verificado por pose';
-        post('complete', completePayload(detail || 'Completado'));
+            : 'No califica para ranking';
+          tagEl.classList.toggle('broken', !qualified);
+        } else {
+          verifyText.textContent = 'Verificado por pose';
+          tagEl.classList.remove('broken');
+        }
+        resultReps.textContent = value;
+        resultDetail.textContent =
+          (targetUnit === 'reps' ? value + ' reps' : 'Tiempo validado ' + holdMs + 's') +
+          ' · ' +
+          total +
+          's de sesión';
+        resultCard.classList.add('show');
+        if (detail) post('complete', completePayload(detail));
+      }
+      function waitForRestart(msg) {
+        // La cámara sigue encendida. El cartel de resultado queda visible hasta
+        // que se reinicia la serie levantando la mano.
+        awaitingRestart = true;
+        waitingGesture = false;
+        readyCountEnd = 0;
+        raiseStreak = 0;
+        cadenceHud.style.display = 'none';
+        hideLiveness();
+        gestureHud.style.display = 'block';
+        gestureText.textContent = 'Levantá la mano para repetir la serie';
+        speak(msg);
+      }
+      function restartTick(pose) {
+        if (!awaitingRestart) return;
+        gestureText.textContent = 'Levantá la mano para repetir la serie';
+        if (!pose) return;
+        if (!handIsRaised(pose)) {
+          raiseStreak = 0;
+          return;
+        }
+        if (++raiseStreak < RAISE_MIN_FRAMES) return;
+        awaitingRestart = false;
+        resetRepState();
+        startGesture();
+        speak('Nueva serie');
+      }
+      function postComplete(detail) {
+        if (MODE_RANKED) {
+          waitForRestart('Meta cumplida. Levantá la mano para repetir la serie');
+          statusText.textContent = 'Completado';
+          showState('state-msg up', 'META CUMPLIDA');
+        } else {
+          running = false;
+          const s = video.srcObject;
+          if (s) s.getTracks().forEach((t) => t.stop());
+          liveDot.classList.remove('live');
+          statusText.textContent = 'Completado';
+          stopBtn.style.display = 'none';
+          startBtn.style.display = 'block';
+          startBtn.disabled = false;
+          startBtn.textContent = 'Reiniciar';
+        }
         log(detail || 'Completado');
+        renderResultCard(detail || 'Completado');
       }
 
       const RAISE_MIN_FRAMES = 4;
@@ -1678,6 +1730,7 @@
       }
       function cadenceTick(now) {
         if (!MODE_RANKED || targetUnit !== 'reps' || !gestureStarted || !seriesOk) return;
+        if (awaitingRestart) return;
         if (now > cadenceDeadline) {
           failSeries('Descanso muy largo — fuera de ranking');
           return;
@@ -1689,10 +1742,11 @@
       function failSeries(msg) {
         if (!seriesOk) return;
         seriesOk = false;
-        cadenceHud.style.display = 'none';
         log('SERIE ROTA: ' + msg);
-        speak('Descanso muy largo. La serie quedó fuera del ranking');
-        stopCamera();
+        waitForRestart('Descanso muy largo. Levantá la mano para repetir la serie');
+        statusText.textContent = 'Serie rota';
+        showState('state-msg blocked', 'SERIE ROTA');
+        renderResultCard('Serie rota: ' + msg);
       }
 
       function evaluateTransition(cand) {
@@ -1745,6 +1799,9 @@
 
       // ---------- procesar pose ----------
       function processPose(result) {
+        // Serie terminada o rota: la cámara sigue encendida mostrando el
+        // resultado, pero no se cuentan reps hasta reiniciar con la mano.
+        if (awaitingRestart) return;
         bodyComplete = false;
         if (orientationSupported && !deviceIsVertical) {
           bodyOkStreak = 0;
@@ -2205,6 +2262,7 @@
           lastTime = video.currentTime;
           const r = poseLandmarker.detectForVideo(video, now);
           if (MODE_RANKED) gestureTick(r);
+          if (awaitingRestart) restartTick(r);
           draw(r);
           processPose(r);
         }
@@ -2413,33 +2471,7 @@
         countdownOverlay.style.display = 'none';
         cadenceHud.style.display = 'none';
         hideLiveness();
-        const total = sessionStartTime
-          ? Math.round((performance.now() - sessionStartTime) / 1000)
-          : 0;
-        const value = currentValue();
-        const tagEl = resultCard.querySelector('.verify-tag');
-        if (MODE_RANKED) {
-          const qualified =
-            gestureStarted &&
-            seriesOk &&
-            value >= targetVal &&
-            (livenessPassed || !livenessEnabled);
-          verifyText.textContent = qualified
-            ? 'Sesión enviada para validación — pendiente de ranking'
-            : 'No califica para ranking';
-          tagEl.classList.toggle('broken', !qualified);
-        } else {
-          verifyText.textContent = 'Verificado por pose';
-          tagEl.classList.remove('broken');
-        }
-        resultReps.textContent = value;
-        resultDetail.textContent =
-          (targetUnit === 'reps' ? value + ' reps' : 'Tiempo validado ' + holdMs + 's') +
-          ' · ' +
-          total +
-          's de sesión';
-        resultCard.classList.add('show');
-        post('complete', completePayload('Sesión finalizada'));
+        renderResultCard('Sesión finalizada');
       }
       startBtn.onclick = startCamera;
       stopBtn.onclick = stopCamera;
