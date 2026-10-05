@@ -57,6 +57,7 @@ export type Intent =
   | 'voz'
   | 'perfil_dato'
   | 'perfil_consejo'
+  | 'para_que_sirve'
   | 'fuera_de_dominio'
   | 'menor_de_edad';
 
@@ -104,12 +105,72 @@ function datoPerfil(perfil: UserProfile, campo: CampoPerfil): string {
 }
 
 function buscarCampo(n: string): CampoPerfil | null {
-  if (contiene(n, 'como me llamo', 'mi nombre', 'quien soy')) return 'nombre';
-  if (contiene(n, 'mi edad', 'cuantos anos tengo', 'que edad')) return 'edad';
-  if (contiene(n, 'mi peso', 'cuanto peso', 'cuanto pesa')) return 'peso';
-  if (contiene(n, 'mi altura', 'cuanto mido', 'cuanto alto')) return 'altura';
-  if (contiene(n, 'mi objetivo', 'mi meta', 'para que entreno')) return 'objetivo';
-  if (contiene(n, 'mi nivel', 'que nivel')) return 'nivel';
+  // Nombre
+  if (contiene(n, 'como me llamo', 'mi nombre', 'cual es mi nombre', 'quien soy yo')) {
+    return 'nombre';
+  }
+  // Edad
+  if (
+    contiene(
+      n,
+      'mi edad',
+      'cuantos anos tengo',
+      'cuantos años tengo',
+      'que edad tengo',
+      'cuanta edad tengo',
+    )
+  ) {
+    return 'edad';
+  }
+  // Peso: exige referencia explícita al usuario. NO matchea "cuánto pesa un X".
+  if (
+    contiene(
+      n,
+      'mi peso',
+      'cuanto peso tengo',
+      'cuantos kilos peso',
+      'cuantos kilos tengo',
+      'cuanto estoy pesando',
+      'cuantos kilos estoy pesando',
+      'peso tengo',
+    )
+  ) {
+    return 'peso';
+  }
+  // Altura: 'mido' es primera persona. No incluye 'mide' (tercera).
+  if (
+    contiene(
+      n,
+      'mi altura',
+      'que altura tengo',
+      'cual es mi altura',
+      'cuanto mido',
+      'cuantos centimetros mido',
+      'cuantos cm mido',
+      'cuantos centimetros tengo',
+      'cuantos cm tengo',
+    )
+  ) {
+    return 'altura';
+  }
+  // Objetivo/meta
+  if (
+    contiene(
+      n,
+      'mi objetivo',
+      'mi meta',
+      'cual es mi objetivo',
+      'que objetivo tengo',
+      'para que entreno yo',
+      'cual es mi meta',
+    )
+  ) {
+    return 'objetivo';
+  }
+  // Nivel
+  if (contiene(n, 'mi nivel', 'que nivel tengo', 'cual es mi nivel', 'en que nivel estoy')) {
+    return 'nivel';
+  }
   return null;
 }
 /**
@@ -290,6 +351,28 @@ export function responder(
         ' Cuando terminás, levantás la mano otra vez para avanzar o para repetir.',
       habla: true,
       intencion: 'prueba_vida',
+      regla: true,
+    };
+  }
+  if (
+    contiene(
+      n,
+      'para que sirve',
+      'que hace la app',
+      'que es esta app',
+      'como funciona',
+      'como funciona la app',
+      'para que sirve este banco',
+      'que es el banco',
+      'para que sirve el banco',
+      'explicame la app',
+    )
+  ) {
+    return {
+      texto:
+        'Es un banco de pruebas para verificar ejercicios con cámara. Podés elegir hasta 8 ejercicios, ajustar las reps o segundos, ponerlos en orden y hacer una secuencia. Cuenta las repeticiones con detección de pose, tiene ranking con prueba de vida y un entrenador de voz con frases determinísticas. Todo corre en el teléfono, sin API ni costo.',
+      habla: true,
+      intencion: 'para_que_sirve',
       regla: true,
     };
   }

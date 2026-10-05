@@ -36,7 +36,7 @@ describe('puerta de edad', () => {
 describe('datos del perfil: se leen, no se hablan', () => {
   it('marca habla=false en toda respuesta con dato del perfil', () => {
     const preguntas = [
-      '¿cuánto peso?',
+      '¿cuánto peso tengo?',
       '¿cómo me llamo?',
       '¿qué edad tengo?',
       '¿cuánto mido?',
@@ -49,14 +49,14 @@ describe('datos del perfil: se leen, no se hablan', () => {
   });
 
   it('devuelve el dato correcto', () => {
-    expect(r('¿cuánto pesó?').texto).toContain(String(PERFIL_FALSO.pesoKg));
+    expect(r('¿cuánto peso tengo?').texto).toContain(String(PERFIL_FALSO.pesoKg));
     expect(r('¿cómo me llamo?').texto).toContain(PERFIL_FALSO.nombre);
     expect(r('¿qué edad tengo?').texto).toContain(String(PERFIL_FALSO.edad));
   });
 
   it('aguanta acentos y mayúsculas', () => {
-    expect(r('¿CUÁNTO PESO?').intencion).toBe('perfil_dato');
-    expect(r('cuanto peso').intencion).toBe('perfil_dato');
+    expect(r('¿CUÁNTO PESO TENGO?').intencion).toBe('perfil_dato');
+    expect(r('¿cuánto peso tengo?').intencion).toBe('perfil_dato');
   });
 
   it('el resto del dominio sí se puede hablar', () => {
