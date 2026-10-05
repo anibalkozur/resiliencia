@@ -241,13 +241,12 @@ export function responder(
     return { texto: MENOR, habla: true, intencion: 'menor_de_edad', regla: true };
   }
 
-  // 2. Pedir un dato del perfil: se LEE, nunca se habla.
+  // 2. Pedir un dato del perfil: se LEE y ahora también se habla.
   const campo = buscarCampo(n);
   if (campo) {
     return {
       texto: datoPerfil(perfil, campo),
-      // Sin TTS: el dato del perfil no sale por una voz que puede ser cloud.
-      habla: false,
+      habla: true,
       intencion: 'perfil_dato',
       regla: true,
     };

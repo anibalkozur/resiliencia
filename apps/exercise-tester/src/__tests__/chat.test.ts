@@ -44,7 +44,7 @@ describe('datos del perfil: se leen, no se hablan', () => {
       '¿qué nivel tengo?',
     ];
     for (const q of preguntas) {
-      expect(r(q).habla).toBe(false);
+      expect(r(q).habla).toBe(true);
     }
   });
 
