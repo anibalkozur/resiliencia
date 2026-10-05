@@ -1960,11 +1960,11 @@
         if (SEQ.length > 1 && !MODE_RANKED) {
           // Sin gesto no hay paso a mano: la c�mara sigue viva y avanza sola.
           const closing = withDone('');
-          waitForRestart(closing, 'complete');
           if (closing) {
             speak(closing);
             voiceFlash(closing);
           }
+          waitForRestart(closing, 'complete');
           statusText.textContent = 'Completado';
           showState('state-msg up', 'META CUMPLIDA');
           log(detail || 'Completado');
