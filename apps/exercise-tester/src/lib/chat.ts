@@ -96,7 +96,7 @@ function datoPerfil(perfil: UserProfile, campo: CampoPerfil): string {
     case 'peso':
       return `Pesás ${perfil.pesoKg} kilos.`;
     case 'altura':
-      return `Mirá ${perfil.alturaCm} centímetros.`;
+      return `Medís ${perfil.alturaCm} centímetros.`;
     case 'objetivo':
       return `Tu objetivo es: ${perfil.objetivo}.`;
     case 'nivel':
