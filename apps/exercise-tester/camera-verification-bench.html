@@ -1215,6 +1215,8 @@
         descEl.textContent =
           HOWTO[item.id] || 'Segui la guía en pantalla para completar el ejercicio.';
         resetRepState();
+        voiceFired = {};
+        voiceBuildScript();
         log('Ejercicio ' + (seqIndex + 1) + '/' + SEQ.length + ': ' + (NAME[item.id] || item.id));
       }
       const FRONTAL_POINTS = [
