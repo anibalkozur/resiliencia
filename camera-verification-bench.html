@@ -1215,6 +1215,8 @@
         descEl.textContent =
           HOWTO[item.id] || 'Segui la guía en pantalla para completar el ejercicio.';
         resetRepState();
+        voiceFired = {};
+        voiceBuildScript();
         log('Ejercicio ' + (seqIndex + 1) + '/' + SEQ.length + ': ' + (NAME[item.id] || item.id));
       }
       const FRONTAL_POINTS = [
@@ -1960,11 +1962,11 @@
         if (SEQ.length > 1 && !MODE_RANKED) {
           // Sin gesto no hay paso a mano: la c�mara sigue viva y avanza sola.
           const closing = withDone('');
-          waitForRestart(closing, 'complete');
           if (closing) {
             speak(closing);
             voiceFlash(closing);
           }
+          waitForRestart(closing, 'complete');
           statusText.textContent = 'Completado';
           showState('state-msg up', 'META CUMPLIDA');
           log(detail || 'Completado');
