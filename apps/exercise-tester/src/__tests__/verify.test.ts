@@ -1,18 +1,18 @@
-import { describe, expect, it } from '@jest/globals';
+﻿import { describe, expect, it } from '@jest/globals';
 
 import { buildSequenceUri, buildVerifyUri, VERIFY_URL, VERIFY_VERSION } from '../lib/verify';
 
 describe('buildVerifyUri', () => {
-  it('apunta a la copia del banco, no a la página de producción', () => {
+  it('apunta a la copia del banco, no a la pÃ¡gina de producciÃ³n', () => {
     expect(VERIFY_URL).toBe(
       'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html',
     );
-    expect(VERIFY_VERSION).toBe(30);
+    expect(VERIFY_VERSION).toBe(31);
   });
 
   it('pasa ejercicio, objetivo y unidad', () => {
     expect(buildVerifyUri('sentadillas', 20, 'reps')).toBe(
-      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=30&exercise=sentadillas&target=20&unit=reps',
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=31&exercise=sentadillas&target=20&unit=reps',
     );
   });
 
@@ -35,7 +35,7 @@ describe('buildSequenceUri', () => {
         { id: 'plancha', target: 30 },
       ]),
     ).toBe(
-      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=30&seq=elevacion_piernas%3A15%2Cplancha%3A30',
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=31&seq=elevacion_piernas%3A15%2Cplancha%3A30',
     );
   });
 
@@ -51,7 +51,7 @@ describe('buildSequenceUri', () => {
     expect(uri).toContain('ranked=1');
     expect(uri).toContain('cadence=6');
     expect(new URL(uri).searchParams.get('seq')).toBe('plancha:45,flexiones:8,sentadillas:20');
-    // La unidad no viaja: la página la saca del CFG de cada ejercicio.
+    // La unidad no viaja: la pÃ¡gina la saca del CFG de cada ejercicio.
     expect(uri).not.toContain('unit=');
   });
 });
