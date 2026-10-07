@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>FitChallenge — Verificación por címara</title>
+    <title>FitChallenge — Verificación por cámara</title>
     <style>
       :root {
         --bg: #030405;
@@ -451,7 +451,7 @@
         <div class="hud">
           <div class="badge">
             <div class="dot" id="liveDot"></div>
-            <span id="statusText">Címara apagada</span>
+            <span id="statusText">Cámara apagada</span>
           </div>
           <div class="badge flip-btn" id="flipBtn">
             <span id="flipIcon"></span><span id="facingLabel">Frontal</span>
@@ -475,20 +475,20 @@
         </div>
         <div class="gesture-hud" id="gestureHud">
           <p class="gesture-text" id="gestureText">
-            Levantí la mano arriba de la cabeza para empezar
+            Levantá la mano arriba de la cabeza para empezar
           </p>
         </div>
         <div class="countdown-overlay" id="countdownOverlay">5</div>
         <div class="cadence-hud" id="cadenceHud">5</div>
         <div class="liveness-overlay" id="livenessOverlay">
-          <div class="lv-line">SEéAL</div>
+          <div class="lv-line">SEÑAL</div>
           <div class="lv-line">DE</div>
           <div class="lv-line">VIDA</div>
           <p class="lv-instruct" id="livenessInstruct"></p>
         </div>
       </div>
 
-      <button class="btn btn-primary" id="startBtn">Activar címara</button>
+      <button class="btn btn-primary" id="startBtn">Activar cámara</button>
       <button class="btn btn-ghost" id="stopBtn" style="display: none">
         Finalizar y verificar serie
       </button>
@@ -587,13 +587,13 @@
         elevacion_piernas: 'Elevación de piernas',
         plancha: 'Plancha',
         zancadas: 'Zancadas',
-        puente_gluteo: 'Puente de glóteo',
+        puente_gluteo: 'Puente de glúteo',
         mountain_climbers: 'Mountain Climbers',
         sentadilla_isometrica: 'Sentadilla isométrica',
         zancada_reversa: 'Zancada reversa',
         zancada_lateral: 'Zancada lateral',
-        sentadilla_bulgara: 'Sentadilla bólgara',
-        patada_gluteo: 'Patada de glóteo',
+        sentadilla_bulgara: 'Sentadilla búlgara',
+        patada_gluteo: 'Patada de glúteo',
         elevacion_lateral_pierna: 'Elevación lateral de pierna',
         flexion_rodillas: 'Flexión de rodillas',
         flexion_declinada: 'Flexión declinada',
@@ -609,54 +609,54 @@
 
       const HOWTO = {
         sentadillas:
-          'Parate derecho frente a la címara con los pies al ancho de los hombros. Bají llevando la cadera hacia atrís hasta que tus rodillas queden cerca de 90█░ y volvé a subir. Cada bajada y subida completa cuenta como 1.',
+          'Parate derecho frente a la cámara con los pies al ancho de los hombros. Bajá llevando la cadera hacia atrás hasta que tus rodillas queden cerca de 90° y volvé a subir. Cada bajada y subida completa cuenta como 1.',
         flexiones:
-          'Apoyí las manos a la altura de los hombros y estirí el cuerpo en plancha. Bají el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo. Para arrancar, ponete en cuclillas listo para tomar la posición de plancha: tenés 10 segundos para hacer la primera flexión.',
+          'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo. Para arrancar, ponete en cuclillas listo para tomar la posición de plancha: tenés 10 segundos para hacer la primera flexión.',
         abdominales:
-          'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Lleví el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
+          'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Llevá el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
         elevacion_piernas:
-          'Recostate boca arriba con las piernas extendidas y los brazos a los costados. Mantené la espalda baja apoyada y eleví las piernas rectas hasta que queden perpendiculares al torso; bajalas con control sin tocar el piso. Cada subida completa cuenta como 1.',
+          'Recostate boca arriba con las piernas extendidas y los brazos a los costados. Mantené la espalda baja apoyada y elevá las piernas rectas hasta que queden perpendiculares al torso; bajalas con control sin tocar el piso. Cada subida completa cuenta como 1.',
         plancha:
-          'Parí en plancha con los brazos extendidos y el cuerpo formando una lánea recta de la cabeza a los pies. Mantené la posición sin bajar la cadera hasta completar el tiempo.',
+          'Pará en plancha con los brazos extendidos y el cuerpo formando una línea recta de la cabeza a los pies. Mantené la posición sin bajar la cadera hasta completar el tiempo.',
         zancadas:
-          'Ponete de perfil a la címara, mirando hacia un costado. Da un paso largo hacia adelante y bají flexionando las rodillas hasta cerca de 90█░; volvé a subir y repetá alternando la pierna. Cada subida completa cuenta como 1.',
+          'Ponete de perfil a la cámara, mirando hacia un costado. Da un paso largo hacia adelante y bajá flexionando las rodillas hasta cerca de 90°; volvé a subir y repetá alternando la pierna. Cada subida completa cuenta como 1.',
         puente_gluteo:
-          'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Eleví la cadera apretando los glóteos, mantené un segundo y bají hasta apoyarla. Cada subida cuenta como 1.',
+          'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Elevá la cadera apretando los glúteos, mantené un segundo y bajá hasta apoyarla. Cada subida cuenta como 1.',
         mountain_climbers:
-          'Ponete de perfil a la címara (de costado), en plancha apoyando las manos. Lleví una rodilla rípido al pecho y volvé, alternando las piernas en ritmo continuo. Cada rodilla al pecho cuenta como 1.',
+          'Ponete de perfil a la cámara (de costado), en plancha apoyando las manos. Llevá una rodilla rápido al pecho y volvé, alternando las piernas en ritmo continuo. Cada rodilla al pecho cuenta como 1.',
         sentadilla_isometrica:
-          'Parate derecho y bají a una sentadilla hasta que tus rodillas queden cerca de 90█░. Mantené la posición sin subir hasta completar el tiempo.',
+          'Parate derecho y bajá a una sentadilla hasta que tus rodillas queden cerca de 90°. Mantené la posición sin subir hasta completar el tiempo.',
         zancada_reversa:
-          'Ponete de perfil a la címara, mirando hacia un costado. Da un paso largo hacia atrís y bají flexionando las rodillas hasta cerca de 90█░; volvé a subir y repetá alternando la pierna. Cada subida completa cuenta como 1.',
+          'Ponete de perfil a la cámara, mirando hacia un costado. Da un paso largo hacia atrás y bajá flexionando las rodillas hasta cerca de 90°; volvé a subir y repetá alternando la pierna. Cada subida completa cuenta como 1.',
         zancada_lateral:
-          'Ponete de perfil (o levemente de costado) a la címara. Da un paso amplio hacia un costado y bají flexionando esa rodilla mientras la otra pierna queda estirada; volvé al centro. Cada bajada y subida cuenta como 1.',
+          'Ponete de perfil (o levemente de costado) a la cámara. Da un paso amplio hacia un costado y bajá flexionando esa rodilla mientras la otra pierna queda estirada; volvé al centro. Cada bajada y subida cuenta como 1.',
         sentadilla_bulgara:
-          'Ponete de perfil a la címara con el empeine del pie de atrís apoyado en una silla. Bají flexionando la pierna de adelante hasta cerca de 90█░ y volvé a subir. Cada subida completa cuenta como 1.',
+          'Ponete de perfil a la cámara con el empeine del pie de atrás apoyado en una silla. Bajá flexionando la pierna de adelante hasta cerca de 90° y volvé a subir. Cada subida completa cuenta como 1.',
         patada_gluteo:
-          'Ponete en cuadrupedia de perfil a la címara (manos y rodillas apoyadas). Mantené la rodilla flexionada y lleví el pie hacia arriba y atrís apretando el glóteo; volvé sin apoyar. Cada patada cuenta como 1.',
+          'Ponete en cuadrupedia de perfil a la cámara (manos y rodillas apoyadas). Mantené la rodilla flexionada y llevá el pie hacia arriba y atrás apretando el glúteo; volvé sin apoyar. Cada patada cuenta como 1.',
         elevacion_lateral_pierna:
-          'Recostate de costado mirando a la címara, con las piernas juntas y estiradas. Eleví la pierna de arriba sin mover la cadera y bajala con control. Cada elevación cuenta como 1.',
+          'Recostate de costado mirando a la cámara, con las piernas juntas y estiradas. Elevá la pierna de arriba sin mover la cadera y bajala con control. Cada elevación cuenta como 1.',
         flexion_rodillas:
-          'Apoyí las rodillas en el piso y las manos a la altura de los hombros. Mantené el cuerpo recto desde la cabeza hasta las rodillas, bají doblando los codos y volvé a subir. Cada flexión completa cuenta como 1.',
+          'Apoyá las rodillas en el piso y las manos a la altura de los hombros. Mantené el cuerpo recto desde la cabeza hasta las rodillas, bajá doblando los codos y volvé a subir. Cada flexión completa cuenta como 1.',
         flexion_declinada:
-          'Ponete de perfil en plancha con los pies elevados sobre una silla y las manos en el piso. Bají el pecho doblando los codos y volvé a subir manteniendo el cuerpo recto. Cada flexión completa cuenta como 1.',
+          'Ponete de perfil en plancha con los pies elevados sobre una silla y las manos en el piso. Bajá el pecho doblando los codos y volvé a subir manteniendo el cuerpo recto. Cada flexión completa cuenta como 1.',
         flexion_pica:
-          'Ponete de perfil con las manos y los pies en el piso y la cadera bien alta (V invertida). Bají la cabeza doblando los codos y volvé a subir. Cada flexión cuenta como 1.',
+          'Ponete de perfil con las manos y los pies en el piso y la cadera bien alta (V invertida). Bajá la cabeza doblando los codos y volvé a subir. Cada flexión cuenta como 1.',
         fondos_silla:
-          'Ponete de perfil a la címara sentado al borde de una silla, con las manos apoyadas en el borde por detrís. Bají la cadera flexionando los codos y volvé a subir. Cada fondo cuenta como 1.',
+          'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás. Bajá la cadera flexionando los codos y volvé a subir. Cada fondo cuenta como 1.',
         superman:
-          'Recostate boca abajo con brazos y piernas extendidos. Eleví al mismo tiempo brazos y piernas del piso apretando la espalda baja y bají con control. Cada elevación cuenta como 1.',
+          'Recostate boca abajo con brazos y piernas extendidos. Elevá al mismo tiempo brazos y piernas del piso apretando la espalda baja y bajá con control. Cada elevación cuenta como 1.',
         encogimiento_inverso:
-          'Recostate boca arriba con las rodillas flexionadas sobre la cadera. Lleví las rodillas hacia el pecho despegando la cadera del piso y bají con control. Cada subida cuenta como 1.',
+          'Recostate boca arriba con las rodillas flexionadas sobre la cadera. Llevá las rodillas hacia el pecho despegando la cadera del piso y bajá con control. Cada subida cuenta como 1.',
         encogimiento_bicicleta:
-          'Recostate boca arriba con las manos en la nuca. Lleví el codo hacia la rodilla opuesta alternando, como pedaleando. Cada vez que llevís un codo a la rodilla contraria cuenta como 1.',
+          'Recostate boca arriba con las manos en la nuca. Llevá el codo hacia la rodilla opuesta alternando, como pedaleando. Cada vez que llevás un codo a la rodilla contraria cuenta como 1.',
         burpee:
-          'Ponete de perfil a la címara. De parado, bají a apoyar las manos, pateí los pies hacia atrís a plancha, hacé una flexión, volvé con los pies a las manos y saltí arriba. Cada repetición completa cuenta como 1.',
+          'Ponete de perfil a la cámara. De parado, bajá a apoyar las manos, pateá los pies hacia atrás a plancha, hacé una flexión, volvé con los pies a las manos y saltá arriba. Cada repetición completa cuenta como 1.',
         rodillas_altas:
-          'Ponete de perfil a la címara, parado. Corré en el lugar elevando las rodillas a la altura de la cadera, alternando las piernas. Cada rodilla que sube cuenta como 1.',
+          'Ponete de perfil a la cámara, parado. Corré en el lugar elevando las rodillas a la altura de la cadera, alternando las piernas. Cada rodilla que sube cuenta como 1.',
       };
       document.getElementById('desc').textContent =
-        HOWTO[EX_ID] || 'Segui la guáa en pantalla para completar el ejercicio.';
+        HOWTO[EX_ID] || 'Seguí la guía en pantalla para completar el ejercicio.';
 
       const ICON = {
         flip: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>`,
@@ -700,8 +700,8 @@
         right_shoulder: 'Hombro D',
         left_elbow: 'Codo I',
         right_elbow: 'Codo D',
-        left_wrist: 'Muúeca I',
-        right_wrist: 'Muúeca D',
+        left_wrist: 'Muñeca I',
+        right_wrist: 'Muñeca D',
         left_hip: 'Cadera I',
         right_hip: 'Cadera D',
         left_knee: 'Rodilla I',
@@ -749,8 +749,8 @@
           // Margen extra para la primera rep: hay que pasar de cuclillas a plancha.
           firstRepGraceMs: 10000,
           liveness: 'hold',
-          postureMsg: 'Ponete en cuclillas y pasí a plancha horizontal para contar',
-          startMsg: 'Ponete en cuclillas y estirí a plancha, quieto un segundo',
+          postureMsg: 'Ponete en cuclillas y pasá a plancha horizontal para contar',
+          startMsg: 'Ponete en cuclillas y estirá a plancha, quieto un segundo',
         },
         abdominales: {
           name: 'Abdominales',
@@ -824,8 +824,8 @@
           lineMin: 150,
           groundedMax: 0.9,
           liveness: 'hold',
-          postureMsg: 'Parí en plancha con los brazos extendidos',
-          startMsg: 'Entrí en plancha, quití el cuerpo y aguantí',
+          postureMsg: 'Pará en plancha con los brazos extendidos',
+          startMsg: 'Entrá en plancha, quitá el cuerpo y aguantá',
         },
         zancadas: {
           name: 'Zancadas',
@@ -844,10 +844,10 @@
           downDelta: 45,
           upDelta: 18,
           liveness: 'hand',
-          startMsg: 'Ponete de perfil a la címara, parado y quieto un segundo',
+          startMsg: 'Ponete de perfil a la cámara, parado y quieto un segundo',
         },
         puente_gluteo: {
-          name: 'Puente de glóteo',
+          name: 'Puente de glúteo',
           unit: 'reps',
           type: 'lateral',
           bridge: true,
@@ -888,8 +888,8 @@
           lineMin: 150,
           groundedMax: 0.9,
           liveness: 'hand',
-          postureMsg: 'Ponete de perfil a la címara, en plancha apoyando las manos',
-          startMsg: 'Ponete de perfil y entrí en plancha para arrancar',
+          postureMsg: 'Ponete de perfil a la cámara, en plancha apoyando las manos',
+          startMsg: 'Ponete de perfil y entrá en plancha para arrancar',
         },
         sentadilla_isometrica: {
           name: 'Sentadilla isométrica',
@@ -920,7 +920,7 @@
           downDelta: 45,
           upDelta: 18,
           liveness: 'hand',
-          startMsg: 'Ponete de perfil a la címara, parado y quieto un segundo',
+          startMsg: 'Ponete de perfil a la cámara, parado y quieto un segundo',
         },
         zancada_lateral: {
           name: 'Zancada lateral',
@@ -943,7 +943,7 @@
           startMsg: 'Parado y quieto un segundo para calibrar',
         },
         sentadilla_bulgara: {
-          name: 'Sentadilla bólgara',
+          name: 'Sentadilla búlgara',
           unit: 'reps',
           type: 'lateral',
           sides: {
@@ -959,11 +959,11 @@
           downDelta: 45,
           upDelta: 18,
           liveness: 'hand',
-          postureMsg: 'Ponete de perfil, con el pie de atrís apoyado en la silla',
+          postureMsg: 'Ponete de perfil, con el pie de atrás apoyado en la silla',
           startMsg: 'Ponete de perfil y quieto un segundo para calibrar',
         },
         patada_gluteo: {
-          name: 'Patada de glóteo',
+          name: 'Patada de glúteo',
           unit: 'reps',
           type: 'lateral',
           bridge: true,
@@ -1001,7 +1001,7 @@
           upDelta: 9,
           restTorsoMax: 45,
           liveness: 'hand',
-          postureMsg: 'Recostate de costado mirando a la címara, piernas juntas',
+          postureMsg: 'Recostate de costado mirando a la cámara, piernas juntas',
           startMsg: 'De costado, quieto un segundo para calibrar',
         },
         flexion_rodillas: {
@@ -1023,7 +1023,7 @@
           firstRepGraceMs: 10000,
           liveness: 'hold',
           postureMsg: 'Ponete de perfil en cuadrupedia baja con las rodillas apoyadas',
-          startMsg: 'Apoyí las rodillas y los brazos, quieto un segundo',
+          startMsg: 'Apoyá las rodillas y los brazos, quieto un segundo',
         },
         flexion_declinada: {
           name: 'Flexión declinada',
@@ -1065,7 +1065,7 @@
           firstRepGraceMs: 10000,
           liveness: 'hold',
           postureMsg: 'Ponete de perfil en V invertida (cadera alta)',
-          startMsg: 'Cadera alta, apoyí las manos, quieto un segundo',
+          startMsg: 'Cadera alta, apoyá las manos, quieto un segundo',
         },
         fondos_silla: {
           name: 'Fondos en silla',
@@ -1084,8 +1084,8 @@
           downDelta: 35,
           upDelta: 12,
           liveness: 'hand',
-          postureMsg: 'Ponete de perfil con las manos apoyadas atrís en la silla',
-          startMsg: 'Sentate al borde de la silla, manos atrís, quieto un segundo',
+          postureMsg: 'Ponete de perfil con las manos apoyadas atrás en la silla',
+          startMsg: 'Sentate al borde de la silla, manos atrás, quieto un segundo',
         },
         superman: {
           name: 'Superman',
@@ -1168,7 +1168,7 @@
           downDelta: 1.0,
           upDelta: 0.4,
           liveness: 'hand',
-          postureMsg: 'Ponete de perfil a la címara, parado',
+          postureMsg: 'Ponete de perfil a la cámara, parado',
           startMsg: 'De perfil, parado y quieto un segundo para calibrar',
         },
         rodillas_altas: {
@@ -1187,7 +1187,7 @@
           },
           kneeFold: 110,
           liveness: 'hand',
-          postureMsg: 'Ponete de perfil a la címara, parado',
+          postureMsg: 'Ponete de perfil a la cámara, parado',
           startMsg: 'De perfil y quieto un segundo para calibrar',
         },
       };
@@ -1213,7 +1213,7 @@
         livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
         document.title = NAME[item.id] || 'Verificación';
         descEl.textContent =
-          HOWTO[item.id] || 'Segui la guáa en pantalla para completar el ejercicio.';
+          HOWTO[item.id] || 'Seguí la guía en pantalla para completar el ejercicio.';
         resetRepState();
         log('Ejercicio ' + (seqIndex + 1) + '/' + SEQ.length + ': ' + (NAME[item.id] || item.id));
       }
@@ -1425,8 +1425,8 @@
           livenessConfirmFrames = 0;
           const now = performance.now();
           extendCadenceForLiveness(now);
-          showLiveness('Levantí la mano por encima de la cabeza');
-          speak('Seúal de vida. Levantí la mano por encima de la cabeza');
+          showLiveness('Levantá la mano por encima de la cabeza');
+          speak('Señal de vida. Levantá la mano por encima de la cabeza');
         }
         const rw = lm[LID.right_wrist],
           lw = lm[LID.left_wrist],
@@ -1453,8 +1453,8 @@
           livenessHoldStartTime = null;
           const now = performance.now();
           extendCadenceForLiveness(now);
-          showLiveness('Bají y aguantí abajo unos segundos');
-          speak('Seúal de vida. Bají y aguantí abajo unos segundos');
+          showLiveness('Bajá y aguantá abajo unos segundos');
+          speak('Señal de vida. Bajá y aguantá abajo unos segundos');
         }
         const inDown = smoothed < down;
         if (inDown) {
@@ -1561,54 +1561,54 @@
       };
       const VOICE_CORPUS = {
         pre: [
-          'Preparí la postura. Cuando quieras, arrancí.',
+          'Prepará la postura. Cuando quieras, arrancá.',
           'Acomodate bien. Esta serie va con control.',
-          'Todo listo. Empezí cuando te sientas cómodo.',
-          'Buscí un ritmo que puedas sostener.',
-          'Mirí fijo al frente. Arrancí.',
-          'Controlí la respiración. Empezí.',
+          'Todo listo. Empezá cuando te sientas cómodo.',
+          'Buscá un ritmo que puedas sostener.',
+          'Mirá fijo al frente. Arrancá.',
+          'Controlá la respiración. Empezá.',
           'Esta serie va a tu ritmo, sin apurarte.',
-          'Vamos con esta. Prestí atención a la técnica.',
+          'Vamos con esta. Prestá atención a la técnica.',
         ],
         mid: [
-          'Vas por la mitad. Seguá asá.',
+          'Vas por la mitad. Seguí así.',
           'Buen ritmo. Mantenelo.',
-          'Mirí la técnica, no el nómero.',
-          'Aguantí bien. Viene mís.',
+          'Mirá la técnica, no el número.',
+          'Aguantá bien. Viene más.',
           'Sin apuro. El control es lo que suma.',
           'Eso. Mismo ritmo.',
           'Vamos bien. No aflojes ahora.',
-          'Seguá con la misma intensidad.',
+          'Seguí con la misma intensidad.',
         ],
         last: [
-          'Áltimas tres. Vamos.',
-          'Faltan tres. Aguíntí.',
-          'Áltimas tres: la mís técnica.',
+          'Últimas tres. Vamos.',
+          'Faltan tres. Aguantá.',
+          'Últimas tres: la más técnica.',
           'Quedan tres. Sostené el ritmo.',
-          'Faltan tres. Dí.',
-          'Áltimas tres. No aflojes.',
-          'Tres mís. Con ritmo.',
-          'Faltan tres. Cerrí fuerte.',
+          'Faltan tres. Dá.',
+          'Últimas tres. No aflojes.',
+          'Tres más. Con ritmo.',
+          'Faltan tres. Cerrá fuerte.',
         ],
         done: [
           'Listo. Buen trabajo.',
           'Serie completa. Recuperate.',
           'Terminaste. Buen ritmo.',
-          'Bien. Descansí un momento.',
+          'Bien. Descansá un momento.',
           'Completaste la serie.',
-          'Esa fue. Tomí agua.',
+          'Esa fue. Tomá agua.',
           'Listo, esa serie quedó.',
-          'Completaste. Ahora descansí.',
+          'Completaste. Ahora descansá.',
         ],
         rest: [
-          'Acomodate y respirí.',
-          'Tiempo de descanso. Respirí bien.',
+          'Acomodate y respirá.',
+          'Tiempo de descanso. Respirá bien.',
           'Sostené la respiración un momento.',
-          'Frení ací y tomí aire.',
-          'Descansí. Respirí lento.',
+          'Frená acá y tomá aire.',
+          'Descansá. Respirá lento.',
           'Ahora es para recuperar.',
-          'Sostenete. Tomí aire.',
-          'Descansí bien antes de seguir.',
+          'Sostenete. Tomá aire.',
+          'Descansá bien antes de seguir.',
         ],
       };
       const voiceFired = {};
@@ -1726,7 +1726,7 @@
           sessionStartTime = performance.now();
           // La frase de arranque reemplaza al texto fijo: `speak()` cancela lo
           // anterior, asá que hablar las dos cosas sonaba a arranque cortado.
-          speak(voiceSay('pre') || 'Empezí cuando quieras');
+          speak(voiceSay('pre') || 'Empezá cuando quieras');
         }
       }
 
@@ -1850,11 +1850,11 @@
       }
       function restartHint() {
         if (awaitingReason === 'failed' || SEQ.length <= 1)
-          return 'Levantí la mano para repetir la serie';
+          return 'Levantá la mano para repetir la serie';
         if (seqFinished || seqIndex + 1 >= SEQ.length)
-          return 'Secuencia completa — levantí la mano para empezar de nuevo';
+          return 'Secuencia completa — levantá la mano para empezar de nuevo';
         const next = SEQ[seqIndex + 1];
-        return 'Levantí la mano para el siguiente: ' + (NAME[next.id] || next.id);
+        return 'Levantá la mano para el siguiente: ' + (NAME[next.id] || next.id);
       }
       function advance() {
         // Un solo gesto para las dos transiciones: al completar pasa al
@@ -1898,7 +1898,7 @@
         // Se terminó la óltima: el cartel queda visible hasta la mano que abre
         // la próxima ronda.
         seqFinished = true;
-        if (MODE_RANKED) speak('Secuencia completa. Levantí la mano para empezar de nuevo');
+        if (MODE_RANKED) speak('Secuencia completa. Levantá la mano para empezar de nuevo');
       }
       function restartTick(pose) {
         if (!awaitingRestart) return;
@@ -1940,7 +1940,7 @@
             withDone(
               SEQ.length > 1
                 ? 'Meta cumplida. ' + (NAME[SEQ[seqIndex].id] || '') + ' listo'
-                : 'Meta cumplida. Levantí la mano para repetir la serie',
+                : 'Meta cumplida. Levantá la mano para repetir la serie',
             ),
             'complete',
           );
@@ -1950,7 +1950,7 @@
           // Ejercicio suelto sin ranking: antes no decáa nada al terminar. Ací la
           // címara ya estí apagada, asá que no se puede pedir la mano: el paso
           // es el botón "Reiniciar".
-          const closing = withDone('Tocí Reiniciar para repetir la serie');
+          const closing = withDone('Tocá Reiniciar para repetir la serie');
           running = false;
           const s = video.srcObject;
           if (s) s.getTracks().forEach((t) => t.stop());
@@ -1984,8 +1984,8 @@
         raiseStreak = 0;
         gestureDeadlineAt = performance.now() + 30000;
         gestureHud.style.display = 'block';
-        gestureText.textContent = 'Levantí la mano arriba de la cabeza para empezar';
-        speak('Levantí la mano arriba de la cabeza para empezar');
+        gestureText.textContent = 'Levantá la mano arriba de la cabeza para empezar';
+        speak('Levantá la mano arriba de la cabeza para empezar');
       }
       function gestureTick(pose) {
         if (!waitingGesture) return;
@@ -2001,12 +2001,12 @@
         if (!bodyComplete) {
           raiseStreak = 0;
           gestureText.textContent = bodyMissing.length
-            ? 'Completí el cuerpo en címara — falta ver: ' +
+            ? 'Completá el cuerpo en cámara — falta ver: ' +
               bodyMissing.map((m) => LABEL[m]).join(', ')
-            : 'Cuerpo incompleto — acomodate frente a la címara';
+            : 'Cuerpo incompleto — acomodate frente a la cámara';
           return;
         }
-        gestureText.textContent = 'Levantí la mano arriba de la cabeza para empezar';
+        gestureText.textContent = 'Levantá la mano arriba de la cabeza para empezar';
         if (handIsRaised(pose)) {
           if (++raiseStreak >= RAISE_MIN_FRAMES) {
             waitingGesture = false;
@@ -2064,7 +2064,7 @@
         if (!seriesOk) return;
         seriesOk = false;
         log('SERIE ROTA: ' + msg);
-        waitForRestart('Descanso muy largo. Levantí la mano para repetir la serie', 'failed');
+        waitForRestart('Descanso muy largo. Levantá la mano para repetir la serie', 'failed');
         statusText.textContent = 'Serie rota';
         showState('state-msg blocked', 'SERIE ROTA');
         renderResultCard('Serie rota: ' + msg);
@@ -2229,7 +2229,7 @@
               repStateInitialized = true;
               scheduleLiveness();
               announceSession();
-              showState('state-msg blocked', '¡Listo! Bají y mantené');
+              showState('state-msg blocked', '¡Listo! Bajá y mantené');
             } else showState('state-msg blocked', 'Calibrando…');
             return;
           }
@@ -2237,7 +2237,7 @@
           if (MODE_RANKED && !gestureStarted) {
             showState(
               'state-msg blocked',
-              'Levantí la mano arriba de la cabeza para empezar a contar',
+              'Levantá la mano arriba de la cabeza para empezar a contar',
             );
             return;
           }
@@ -2251,15 +2251,15 @@
           } else lastHoldOk = null;
           repCountEl.textContent = Math.min(targetVal, Math.floor(holdMs / 1000));
           refreshHud();
-          if (cand === 'down') showState('state-msg down', 'SOSTENë');
-          else showState('state-msg blocked', 'Bají y mantené');
+          if (cand === 'down') showState('state-msg down', 'SOSTENÉ');
+          else showState('state-msg blocked', 'Bajá y mantené');
           return;
         }
 
         if (MODE_RANKED && !gestureStarted) {
           showState(
             'state-msg blocked',
-            'Levantí la mano arriba de la cabeza para empezar a contar',
+            'Levantá la mano arriba de la cabeza para empezar a contar',
           );
           return;
         }
@@ -2271,7 +2271,7 @@
           calibBuffer = [];
           dynamicDownThresh = null;
           dynamicUpThresh = null;
-          showState('state-msg blocked', 'Movimiento asimétrico — usí ambos lados');
+          showState('state-msg blocked', 'Movimiento asimétrico — usá ambos lados');
         } else if (!repStateInitialized)
           showState(
             'state-msg blocked',
@@ -2290,7 +2290,7 @@
         const side = updateSide(lm, cfg);
         if (!side) {
           checklistHud.style.display = 'none';
-          showState('state-msg blocked', 'Ubicí el celular de perfil');
+          showState('state-msg blocked', 'Ubicá el celular de perfil');
           return;
         }
         const sc = cfg.sides[side];
@@ -2375,7 +2375,7 @@
               calibBuffer = [];
               dynamicDownThresh = null;
               dynamicUpThresh = null;
-              showState('state-msg blocked', 'Alineí el cuerpo (cadera alta o hundida)');
+              showState('state-msg blocked', 'Alineá el cuerpo (cadera alta o hundida)');
               return;
             }
           }
@@ -2391,19 +2391,19 @@
           const sk = angleHistory.reduce((a, b) => a + b, 0) / angleHistory.length;
           if (!repStateInitialized) {
             if (!attemptCalibration(sk, { downDelta: 0, upDelta: 0 })) {
-              showState('state-msg blocked', 'Entrí en plancha de perfil');
+              showState('state-msg blocked', 'Entrá en plancha de perfil');
               return;
             }
             repStateInitialized = true;
             scheduleLiveness();
             announceSession();
-            showState('state-msg blocked', '¡Listo! Arrancí');
+            showState('state-msg blocked', '¡Listo! Arrancá');
             return;
           }
           if (MODE_RANKED && !gestureStarted) {
             showState(
               'state-msg blocked',
-              'Levantí la mano arriba de la cabeza para empezar a contar',
+              'Levantá la mano arriba de la cabeza para empezar a contar',
             );
             return;
           }
@@ -2454,7 +2454,7 @@
           showState(
             'state-msg blocked',
             calibrated
-              ? '¡Listo! Empezí cuando quieras'
+              ? '¡Listo! Empezá cuando quieras'
               : cfg.startMsg + ' (quedate quieto un segundo)',
           );
           if (calibrated) {
@@ -2473,7 +2473,7 @@
           if (MODE_RANKED && !gestureStarted) {
             showState(
               'state-msg blocked',
-              'Levantí la mano arriba de la cabeza para empezar a contar',
+              'Levantá la mano arriba de la cabeza para empezar a contar',
             );
             return;
           }
@@ -2488,7 +2488,7 @@
           } else lastHoldOk = null;
           repCountEl.textContent = Math.min(targetVal, Math.floor(holdMs / 1000));
           refreshHud();
-          if (holdOk) showState('state-msg up', 'SOSTENë ' + Math.floor(holdMs / 1000) + 's');
+          if (holdOk) showState('state-msg up', 'SOSTENÉ ' + Math.floor(holdMs / 1000) + 's');
           else showState('state-msg blocked', 'Fuera de posición');
           return;
         }
@@ -2504,12 +2504,12 @@
         if (MODE_RANKED && !gestureStarted) {
           showState(
             'state-msg blocked',
-            'Levantí la mano arriba de la cabeza para empezar a contar',
+            'Levantá la mano arriba de la cabeza para empezar a contar',
           );
           return;
         }
         evaluateTransitionCalibrated(cand);
-        const tag = cfg.metric === 'ratio' ? '' : ' (' + Math.round(smoothed) + '█░)';
+        const tag = cfg.metric === 'ratio' ? '' : ' (' + Math.round(smoothed) + '°)';
         if (cand === 'down') showState('state-msg down', 'ABAJO' + tag);
         else if (cand === 'up') showState('state-msg up', 'ARRIBA' + tag);
       }
@@ -2568,7 +2568,7 @@
             });
             video.srcObject = ns;
             await video.play();
-            log('Címara cambiada');
+            log('Cámara cambiada');
           } catch (e) {
             log('No se pudo cambiar: ' + e.message);
           }
@@ -2763,7 +2763,7 @@
           statusText.textContent = 'En vivo';
           liveDot.classList.add('live');
           log(
-            'Címara activa · ' +
+            'Cámara activa · ' +
               cfg.name +
               ' · ' +
               (cfg.unit === 'seconds' ? targetVal + 's' : targetVal + ' reps'),
@@ -2771,9 +2771,9 @@
           requestAnimationFrame(loop);
         } catch (e) {
           log('Error: ' + e.message);
-          statusText.textContent = 'Sin acceso a címara';
+          statusText.textContent = 'Sin acceso a cámara';
           startBtn.disabled = false;
-          startBtn.textContent = 'Activar címara';
+          startBtn.textContent = 'Activar cámara';
         }
       }
       function stopCamera() {
