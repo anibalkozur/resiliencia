@@ -1322,7 +1322,9 @@
         }
         return s / pts.length;
       }
-      const FRAME_MARGIN = 0.01;
+      const FRAME_MARGIN_X = 0.01;
+      const FRAME_MARGIN_Y_TOP = 0.01;
+      const FRAME_MARGIN_Y_BOTTOM = 0.07;
       function checkComplete(lm, pts) {
         const miss = [];
         for (const k of pts) {
@@ -1332,12 +1334,37 @@
             continue;
           }
           const vis = p.visibility ?? p.presence ?? 0;
-          const inside =
-            p.x >= FRAME_MARGIN &&
-            p.x <= 1 - FRAME_MARGIN &&
-            p.y >= FRAME_MARGIN &&
-            p.y <= 1 - FRAME_MARGIN;
-          if (vis < VIS || !inside) miss.push(k);
+          let valid = vis >= VIS;
+          if (p.x < FRAME_MARGIN_X || p.x > 1 - FRAME_MARGIN_X) valid = false;
+          if (p.y < FRAME_MARGIN_Y_TOP || p.y > 1 - FRAME_MARGIN_Y_BOTTOM) valid = false;
+
+          // Validación anatómica y de corte inferior para tobillos (left_ankle, right_ankle)
+          if (valid && (k === 'left_ankle' || k === 'right_ankle')) {
+            const side = k.startsWith('left') ? 'left' : 'right';
+            const hip = lm[LID[side + '_hip']];
+            const knee = lm[LID[side + '_knee']];
+            const foot = lm[LID[side + '_foot']];
+            const heel = lm[LID[side + '_heel']];
+
+            // 1. Verificación de pie y talón: si los pies no se ven o quedan en el borde inferior, el tobillo está cortado
+            const footVis = Math.max(
+              foot ? (foot.visibility ?? 0) : 0,
+              heel ? (heel.visibility ?? 0) : 0,
+            );
+            if (footVis < 0.45) valid = false;
+            if (foot && foot.y > 1 - FRAME_MARGIN_Y_BOTTOM) valid = false;
+
+            // 2. Proporción anatómica tibia/muslo: si la tibia se comprime por corte de cámara respecto al muslo
+            if (valid && hip && knee) {
+              const thigh = Math.abs(knee.y - hip.y);
+              const shin = Math.abs(p.y - knee.y);
+              if (thigh > 0.08 && shin < 0.6 * thigh) {
+                valid = false;
+              }
+            }
+          }
+
+          if (!valid) miss.push(k);
         }
         return { complete: miss.length === 0, missing: miss };
       }
