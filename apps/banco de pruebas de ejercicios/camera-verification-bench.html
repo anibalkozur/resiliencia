@@ -1322,11 +1322,22 @@
         }
         return s / pts.length;
       }
+      const FRAME_MARGIN = 0.01;
       function checkComplete(lm, pts) {
         const miss = [];
         for (const k of pts) {
           const p = lm[LID[k]];
-          if (!p || (p.visibility ?? 0) < VIS) miss.push(k);
+          if (!p) {
+            miss.push(k);
+            continue;
+          }
+          const vis = p.visibility ?? p.presence ?? 0;
+          const inside =
+            p.x >= FRAME_MARGIN &&
+            p.x <= 1 - FRAME_MARGIN &&
+            p.y >= FRAME_MARGIN &&
+            p.y <= 1 - FRAME_MARGIN;
+          if (vis < VIS || !inside) miss.push(k);
         }
         return { complete: miss.length === 0, missing: miss };
       }
