@@ -1902,8 +1902,16 @@
       }
       function restartTick(pose) {
         if (!awaitingRestart) return;
-        gestureText.textContent = restartHint();
         if (!pose) return;
+        if (!bodyComplete) {
+          raiseStreak = 0;
+          gestureText.textContent = bodyMissing.length
+            ? 'Completá el cuerpo en cámara — falta ver: ' +
+              bodyMissing.map((m) => LABEL[m]).join(', ')
+            : 'Cuerpo incompleto — acomodate frente a la cámara';
+          return;
+        }
+        gestureText.textContent = restartHint();
         if (!handIsRaised(pose)) {
           raiseStreak = 0;
           return;
@@ -2120,9 +2128,6 @@
 
       // ---------- procesar pose ----------
       function processPose(result) {
-        // Serie terminada o rota: la címara sigue encendida mostrando el
-        // resultado, pero no se cuentan reps hasta reiniciar con la mano.
-        if (awaitingRestart) return;
         bodyComplete = false;
         if (orientationSupported && !deviceIsVertical) {
           bodyOkStreak = 0;
@@ -2188,6 +2193,7 @@
           showState('state-msg blocked', 'Falta ver: ' + missing.map((m) => LABEL[m]).join(', '));
           return;
         }
+        if (awaitingRestart) return;
         bodyOkStreak = Math.min(bodyOkStreak + 1, CONFIRM_FRAMES);
         if (bodyOkStreak < CONFIRM_FRAMES) {
           showState('state-msg blocked', 'Confirmando cuerpo…');
@@ -2311,6 +2317,7 @@
           showState('state-msg blocked', 'Falta ver: ' + missing.map((m) => LABEL[m]).join(', '));
           return;
         }
+        if (awaitingRestart) return;
         bodyOkStreak = Math.min(bodyOkStreak + 1, CONFIRM_FRAMES);
         if (bodyOkStreak < CONFIRM_FRAMES) {
           showState('state-msg blocked', 'Confirmando lado…');
@@ -2582,10 +2589,10 @@
         if (video.currentTime !== lastTime) {
           lastTime = video.currentTime;
           const r = poseLandmarker.detectForVideo(video, now);
-          if (MODE_RANKED) gestureTick(r);
-          if (awaitingRestart) restartTick(r);
           draw(r);
           processPose(r);
+          if (MODE_RANKED) gestureTick(r);
+          if (awaitingRestart) restartTick(r);
         }
         if (MODE_RANKED) {
           readyTick(now);
