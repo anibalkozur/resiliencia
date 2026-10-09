@@ -3,8 +3,9 @@
 - **Fase**: 0 (Fundaciones) · **Sprint**: 0 → **atrasada**: sin acta de gate de
   Fase 0 pese a trabajo de Fases 0–1/E en `main` (el plan v4 free/pro rige
   desde 2026-09-28).
-- **Última actualización**: 2026-10-09 (reposición por [PM]). El estado previo
-  era del **2026-09-08**; se declara atrasado antes de usarlo.
+- **Última actualización**: 2026-10-09 (reposición por [PM]; ampliado por [DER]
+  con la verificación de tobillos del banco, acta 010). El estado previo era del
+  **2026-09-08**; se declara atrasado antes de usarlo.
 
 ## Estado actual (2026-10-09) — verificado
 
@@ -36,8 +37,11 @@ artefacto del checkout, no del repo.
   `admin_console`) con Copilot on-device (Qwen3-1.7B, llama.cpp). Probada por el PO.
 - **Banco de pruebas** (`apps/banco de pruebas de ejercicios`): carga la misma
   página de producción; fork `camera-verification-bench.html` (`VERIFY_VERSION`
-  = **38**) en gh-pages. Los cambios del 2026-10-06→08 **no están registrados en
-  `BITACORA.md`** (que corta el 2026-10-02).
+  = **46**) en gh-pages. **2026-10-09**: verificación de tobillos (rojo fuera de
+  cuadro) + cámara completa sin scroll — acta 010
+  (`docs/equipo/actas/2026-10-09_verificacion_tobillos_bench.md`). Los cambios
+  del 2026-10-06→08 **no están registrados en `BITACORA.md`** (que corta el
+  2026-10-02).
 - **Docs de decisión**: 1 ADR (`2026-09-29_...`); el resto de las decisiones del
   mes viven en `docs/BITACORA.md`. **No hay actas nuevas desde la 008
   (2026-09-08).**
