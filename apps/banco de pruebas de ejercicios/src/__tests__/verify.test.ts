@@ -7,12 +7,12 @@ describe('buildVerifyUri', () => {
     expect(VERIFY_URL).toBe(
       'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html',
     );
-    expect(VERIFY_VERSION).toBe(45);
+    expect(VERIFY_VERSION).toBe(46);
   });
 
   it('pasa ejercicio, objetivo y unidad', () => {
     expect(buildVerifyUri('sentadillas', 20, 'reps')).toBe(
-      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=45&exercise=sentadillas&target=20&unit=reps',
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=46&exercise=sentadillas&target=20&unit=reps',
     );
   });
 
@@ -35,7 +35,7 @@ describe('buildSequenceUri', () => {
         { id: 'plancha', target: 30 },
       ]),
     ).toBe(
-      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=45&seq=elevacion_piernas%3A15%2Cplancha%3A30',
+      'https://anibalkozur.github.io/resiliencia/camera-verification-bench.html?v=46&seq=elevacion_piernas%3A15%2Cplancha%3A30',
     );
   });
 
