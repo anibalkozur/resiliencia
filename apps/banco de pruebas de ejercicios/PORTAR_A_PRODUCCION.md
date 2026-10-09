@@ -388,6 +388,29 @@ checklist/conteo/voz (anclados al fondo) salían de pantalla. Se limita la altur
   }
 ```
 
+### 10. Cadencia por rep más generosa y 12 s de señal de vida ✅ validado en el banco
+
+La ventana entre reps por defecto pasa de **5 s a 6 s**, y cuando entra una señal
+de vida la ventana se estira a por lo menos **12 s** en vez de 10 s (para que la
+señal de vida no tire la serie).
+
+`camera-verification.html`:
+
+```diff
+-        const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '5', 10)));
++        const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
+```
+
+```diff
+  function extendCadenceForLiveness(now) {
+    if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
+-     cadenceDeadline = Math.max(cadenceDeadline, now + 10000);
++     cadenceDeadline = Math.max(cadenceDeadline, now + 12000);
+  }
+```
+
+- El parámetro `?cadence=` de la URL (lo manda la RN app) sigue pisando el default.
+
 ---
 
 ## Cómo portar y verificar
@@ -402,7 +425,9 @@ checklist/conteo/voz (anclados al fondo) salían de pantalla. Se limita la altur
    que con la mano levantada **no** arranque la sesión si falta ver alguna parte
    del cuerpo, en flexiones los 10 s de margen para la primera rep (cuclillas →
    plancha), y que en sentadillas/isométrica el tobillo dé **verde con el pie en
-   el borde** y **rojo al desaparecer** (con la cámara completa sin scroll).
+   el borde** y **rojo al desaparecer** (con la cámara completa sin scroll). Y con
+   la señal de vida en ranking: que no tire la serie (ventana mínima de 12 s) y
+   que la cadencia default entre reps sea de 6 s.
 
 Verificación del banco (desde la raíz del repo):
 
