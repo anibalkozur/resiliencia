@@ -1,9 +1,98 @@
 # Estado del equipo
 
-- **Fase**: 0 (Fundaciones) · **Sprint**: 0
-- **Última actualización**: 2026-09-08 (día 3)
+- **Fase**: 0 (Fundaciones) · **Sprint**: 0 → **atrasada**: sin acta de gate de
+  Fase 0 pese a trabajo de Fases 0–1/E en `main` (el plan v4 free/pro rige
+  desde 2026-09-28).
+- **Última actualización**: 2026-10-09 (reposición por [PM]). El estado previo
+  era del **2026-09-08**; se declara atrasado antes de usarlo.
 
-## Estado actual
+## Estado actual (2026-10-09) — verificado
+
+Verificación ejecutable de hoy: **typecheck 5/5 ✓ · 300 tests ✓
+(mobile 160 · domain 69 · console 39 · bench 32) · lint ✓**. Prettier: **verde en
+CI**; local en Windows marca 195 archivos por CRLF (`core.autocrlf=true`) —
+artefacto del checkout, no del repo.
+
+- **Workspace**: monorepo pnpm (3 apps + 2 packages) — `apps/mobile`,
+  `apps/console`, `apps/banco de pruebas de ejercicios`, `packages/domain`,
+  `packages/design-tokens`.
+- **CI** (`.github/workflows/ci.yml`: typecheck+lint+format+test): último run en
+  `main` **success** (2026-10-08). Un run **rojo** el 2026-10-07 (`8a265cc`) que
+  falló en `pnpm install --frozen-lockfile` (lock desincronizado ese momento; los
+  runs posteriores volvieron a verde).
+- **Supabase**: migraciones `0001`–`0018` versionadas + Edge Functions
+  `validate_workout` y `admin_console`.
+- **Auth**: Google OAuth in-app con PKCE (mobile) y login Google de la Console.
+- **Ranking**: server-authoritative (migración `0010` + `validate_workout`);
+  `verified` es **terminal** (migración `0015`). **La verificación real todavía
+  NO existe**: todo entra `pending` y la UI es honesta ("enviado a validación"),
+  nunca "verificado". No se comunica ranking verificado.
+- **Cámara**: página `camera-verification.html` en gh-pages (HTTPS) en WebView +
+  puente de sensor (`expo-sensors`). `VERIFY_VERSION` en producción mobile = **16**.
+- **Premium/free**: ADR `2026-09-29_free-sin-ranking_premium-todo.md` — el free
+  no participa de ningún ranking; entitlements reales server-side (migración
+  `0018` + `validate_workout` v2, fail-closed).
+- **Console**: app Electron thin-client (no toca la DB; habla solo con la Edge
+  `admin_console`) con Copilot on-device (Qwen3-1.7B, llama.cpp). Probada por el PO.
+- **Banco de pruebas** (`apps/banco de pruebas de ejercicios`): carga la misma
+  página de producción; fork `camera-verification-bench.html` (`VERIFY_VERSION`
+  = **38**) en gh-pages. Los cambios del 2026-10-06→08 **no están registrados en
+  `BITACORA.md`** (que corta el 2026-10-02).
+- **Docs de decisión**: 1 ADR (`2026-09-29_...`); el resto de las decisiones del
+  mes viven en `docs/BITACORA.md`. **No hay actas nuevas desde la 008
+  (2026-09-08).**
+
+## Alertas [DER]/[SRE] (2026-10-09)
+
+1. **Keep-Alive — RESUELTO (2026-10-09)**: fallaba desde el 2026-09-22 porque el
+   repo **no tenía secrets** (`SUPABASE_URL`/`SUPABASE_ANON_KEY`); `curl` recibía
+   una URL sin host (exit 3). [SRE] cargó ambos secrets y el workflow volvió a
+   **success** (run `37978602425`). Proyecto verificado vivo (REST `exercises` →
+   HTTP 200). Backups formales y medición del free-tier siguen pendientes.
+2. **Estado y bitácora atrasados**: `estado.md` no se publicaba desde el 08/09 y
+   `BITACORA.md` corta el 02/10 pese a commits hasta el 08/10. Dueño **[PM]**.
+3. **Disciplina de PR**: el DoD de Fase 0 pide "un PR con cada tarea"; el mes
+   avanzó por commits directos a `main`. Dueño **[PM]**.
+4. **Sin gate**: no existe acta de gate de Fase 0. Dueño **[PM]** + PO.
+5. **Worktree de decisiones**: untracked
+   `apps/banco de pruebas de ejercicios/backup banco de pruebas.txt` → resuelto
+   2026-10-09 agregándolo a `.gitignore` (nota de backup personal, no fuente).
+   Pendiente de commit junto con `estado.md` y el propio `.gitignore`.
+
+## Gate Fase 0 — revisión 2026-10-09 (checklist 5.2, [PM]+[QA]+[LEG])
+
+| #   | Ítem 5.2                                     | Estado        | Evidencia                                                                                              |
+| --- | -------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | DoD de fase con evidencia                    | **Parcial**   | repo + tokens ✓, CI verde; "un PR por tarea" **NO**                                                    |
+| 2   | [QA] sin críticos / [SEC] sin hallazgos auth | **Pendiente** | no hay revisión de este mes sobre auth/RLS/premium                                                     |
+| 3   | [UX] aprobó pantallas + i18n ES/EN/PT        | **Parcial**   | tests de i18n ✓; pantallas nuevas del mes sin OK de [UX]                                               |
+| 4   | [SRE] backups/healthz, <60% free-tier        | **Parcial**   | Keep-Alive reparado ✓ (run `37978602425`); backup `healthz` formal y medición del free-tier pendientes |
+| 5   | [DATA] métricas de la fase                   | **N/A en F0** | [DATA] no activo aún                                                                                   |
+| 6   | ADRs de la fase                              | **Parcial**   | 1 ADR; el resto en BITACORA                                                                            |
+| 7   | Acta de gate firmada por el PO               | **NO**        | no existe                                                                                              |
+
+**Veredicto [PM]**: la Fase 0 **no se puede cerrar todavía**. Bloqueantes
+reales: **B1** marca (chequeo formal INPI, [LEG]), ítem **4** ([SRE]: falta el
+backup `healthz` formal, aunque el Keep-Alive ya está verde) y la falta de acta
+(PO). **B2** y **B3** están esencialmente cumplidos (repo+CI+tokens verdes, OK
+visual del PO).
+
+**Acciones recomendadas** (dueño · próximo paso):
+
+- **[SRE]**: ~~reparar el Keep-Alive~~ ✓ (2026-10-09); falta el backup `healthz`
+  formal y la medición del free-tier.
+- **[PM]**: publicar estado + bitácora al día y retomar PRs.
+- **[QA]+[SEC]**: revisión cruzada de auth/RLS/entitlements del mes antes de firmar.
+- **[LEG]**: cerrar el chequeo formal de marca (B1).
+- **PO**: ✓ acta de gate **firmada** (2026-10-09,
+  `docs/equipo/actas/2026-10-09_gate_fase0.md`). Falta commitear
+  `estado.md`+`.gitignore`+el acta.
+
+---
+
+## Historial — registro original (hasta 2026-09-08)
+
+### Estado al 2026-09-08
 
 - Reunión: **kickoff cerrada (OK del PO)** — acta 001 firmada en
   `docs/equipo/actas/2026-09-06_kickoff.md`.
@@ -78,6 +167,8 @@
 ## Próximo gate
 
 - **Fase 0 — Gate de salida** (2 semanas): checklist del plan + acta firmada.
+  _(Revisado el 2026-10-09: ver "Gate Fase 0 — revisión 2026-10-09" arriba.
+  Resultado: **no se puede cerrar**; faltan B1, ítem 4 [SRE] y acta del PO.)_
 
 ## Progreso Fase 0 (2026-09-06)
 
