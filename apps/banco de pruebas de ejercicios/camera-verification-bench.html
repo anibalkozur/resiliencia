@@ -216,6 +216,15 @@
       .checklist-hud .cl-row.ok span {
         color: var(--text);
       }
+      .checklist-hud .cl-dbg {
+        margin-left: auto;
+        padding-left: 6px;
+        font-size: 8px;
+        color: var(--text-dim);
+        opacity: 0.75;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
       .btn {
         display: block;
         width: 100%;
@@ -1335,7 +1344,7 @@
       const FRAME_MARGIN_Y_BOTTOM = 0.07;
       // Los tobillos/pies caen naturalmente cerca del borde inferior en vista
       // frontal: se les permite llegar casi hasta el borde (no exigir "centro").
-      const ANKLE_MARGIN_Y_BOTTOM = 0.01;
+      const ANKLE_MARGIN_Y_BOTTOM = 0;
 
       // Capa 0 + Capa 1: el tobillo solo es confiable si el PIE/TALÓN están de
       // verdad a la vista. MediaPipe extrapola el tobillo (con visibility alta)
@@ -1418,19 +1427,41 @@
         }
         return { complete: miss.length === 0, missing: miss };
       }
-      function renderChecklist(title, pts, missing) {
+      function renderChecklist(title, pts, missing, lm) {
         checklistHud.style.display = 'block';
         clTitle.innerHTML =
           title + ' <span>' + (pts.length - missing.length) + '/' + pts.length + '</span>';
         clRows.innerHTML = pts
           .map((k) => {
             const ok = !missing.includes(k);
+            let dbg = '';
+            if (lm && (k === 'left_ankle' || k === 'right_ankle')) {
+              const side = k.startsWith('left') ? 'left' : 'right';
+              const a = lm[LID[k]];
+              const f = lm[LID[side + '_foot']];
+              const h = lm[LID[side + '_heel']];
+              const n = (v) => (typeof v === 'number' ? v.toFixed(2) : '--');
+              dbg =
+                '<span class="cl-dbg">a' +
+                n(a && (a.visibility ?? a.presence)) +
+                ' f' +
+                n(f && f.visibility) +
+                ' h' +
+                n(h && h.visibility) +
+                ' fy' +
+                n(f && f.y) +
+                ' ay' +
+                n(a && a.y) +
+                '</span>';
+            }
             return (
               '<div class="cl-row ' +
               (ok ? 'ok' : '') +
               '"><div class="cl-dot"></div><span>' +
               LABEL[k] +
-              '</span></div>'
+              '</span>' +
+              dbg +
+              '</div>'
             );
           })
           .join('');
@@ -2272,7 +2303,7 @@
         const { complete, missing } = checkComplete(lm, FRONTAL_POINTS);
         bodyComplete = complete;
         bodyMissing = complete ? [] : missing;
-        renderChecklist('Cuerpo', FRONTAL_POINTS, missing);
+        renderChecklist('Cuerpo', FRONTAL_POINTS, missing, lm);
         if (!complete) {
           bodyOkStreak = 0;
           [leftAngleHistory, rightAngleHistory] = [[], []];
@@ -2396,7 +2427,7 @@
         const { complete, missing } = checkComplete(lm, mp);
         bodyComplete = complete;
         bodyMissing = complete ? [] : missing;
-        renderChecklist(cfg.name, mp, missing);
+        renderChecklist(cfg.name, mp, missing, lm);
         if (!complete) {
           bodyOkStreak = 0;
           angleHistory = [];
