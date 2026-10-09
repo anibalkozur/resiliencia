@@ -4,15 +4,15 @@ Cambios y mejoras que se validan en el **banco de pruebas** y que todavía **no*
 están en la app real. Producción (`camera-verification.html` y `apps/mobile`) queda
 intacta hasta que estos cambios se prueben y se porten a mano.
 
-- Página del banco: `apps/exercise-tester/camera-verification-bench.html`
+- Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v22** · Versión de producción: **v16** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v46** · Versión de producción: **v16** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
 
 ```powershell
-git diff --no-index --unified=3 -- camera-verification.html apps/exercise-tester/camera-verification-bench.html
+git diff --no-index --unified=3 -- camera-verification.html "apps/banco de pruebas de ejercicios/camera-verification-bench.html"
 ```
 
 ---
@@ -287,6 +287,107 @@ Y el margen de la primera rep:
 - `firstRepGraceMs` es opcional y reutilizable: si otro ejercicio necesita margen de
   arranque (mountain climbers, abdominales, puente), se le agrega el mismo campo.
 
+### 8. Tobillos en rojo cuando el pie sale de cuadro (vista frontal) ✅ validado en el banco
+
+En los ejercicios frontales (sentadillas e isométrica), MediaPipe **siempre**
+devuelve los 33 landmarks y **extrapola** el tobillo/pie/talón con `visibility`
+alta cuando el pie sale de cuadro → el chequeo por `visibility` del tobillo daba
+**verde falso**. Ahora el tobillo se deriva del **pie/talón**, con umbral propio e
+histéresis. Calibrado en dispositivo el 2026-10-09 (PO lo validó: el pie al borde
+da verde y al desaparecer los tobillos da rojo); ver acta 010
+(`docs/equipo/actas/2026-10-09_verificacion_tobillos_bench.md`).
+
+Constantes (junto a `VIS`):
+
+```diff
+    VIS = 0.65,
+    CONFIRM_FRAMES = 4,
+    STATE_CONFIRM_FRAMES = 3,
+    MIN_REP_INTERVAL_MS = 350,
++   FOOT_VIS = 0.35,
++   FOOT_CONFIRM_FRAMES = 2;
+```
+
+Márgenes de marco nuevos (junto a `FRAME_MARGIN_*`):
+
+```diff
+  const FRAME_MARGIN_X = 0.01;
+  const FRAME_MARGIN_Y_TOP = 0.01;
+  const FRAME_MARGIN_Y_BOTTOM = 0.07;
++ // El pie natural cae en el borde inferior (y≈1) y el dedo puede quedar apenas
++ // por debajo sin salir de cuadro: se tolera y manda la visibilidad del pie.
++ const ANKLE_MAX_Y = 1.08;
+```
+
+`footSeen` (Capa 0+1) + histéresis (Capa 5):
+
+```diff
++ function footSeen(lm, side) {
++   const foot = lm[LID[side + '_foot']];
++   const heel = lm[LID[side + '_heel']];
++   const vis = Math.max(foot ? (foot.visibility ?? 0) : 0, heel ? (heel.visibility ?? 0) : 0);
++   if (vis < FOOT_VIS) return false;
++   if (foot && (foot.y > ANKLE_MAX_Y || foot.x < FRAME_MARGIN_X || foot.x > 1 - FRAME_MARGIN_X))
++     return false;
++   return true;
++ }
++ const footStreak = { left: 0, right: 0 };
++ function updateFootStreak(lm) {
++   for (const side of ['left', 'right']) {
++     footStreak[side] =
++       lm && footSeen(lm, side) ? Math.min(footStreak[side] + 1, FOOT_CONFIRM_FRAMES) : 0;
++   }
++ }
+```
+
+En `isLandmarkValid`: el tobillo no usa el gate `VIS` propio, tolera el borde y
+exige `footSeen` + histéresis (solo frontal; perfil conserva el chequeo previo):
+
+```diff
+  function isLandmarkValid(lm, k) {
+    const p = lm[LID[k]];
+    if (!p) return false;
+    const vis = p.visibility ?? p.presence ?? 0;
+-   let valid = vis >= VIS;
++   const isAnkle = k === 'left_ankle' || k === 'right_ankle';
++   let valid = isAnkle ? vis >= FOOT_VIS : vis >= VIS;
+    if (p.x < FRAME_MARGIN_X || p.x > 1 - FRAME_MARGIN_X) valid = false;
+-   if (p.y < FRAME_MARGIN_Y_TOP || p.y > 1 - FRAME_MARGIN_Y_BOTTOM) valid = false;
++   const maxY = isAnkle ? ANKLE_MAX_Y : 1 - FRAME_MARGIN_Y_BOTTOM;
++   if (p.y < FRAME_MARGIN_Y_TOP || p.y > maxY) valid = false;
++   if (valid && isAnkle && cfg.type === 'frontal') {
++     const side = k.startsWith('left') ? 'left' : 'right';
++     if (!footSeen(lm, side) || footStreak[side] < FOOT_CONFIRM_FRAMES) valid = false;
++   }
+    ...
+```
+
+Y en `processPose`, actualizar la histéresis una vez por frame (y resetearla si no
+es vertical):
+
+```diff
++ updateFootStreak(poseLm);
+```
+
+### 9. Cámara completa sin scroll (layout)
+
+Con `aspect-ratio: 9/19.5` el contenedor quedaba más alto que la pantalla y el
+checklist/conteo/voz (anclados al fondo) salían de pantalla. Se limita la altura:
+
+```diff
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    margin-top: 6px;
+    background: #000;
+    aspect-ratio: 9/19.5;
++   max-height: calc(100vh - 200px);
++   max-height: calc(100dvh - 200px);
+  }
+```
+
 ---
 
 ## Cómo portar y verificar
@@ -299,8 +400,9 @@ Y el margen de la primera rep:
    profundidad), el segundero de cadencia en ranking, zancadas **de perfil**
    (de costado a la cámara), que Mountain Climbers muestre la indicación de perfil,
    que con la mano levantada **no** arranque la sesión si falta ver alguna parte
-   del cuerpo, y en flexiones los 10 s de margen para la primera rep (cuclillas →
-   plancha).
+   del cuerpo, en flexiones los 10 s de margen para la primera rep (cuclillas →
+   plancha), y que en sentadillas/isométrica el tobillo dé **verde con el pie en
+   el borde** y **rojo al desaparecer** (con la cámara completa sin scroll).
 
 Verificación del banco (desde la raíz del repo):
 
