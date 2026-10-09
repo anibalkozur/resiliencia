@@ -71,6 +71,8 @@
         margin-top: 6px;
         background: #000;
         aspect-ratio: 9/19.5;
+        max-height: calc(100vh - 200px);
+        max-height: calc(100dvh - 200px);
       }
       video,
       canvas {
@@ -125,7 +127,7 @@
         cursor: pointer;
       }
       .rep-hud {
-        position: fixed;
+        position: absolute;
         bottom: 12px;
         left: 50%;
         transform: translateX(-50%);
@@ -176,7 +178,7 @@
         color: var(--ember);
       }
       .checklist-hud {
-        position: fixed;
+        position: absolute;
         bottom: 12px;
         left: 10px;
         z-index: 5;
@@ -305,7 +307,7 @@
         z-index: 5;
       }
       .voice-badge {
-        position: fixed;
+        position: absolute;
         bottom: 10px;
         left: 50%;
         transform: translateX(-50%);
