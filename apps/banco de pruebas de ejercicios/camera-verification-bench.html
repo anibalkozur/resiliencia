@@ -1237,7 +1237,7 @@
         // extrapola el tobillo (con visibility alta) cuando los pies salen de
         // cuadro. El pie/talón son lo primero que desaparece, así que el tobillo
         // se deriva del pie. FOOT_VIS es el knob a afinar en dispositivo.
-        FOOT_VIS = 0.45,
+        FOOT_VIS = 0.35,
         FOOT_CONFIRM_FRAMES = 2;
 
       let poseLandmarker = null,
@@ -1335,7 +1335,7 @@
       const FRAME_MARGIN_Y_BOTTOM = 0.07;
       // Los tobillos/pies caen naturalmente cerca del borde inferior en vista
       // frontal: se les permite llegar casi hasta el borde (no exigir "centro").
-      const ANKLE_MARGIN_Y_BOTTOM = 0.03;
+      const ANKLE_MARGIN_Y_BOTTOM = 0.01;
 
       // Capa 0 + Capa 1: el tobillo solo es confiable si el PIE/TALÓN están de
       // verdad a la vista. MediaPipe extrapola el tobillo (con visibility alta)
@@ -1372,7 +1372,7 @@
         if (!p) return false;
         const vis = p.visibility ?? p.presence ?? 0;
         const isAnkle = k === 'left_ankle' || k === 'right_ankle';
-        let valid = vis >= VIS;
+        let valid = isAnkle ? vis >= FOOT_VIS : vis >= VIS;
         if (p.x < FRAME_MARGIN_X || p.x > 1 - FRAME_MARGIN_X) valid = false;
         const bottomMargin = isAnkle ? ANKLE_MARGIN_Y_BOTTOM : FRAME_MARGIN_Y_BOTTOM;
         if (p.y < FRAME_MARGIN_Y_TOP || p.y > 1 - bottomMargin) valid = false;
