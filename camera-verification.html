@@ -320,6 +320,54 @@
         text-align: center;
         pointer-events: none;
       }
+      .dwell-btn {
+        position: absolute;
+        top: 46px;
+        z-index: 9;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 13px 7px 9px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(11, 14, 17, 0.82);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        pointer-events: none;
+        user-select: none;
+      }
+      .dwell-btn.exit {
+        left: 10px;
+      }
+      .dwell-btn.repeat {
+        right: 10px;
+        border-color: var(--volt);
+        color: var(--volt);
+      }
+      .dwell-ring {
+        position: relative;
+        flex: 0 0 auto;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: conic-gradient(
+          var(--dwell, var(--volt)) calc(var(--p, 0) * 1%),
+          rgba(255, 255, 255, 0.16) 0
+        );
+      }
+      .dwell-ring::after {
+        content: '';
+        position: absolute;
+        inset: 3px;
+        border-radius: 50%;
+        background: rgba(11, 14, 17, 0.92);
+      }
+      .dwell-btn.exit .dwell-ring {
+        --dwell: var(--danger);
+      }
       .gesture-hud {
         position: absolute;
         top: 40%;
@@ -480,6 +528,12 @@
         <div class="countdown-overlay" id="countdownOverlay">5</div>
         <div class="cadence-hud" id="cadenceHud">6</div>
         <div class="voice-badge" id="voiceBadge" style="display: none"></div>
+        <div class="dwell-btn exit" id="exitBtn">
+          <span class="dwell-ring" id="exitRing"></span><span>SALIR</span>
+        </div>
+        <div class="dwell-btn repeat" id="repeatBtn">
+          <span class="dwell-ring" id="repeatRing"></span><span>REPETIR</span>
+        </div>
         <div class="liveness-overlay" id="livenessOverlay">
           <div class="lv-line">SEÑAL</div>
           <div class="lv-line">DE</div>
@@ -554,6 +608,11 @@
       const voiceBadge = document.getElementById('voiceBadge');
       const livenessOverlay = document.getElementById('livenessOverlay');
       const livenessInstruct = document.getElementById('livenessInstruct');
+      const videoWrap = document.querySelector('.video-wrap');
+      const exitBtn = document.getElementById('exitBtn');
+      const exitRing = document.getElementById('exitRing');
+      const repeatBtn = document.getElementById('repeatBtn');
+      const repeatRing = document.getElementById('repeatRing');
 
       const NAME = {
         sentadillas: 'Sentadillas',
@@ -875,6 +934,12 @@
       const VERTICAL_TOLERANCE = 35,
         SENSOR_CONFIRM_MS = 8000;
 
+      // Botones por gesto (SALIR / REPETIR): la muñeca debe quedarse sobre el
+      // botón DWELL_MS para dispararlo, con anillo de progreso.
+      const DWELL_MS = 1000;
+      let completed = false;
+      const dwellStart = { exit: 0, repeat: 0 };
+
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
 
       function post(type, data) {
@@ -1152,6 +1217,8 @@
         cadenceHud.style.display = 'none';
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'none';
+        completed = false;
+        hideRepeatButton();
         hideLiveness();
         livenessChallengeActive = false;
         livenessPassed = false;
@@ -1393,15 +1460,20 @@
         if (done) voiceFlash(done);
         speak(withDone(''));
         voiceRound++;
-        running = false;
+        // La serie terminó, pero NO apagamos la cámara: dejamos el loop vivo
+        // para detectar el gesto sobre REPETIR / SALIR. `completed` hace que
+        // gestos y conteo de reps queden en pausa en el loop.
+        completed = true;
         hideLiveness();
-        const s = video.srcObject;
-        if (s) s.getTracks().forEach((t) => t.stop());
-        liveDot.classList.remove('live');
-        statusText.textContent = 'Completado';
+        cadenceHud.style.display = 'none';
+        gestureHud.style.display = 'none';
+        countdownOverlay.style.display = 'none';
+        stateMsg.style.display = 'none';
+        checklistHud.style.display = 'none';
         stopBtn.style.display = 'none';
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
+        startBtn.style.display = 'none';
+        statusText.textContent = 'Serie completa';
+        showRepeatButton();
         resultReps.textContent = repCount + (targetUnit === 'seconds' ? 's' : '');
         resultCard.classList.add('show');
         verifyText.textContent = MODE_RANKED
@@ -1423,6 +1495,99 @@
         const raisedY = Math.min(lm[LID.left_wrist].y, lm[LID.right_wrist].y);
         return raisedY < noseY - RAISE_NOSE_MARGIN;
       }
+
+      // ---------- botones con la mano (SALIR / REPETIR) ----------
+      // El landmark viene en coords normalizadas del frame de la cámara. Hay
+      // que reproducir el mapeo visual: cover (recorte centrado) + espejo CSS
+      // (scaleX(-1) cuando la cámara es frontal).
+      function landmarkToWrap(p) {
+        const W = videoWrap.clientWidth || 1;
+        const H = videoWrap.clientHeight || 1;
+        const vw = video.videoWidth || W;
+        const vh = video.videoHeight || H;
+        const scale = Math.max(W / vw, H / vh);
+        const dw = vw * scale;
+        const dh = vh * scale;
+        let x = (W - dw) / 2 + p.x * dw;
+        const y = (H - dh) / 2 + p.y * dh;
+        if (currentFacing === 'user') x = W - x;
+        return { x, y };
+      }
+      function wristOver(btn, pose) {
+        if (!pose || !pose.landmarks || !pose.landmarks.length) return false;
+        const lm = pose.landmarks[0];
+        const r = btn.getBoundingClientRect();
+        const w = videoWrap.getBoundingClientRect();
+        const left = r.left - w.left;
+        const top = r.top - w.top;
+        for (const idx of [LID.left_wrist, LID.right_wrist]) {
+          const p = lm[idx];
+          if (!p || (p.visibility ?? 1) < 0.3) continue;
+          const s = landmarkToWrap(p);
+          if (s.x >= left && s.x <= left + r.width && s.y >= top && s.y <= top + r.height)
+            return true;
+        }
+        return false;
+      }
+      function dwellStep(id, btn, ring, pose, action) {
+        const now = performance.now();
+        if (!btn || btn.style.display === 'none') {
+          dwellStart[id] = 0;
+          if (ring) ring.style.setProperty('--p', '0');
+          return;
+        }
+        if (!wristOver(btn, pose)) {
+          dwellStart[id] = 0;
+          if (ring) ring.style.setProperty('--p', '0');
+          return;
+        }
+        if (!dwellStart[id]) dwellStart[id] = now;
+        const ratio = Math.min(1, (now - dwellStart[id]) / DWELL_MS);
+        if (ring) ring.style.setProperty('--p', String(Math.round(ratio * 100)));
+        if (ratio >= 1) {
+          dwellStart[id] = 0;
+          if (ring) ring.style.setProperty('--p', '0');
+          action();
+        }
+      }
+      function dwellTick(pose) {
+        dwellStep('exit', exitBtn, exitRing, pose, exitSession);
+        if (completed) dwellStep('repeat', repeatBtn, repeatRing, pose, repeatSeries);
+      }
+      function showExitButton() {
+        exitBtn.style.display = 'flex';
+      }
+      function hideExitButton() {
+        exitBtn.style.display = 'none';
+      }
+      function showRepeatButton() {
+        repeatBtn.style.display = 'flex';
+      }
+      function hideRepeatButton() {
+        repeatBtn.style.display = 'none';
+      }
+      function exitSession() {
+        completed = false;
+        hideExitButton();
+        hideRepeatButton();
+        running = false;
+        const s = video.srcObject;
+        if (s) s.getTracks().forEach((t) => t.stop());
+        liveDot.classList.remove('live');
+        statusText.textContent = 'Sesión cancelada';
+        post('exit', {});
+        log('Sesión cancelada por el usuario');
+      }
+      function repeatSeries() {
+        completed = false;
+        hideRepeatButton();
+        resetRepState();
+        applyMirror();
+        post('repeat', {});
+        startGesture();
+        log('Serie reiniciada por el usuario');
+      }
+
       function startGesture() {
         waitingGesture = true;
         raiseStreak = 0;
@@ -1996,12 +2161,17 @@
         if (video.currentTime !== lastTime) {
           lastTime = video.currentTime;
           const r = poseLandmarker.detectForVideo(video, now);
-          gestureTick(r);
+          if (!completed) {
+            gestureTick(r);
+            processPose(r);
+          }
           draw(r);
-          processPose(r);
+          dwellTick(r);
         }
-        readyTick(now);
-        cadenceTick(now);
+        if (!completed) {
+          readyTick(now);
+          cadenceTick(now);
+        }
         requestAnimationFrame(loop);
       }
 
@@ -2166,6 +2336,7 @@
           running = true;
           resetRepState();
           applyMirror();
+          showExitButton();
           startGesture();
           startBtn.style.display = 'none';
           stopBtn.style.display = 'block';
@@ -2186,14 +2357,13 @@
         }
       }
       function stopCamera() {
-        running = false;
-        const s = video.srcObject;
-        if (s) s.getTracks().forEach((t) => t.stop());
-        liveDot.classList.remove('live');
-        statusText.textContent = 'Detenido';
+        // No apagamos la cámara: entramos al estado de espera igual que al
+        // completar, para ofrecer REPETIR / SALIR con el gesto.
+        completed = true;
+        statusText.textContent = 'Serie completa';
         stopBtn.style.display = 'none';
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
+        startBtn.style.display = 'none';
+        showRepeatButton();
         stateMsg.style.display = 'none';
         checklistHud.style.display = 'none';
         gestureHud.style.display = 'none';
