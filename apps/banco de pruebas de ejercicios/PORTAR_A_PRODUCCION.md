@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v18** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v19** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -250,6 +250,13 @@ Y `gestureTick` solo acepta la mano cuando el cuerpo está completo:
          if (handIsRaised(pose)) {
 ```
 
+- **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`,
+  `VERIFY_VERSION` 19, publicado en gh-pages y **probado por PO en la app: OK**.
+- **Extensión al portar (para todos los modos)**: en el banco el gesto era solo de
+  ranking; en producción el inicio con mano ahora corre en **libre y ranking**, y los
+  ejercicios de **segundos** también esperan el "¡Ya!". Una rep hecha antes del "¡Ya!"
+  se **ignora** (no rompe la serie); el banco ya tenía ese split.
+
 ### 7. Flexiones: cuclillas de arranque y 10 s para la primera rep ✅ validado en el banco
 
 La primera flexión necesita tiempo para pasar de cuclillas a la posición de plancha.
@@ -474,12 +481,199 @@ rep, porque en libre no hay gesto de mano ni cuenta 5-4-3-2-1.
 - **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`,
   `VERIFY_VERSION` 18, publicado en gh-pages y **probado por PO en la app: OK**.
 
+### 12. Voz guía (agente) al inicio y durante cada ejercicio ✅ validado en el banco
+
+El banco tiene una **voz que acompaña la serie**: habla al arrancar (`pre`), a mitad
+de camino (`mid`), en las últimas 3 reps (`last`), al completar (`done`) y en el
+descanso (`rest`). No es una frase fija: rota un **corpus** por puesto para no repetir,
+respeta un mínimo de 2.5 s entre frases y muestra un cartelito (`voice-badge`) con el
+texto que dice. En producción hoy solo existe `speak('Empezá cuando quieras')` (fijo,
+en `announceSession`).
+
+CSS (junto a `.cadence-hud`):
+
+```diff
++ .voice-badge {
++   position: absolute;
++   bottom: 10px;
++   left: 50%;
++   transform: translateX(-50%);
++   z-index: 5;
++   max-width: 88%;
++   padding: 5px 12px;
++   border-radius: 999px;
++   background: rgba(0, 0, 0, 0.62);
++   color: #e8f5e9;
++   font-size: 12px;
++   line-height: 1.35;
++   text-align: center;
++   pointer-events: none;
++ }
+```
+
+HTML (junto a los demás overlays) y referencia:
+
+```diff
++ <div class="voice-badge" id="voiceBadge" style="display: none"></div>
++ const voiceBadge = document.getElementById('voiceBadge');
+```
+
+Núcleo: `VOICE_SLOT_OFFSET` reparte los puestos para que dos frases no caigan juntas;
+`VOICE_INSIDE_SET` marca los puestos que en **ranking** no suenan (la voz pausaría la
+cadencia de 6 s y tiraría la serie por hablarle); el índice de rotación sale de
+`seqDone` (contador de series del banco).
+
+```diff
++ const VOICE_MIN_GAP_MS = 2500;
++ const VOICE_MID_MIN_TARGET = 10;
++ const VOICE_SLOT_OFFSET = { pre: 0, mid: 3, last: 6, done: 1, rest: 4 };
++ const VOICE_INSIDE_SET = { pre: false, mid: true, last: true, done: false, rest: false };
++ const VOICE_UNITS = {
++   pre: ['reps', 'seconds'],
++   mid: ['reps'],
++   last: ['reps'],
++   done: ['reps', 'seconds'],
++   rest: ['reps', 'seconds'],
++ };
++ const VOICE_CORPUS = {
++   pre: [
++     'Prepará la postura. Cuando quieras, arrancá.',
++     'Acomodate bien. Esta serie va con control.',
++     'Todo listo. Empezá cuando te sientas cómodo.',
++     'Buscá un ritmo que puedas sostener.',
++     'Mirá fijo al frente. Arrancá.',
++     'Controlá la respiración. Empezá.',
++     'Esta serie va a tu ritmo, sin apurarte.',
++     'Vamos con esta. Prestá atención a la técnica.',
++   ],
++   mid: [
++     'Vas por la mitad. Seguí así.',
++     'Buen ritmo. Mantenelo.',
++     'Mirá la técnica, no el número.',
++     'Aguantá bien. Viene más.',
++     'Sin apuro. El control es lo que suma.',
++     'Eso. Mismo ritmo.',
++     'Vamos bien. No aflojes ahora.',
++     'Seguí con la misma intensidad.',
++   ],
++   last: [
++     'Últimas tres. Vamos.',
++     'Faltan tres. Aguantá.',
++     'Últimas tres: la más técnica.',
++     'Quedan tres. Sostené el ritmo.',
++     'Faltan tres. Dá.',
++     'Últimas tres. No aflojes.',
++     'Tres más. Con ritmo.',
++     'Faltan tres. Cerrá fuerte.',
++   ],
++   done: [
++     'Listo. Buen trabajo.',
++     'Serie completa. Recuperate.',
++     'Terminaste. Buen ritmo.',
++     'Bien. Descansá un momento.',
++     'Completaste la serie.',
++     'Esa fue. Tomá agua.',
++     'Listo, esa serie quedó.',
++     'Completaste. Ahora descansá.',
++   ],
++   rest: [
++     'Acomodate y respirá.',
++     'Tiempo de descanso. Respirá bien.',
++     'Sostené la respiración un momento.',
++     'Frená acá y tomá aire.',
++     'Descansá. Respirá lento.',
++     'Ahora es para recuperar.',
++     'Sostenete. Tomá aire.',
++     'Descansá bien antes de seguir.',
++   ],
++ };
++ const voiceFired = {};
++ let voiceLastAt = -1e9;
++ function voiceInsideSetOk() { return !MODE_RANKED; }
++ function voiceLine(slot) {
++   const pool = VOICE_CORPUS[slot];
++   if (!pool || !pool.length) return '';
++   const units = VOICE_UNITS[slot] || [];
++   if (units.indexOf(targetUnit) === -1) return '';
++   if (VOICE_INSIDE_SET[slot] && !voiceInsideSetOk()) return '';
++   const i = (Math.max(0, seqDone) + VOICE_SLOT_OFFSET[slot]) % pool.length;
++   return pool[i];
++ }
++ function voiceTake(slot) {
++   if (voiceFired[slot]) return '';
++   voiceFired[slot] = true;
++   if (performance.now() - voiceLastAt < VOICE_MIN_GAP_MS) return '';
++   const line = voiceLine(slot);
++   if (!line) return '';
++   voiceLastAt = performance.now();
++   return line;
++ }
++ function voiceFlash(text) {
++   if (typeof window.ReactNativeWebView !== 'undefined') {
++     try {
++       window.ReactNativeWebView.postMessage(
++         JSON.stringify({ type: 'voz_log', text: 'VOZ: ' + text }),
++       );
++     } catch (e) {}
++   }
++   if (voiceBadge) {
++     voiceBadge.style.display = 'block';
++     voiceBadge.textContent = text;
++   }
++   log('VOZ: ' + text);
++ }
++ function voiceSay(slot) {
++   const text = voiceTake(slot);
++   if (!text) return '';
++   speak(text);
++   voiceFlash(text);
++   return text;
++ }
+```
+
+Puntos de llamada (en el banco):
+
+```diff
+  function announceSession() {
+    if (!sessionStartTime) {
+      sessionStartTime = performance.now();
+-     speak('Empezá cuando quieras');
++     speak(voiceSay('pre') || 'Empezá cuando quieras');
+    }
+  }
+```
+
+```diff
+  function registerRep() {
+    ...
+    if (targetUnit === 'reps') {
++     if (targetVal >= VOICE_MID_MIN_TARGET && repCount >= Math.ceil(targetVal / 2))
++       voiceSay('mid');
++     if (repCount === targetVal - 3) voiceSay('last');
+    }
+    ...
+  }
+```
+
+- `done` se toma en `postComplete` y se compone con el mensaje en una sola locución
+  (`speak()` cancela lo anterior). `rest` se concatena en `advance` con el nombre del
+  ejercicio siguiente.
+- Al cargar un ejercicio se resetean los 5 puestos (`voiceFired[slot] = false`) y se
+  oculta el badge.
+- **Dependencia al portar**: `voiceLine` usa `seqDone` (contador de series del banco),
+  que producción **no** tiene. Portar `pre`/`mid`/`last` no necesita secuencia: darle a
+  `voiceLine` un índice equivalente (contador de series propio) o rotación aleatoria.
+  Los puestos `done`/`rest` están atados al flujo de secuencia (`advance`); si la
+  secuencia no se porta, el cierre se mantiene con el mensaje fijo actual.
+- En ranking `mid`/`last` quedan mudos a propósito: la pausa por hablar cortaría la
+  cadencia.
+
 ---
 
 ## Cómo portar y verificar
 
-Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 10 y 11**.
-Pendientes: **3, 4, 5, 6, 7, 8 y 9**.
+Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10 y 11**.
+Pendientes: **3, 4, 5, 7, 8, 9 y 12**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
 2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 18) para
@@ -488,9 +682,10 @@ Pendientes: **3, 4, 5, 6, 7, 8 y 9**.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con
    el pie en el borde** y **rojo al desaparecer** (con la cámara completa sin
    scroll), zancadas **de perfil** (de costado a la cámara) con objetivo par,
-   Mountain Climbers con la indicación de perfil, que con la mano levantada **no**
-   arranque la sesión si falta ver alguna parte del cuerpo, y en flexiones los 10 s
-   de margen para la primera rep (cuclillas → plancha).
+   Mountain Climbers con la indicación de perfil, en flexiones los 10 s de margen
+   para la primera rep (cuclillas → plancha), y la **voz guía** (cambio 12): `pre`
+   al arrancar, `mid` a la mitad, `last` en las últimas 3 y muda en las series de
+   ranking.
 
 Verificación del banco (desde la raíz del repo):
 
