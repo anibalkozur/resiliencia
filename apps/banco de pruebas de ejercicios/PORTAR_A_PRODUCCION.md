@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v19** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v20** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -14,6 +14,34 @@ Cómo sacar el diff completo en cualquier momento:
 ```powershell
 git diff --no-index --unified=3 -- camera-verification.html "apps/banco de pruebas de ejercicios/camera-verification-bench.html"
 ```
+
+---
+
+## Lista nueva de pendientes (1-6)
+
+Orden de trabajo para el siguiente ciclo. Entre paréntesis, el punto original de
+este documento, que no se renumera.
+
+1. **Zancadas de perfil** *(doc §3)* — `CFG.zancadas` pasa de `frontal` a `lateral`
+   como flexiones: `sides` por lado con shoulder/hip/knee/ankle, ángulo de rodilla
+   autocalibrado, y el usuario de costado a la cámara.
+2. **Mountain Climbers: decir que es de perfil** *(doc §4)* — solo textos de
+   `HOWTO.mountain_climbers`, `postureMsg` y `startMsg`. Queda por definir si
+   "de perfil" se aclara también en flexiones, abdominales, plancha y puente.
+3. **Zancadas: objetivo par** *(doc §5)* — el selector del modo libre en
+   `apps/mobile/app/(tabs)/camretos.tsx` avanza de 2 en 2 para zancadas
+   (`step: 2`, ya hecho en el banco).
+4. **Flexiones: cuclillas de arranque y 10 s para la primera rep** *(doc §7)* —
+   `firstRepGraceMs: 10000` en `CFG.flexiones` + textos de cuclillas en
+   instructivo, `postureMsg` y `startMsg`.
+5. **Tobillos en rojo si el pie sale de cuadro** *(doc §8)* — tobillo derivado
+   de pie/talón con `FOOT_VIS = 0.35` y `FOOT_CONFIRM_FRAMES = 2` (acta 010).
+6. **Cámara completa sin scroll** *(doc §9)* — `max-height: calc(100vh - 200px)` +
+   `calc(100dvh - 200px)` en `.video-wrap` para que checklist, conteo y voz no
+   salgan de pantalla.
+
+Ya portados y verificados por PO el 2026-10-09: **1, 2, 6, 10, 11, 12**
+(12 = voz guía + chat IA, v20).
 
 ---
 
