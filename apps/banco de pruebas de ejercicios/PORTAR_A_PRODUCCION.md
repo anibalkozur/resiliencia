@@ -668,15 +668,34 @@ Puntos de llamada (en el banco):
 - En ranking `mid`/`last` quedan mudos a propósito: la pausa por hablar cortaría la
   cadencia.
 
+**Portado a producción** (v20, verificado por PO el 2026-10-09):
+
+- `camera-verification.html` de producción lleva el CSS, el badge, el corpus y los
+  tres puntos de llamada (`announceSession`, `registerRep`, `postComplete`).
+- La rotación usa `voiceRound` (contador de sesiones propio: producción hace **una
+  serie por sesión**, no tiene `seqDone` ni `advance`); el puesto `rest` queda
+  copiado pero es inalcanzable, y `done` se compone con el mensaje de resultado en
+  una sola locución.
+- `speak()` es RN-first: manda `{ type: 'voz', text }` al nativo y solo cae a
+  `speechSynthesis` cuando corre fuera de React Native. El móvil habla con
+  `expo-speech` desde `apps/mobile/src/lib/voz.ts`, consumido por los handlers de
+  `voz` / `voz_log` en `app/(tabs)/camretos.tsx` y `app/(tabs)/retos.tsx`.
+- `VOICE_MIN_GAP_MS`, `VOICE_MID_MIN_TARGET`, `VOICE_SLOT_OFFSET`,
+  `VOICE_INSIDE_SET` y `VOICE_UNITS` son idénticos a los del banco.
+- Aparte (no es este cambio): el chat del entrenador quedó en
+  `apps/mobile/components/ChatPanel.tsx` + `src/lib/chat.ts`, abierto desde el
+  botón flotante **IA** en Inicio, con dominio cerrado (sin tema de voz) y con los
+  datos del perfil leídos por el TTS.
+
 ---
 
 ## Cómo portar y verificar
 
-Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10 y 11**.
-Pendientes: **3, 4, 5, 7, 8, 9 y 12**.
+Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12**.
+Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 18) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 20) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con

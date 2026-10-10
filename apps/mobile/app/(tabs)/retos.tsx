@@ -15,6 +15,7 @@ import { getTodayChallenge, todayKey } from '../../src/retos/service';
 import { buildVerifyUri } from '../../src/retos/verify';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
+import { hablarVoz } from '../../src/lib/voz';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
 import { useDayKey } from '../../src/retos/DayProvider';
@@ -100,6 +101,11 @@ export default function RetosScreen() {
       } catch {
         return;
       }
+      if (data.type === 'voz') {
+        hablarVoz(typeof data.text === 'string' ? data.text : '');
+        return;
+      }
+      if (data.type === 'voz_log') return;
       if (data.type !== 'complete') return;
       const reps = Number(data.reps) || 0;
       const target = challenge?.target ?? 0;

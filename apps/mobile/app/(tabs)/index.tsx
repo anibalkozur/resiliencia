@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
+import { ChatPanel } from '../../components/ChatPanel';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
@@ -16,6 +18,7 @@ import type { Goal } from '../../src/prefs/types';
 export default function InicioScreen() {
   const router = useRouter();
   const { prefs } = usePrefs();
+  const insets = useSafeAreaInsets();
   const lang = prefs?.language ?? 'es';
   const goal: Goal = prefs?.goal ?? 'mantener';
   const repo = getRepo();
@@ -24,6 +27,7 @@ export default function InicioScreen() {
   const [streak, setStreak] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
+  const [chatAbierto, setChatAbierto] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -119,6 +123,36 @@ export default function InicioScreen() {
           })}
         </Text>
       ) : null}
+
+      <Pressable
+        style={styles.iaBtn}
+        onPress={() => setChatAbierto(true)}
+        accessibilityRole="button"
+        accessibilityLabel={translate(lang, 'home.ia_title')}
+      >
+        <Text style={styles.iaBtnText}>IA</Text>
+      </Pressable>
+
+      <Modal
+        visible={chatAbierto}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setChatAbierto(false)}
+      >
+        <View style={[styles.chatRoot, { paddingTop: insets.top }]}>
+          <View style={styles.chatHeader}>
+            <Text style={styles.chatTitle}>{translate(lang, 'home.ia_title')}</Text>
+            <Pressable
+              style={styles.chatClose}
+              onPress={() => setChatAbierto(false)}
+              hitSlop={8}
+            >
+              <Text style={styles.chatCloseText}>{translate(lang, 'auth.back')}</Text>
+            </Pressable>
+          </View>
+          <ChatPanel />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -233,5 +267,62 @@ const styles = StyleSheet.create({
     color: colors.silverDim,
     fontSize: 13,
     marginTop: spacing.md,
+  },
+  iaBtn: {
+    position: 'absolute',
+    right: spacing.md,
+    bottom: spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.teal,
+    borderWidth: 2,
+    borderColor: '#1d5c3a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  iaBtnText: {
+    color: colors.bg,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  chatRoot: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line,
+    backgroundColor: colors.bg,
+  },
+  chatTitle: {
+    color: colors.silver,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  chatClose: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  chatCloseText: {
+    color: colors.teal,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
 });

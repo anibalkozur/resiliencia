@@ -12,6 +12,7 @@ import { pushFreeSession } from '../../src/retos/freeSessions';
 import { todayKey } from '../../src/retos/service';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
+import { hablarVoz } from '../../src/lib/voz';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
@@ -49,6 +50,11 @@ export default function LibreScreen() {
       } catch {
         return;
       }
+      if (data.type === 'voz') {
+        hablarVoz(typeof data.text === 'string' ? data.text : '');
+        return;
+      }
+      if (data.type === 'voz_log') return;
       if (data.type !== 'complete') return;
       const value = Number(data.value ?? data.reps) || 0;
       const ranked = data.ranked === true;

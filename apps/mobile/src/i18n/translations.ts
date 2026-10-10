@@ -24,6 +24,8 @@ const es = {
   'home.completed_pending': 'RETO ENVIADO · EN REVISIÓN',
   'home.completed_rejected': 'RETO RECHAZADO · REINTENTAR',
   'home.retry': 'REINTENTAR RETO',
+  'home.ia': 'IA',
+  'home.ia_title': 'ENTRENADOR IA',
 
   'challenge.meta': 'Meta: {target} {unit}',
   'challenge.note':
@@ -266,6 +268,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.completed_pending': 'CHALLENGE SENT · UNDER REVIEW',
     'home.completed_rejected': 'CHALLENGE REJECTED · RETRY',
     'home.retry': 'RETRY CHALLENGE',
+    'home.ia': 'AI',
+    'home.ia_title': 'AI COACH',
 
     'challenge.meta': 'Goal: {target} {unit}',
     'challenge.note':
@@ -502,6 +506,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.completed_pending': 'DESAFIO ENVIADO · EM REVISÃO',
     'home.completed_rejected': 'DESAFIO REJEITADO · TENTE DE NOVO',
     'home.retry': 'TENTAR DESAFIO NOVAMENTE',
+    'home.ia': 'IA',
+    'home.ia_title': 'TREINADOR IA',
 
     'challenge.meta': 'Meta: {target} {unit}',
     'challenge.note':
