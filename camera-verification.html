@@ -322,51 +322,56 @@
       }
       .dwell-btn {
         position: absolute;
-        top: 46px;
+        top: 42px;
         z-index: 9;
         display: none;
         align-items: center;
-        gap: 8px;
-        padding: 7px 13px 7px 9px;
+        gap: 12px;
+        padding: 21px 26px 21px 20px;
         border-radius: 999px;
-        border: 1px solid var(--line);
-        background: rgba(11, 14, 17, 0.82);
-        color: #fff;
-        font-size: 12px;
+        border: none;
+        color: #07100c;
+        font-size: 17px;
         font-weight: 800;
-        letter-spacing: 1.2px;
+        letter-spacing: 1.6px;
         text-transform: uppercase;
         pointer-events: none;
         user-select: none;
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
       }
       .dwell-btn.exit {
         left: 10px;
+        background: var(--danger);
+        color: #fff;
+        --btn: var(--danger);
+        --dwell: #ffffff;
+        --track: rgba(0, 0, 0, 0.35);
       }
       .dwell-btn.repeat {
         right: 10px;
-        border-color: var(--volt);
-        color: var(--volt);
+        background: var(--volt);
+        color: #07100c;
+        --btn: var(--volt);
+        --dwell: #07100c;
+        --track: rgba(7, 16, 12, 0.2);
       }
       .dwell-ring {
         position: relative;
         flex: 0 0 auto;
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
         border-radius: 50%;
         background: conic-gradient(
-          var(--dwell, var(--volt)) calc(var(--p, 0) * 1%),
-          rgba(255, 255, 255, 0.16) 0
+          var(--dwell, #fff) calc(var(--p, 0) * 1%),
+          var(--track, rgba(0, 0, 0, 0.35)) 0
         );
       }
       .dwell-ring::after {
         content: '';
         position: absolute;
-        inset: 3px;
+        inset: 4px;
         border-radius: 50%;
-        background: rgba(11, 14, 17, 0.92);
-      }
-      .dwell-btn.exit .dwell-ring {
-        --dwell: var(--danger);
+        background: var(--btn, rgba(11, 14, 17, 0.92));
       }
       .gesture-hud {
         position: absolute;
