@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v46** · Versión de producción: **v16** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v18** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -96,7 +96,12 @@ en los últimos 2 s se pone rojo y pulsa.
 +  cadenceHud.textContent = String(rem);
 +  cadenceHud.classList.toggle('urgent', rem <= 2);
  }
-```
+ ```
+
+- **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`
+  (CSS 72px + `.urgent` + pulso, `beginCadence` con `classList.remove('urgent')`,
+  `cadenceTick` con `toggle('urgent', rem <= 2)`), `VERIFY_VERSION` 18, publicado en
+  gh-pages y **probado por PO en la app: OK**.
 
 ### 3. Zancadas de perfil (lateral)
 
@@ -413,24 +418,79 @@ señal de vida no tire la serie).
 ```
 
 - El parámetro `?cadence=` de la URL (lo manda la RN app) sigue pisando el default.
+- **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`
+  (`CADENCE_SEC` default `'6'` y `extendCadenceForLiveness` `now + 12000`),
+  `VERIFY_VERSION` 18, publicado en gh-pages y **probado por PO en la app: OK**.
+
+### 11. Segundero también en modo libre, sin penalizar ✅ validado en el banco
+
+En ranking el segundero marca la cadencia y si se pasa el tiempo la serie queda
+fuera de ranking. En modo libre el mismo segundero aparece como **guía de ritmo sin
+castigo**: corre los 6 s entre reps, se pone rojo y pulsa en los últimos 2 s, y si
+pasa el tiempo simplemente se oculta (no tira la serie). Arranca con la **primera**
+rep, porque en libre no hay gesto de mano ni cuenta 5-4-3-2-1.
+
+`camera-verification.html`:
+
+```diff
+-        if (MODE_RANKED && targetUnit === 'reps') beginCadence(now);
++        if (targetUnit === 'reps') beginCadence(now);
+```
+
+```diff
+-        if (MODE_RANKED) {
+-          readyTick(now);
+-          cadenceTick(now);
+-        }
++        if (MODE_RANKED) readyTick(now);
++        cadenceTick(now);
+```
+
+```diff
+  function cadenceTick(now) {
+-   if (!MODE_RANKED || targetUnit !== 'reps' || !gestureStarted || !seriesOk) return;
++   if (targetUnit !== 'reps' || !seriesOk) return;
++   if (MODE_RANKED && !gestureStarted) return;
++   if (!cadenceDeadline) return;
+    if (now > cadenceDeadline) {
+-     failSeries('Descanso muy largo — fuera de ranking');
++     if (MODE_RANKED) {
++       failSeries('Descanso muy largo — fuera de ranking');
++       return;
++     }
++     cadenceDeadline = 0;
++     cadenceHud.style.display = 'none';
+      return;
+    }
++   const rem = Math.max(0, Math.ceil((cadenceDeadline - now) / 1000));
++   cadenceHud.textContent = String(rem);
++   cadenceHud.classList.toggle('urgent', rem <= 2);
+  }
+```
+
+- En libre el segundero se oculta al pasar el tiempo solo hasta la próxima rep
+  (que lo vuelve a mostrar); no afecta el conteo ni las series.
+- Espejo tomado en el banco (v47) para no desincronizar.
+- **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`,
+  `VERIFY_VERSION` 18, publicado en gh-pages y **probado por PO en la app: OK**.
 
 ---
 
 ## Cómo portar y verificar
 
-1. Aplicar los diffs de arriba a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (16 → 17 o el que
-   siga) para forzar la recarga de la WebView (cache-bust).
+Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 10 y 11**.
+Pendientes: **3, 4, 5, 6, 7, 8 y 9**.
+
+1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 18) para
+   forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
-4. Probar en la app real: sentadillas e isométrica (que cuente sin tanta
-   profundidad), el segundero de cadencia en ranking, zancadas **de perfil**
-   (de costado a la cámara), que Mountain Climbers muestre la indicación de perfil,
-   que con la mano levantada **no** arranque la sesión si falta ver alguna parte
-   del cuerpo, en flexiones los 10 s de margen para la primera rep (cuclillas →
-   plancha), y que en sentadillas/isométrica el tobillo dé **verde con el pie en
-   el borde** y **rojo al desaparecer** (con la cámara completa sin scroll). Y con
-   la señal de vida en ranking: que no tire la serie (ventana mínima de 12 s) y
-   que la cadencia default entre reps sea de 6 s.
+4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con
+   el pie en el borde** y **rojo al desaparecer** (con la cámara completa sin
+   scroll), zancadas **de perfil** (de costado a la cámara) con objetivo par,
+   Mountain Climbers con la indicación de perfil, que con la mano levantada **no**
+   arranque la sesión si falta ver alguna parte del cuerpo, y en flexiones los 10 s
+   de margen para la primera rep (cuclillas → plancha).
 
 Verificación del banco (desde la raíz del repo):
 

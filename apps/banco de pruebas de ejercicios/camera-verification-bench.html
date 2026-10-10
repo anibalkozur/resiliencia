@@ -481,7 +481,7 @@
           </p>
         </div>
         <div class="countdown-overlay" id="countdownOverlay">5</div>
-        <div class="cadence-hud" id="cadenceHud">5</div>
+        <div class="cadence-hud" id="cadenceHud">6</div>
         <div class="liveness-overlay" id="livenessOverlay">
           <div class="lv-line">SEÑAL</div>
           <div class="lv-line">DE</div>
@@ -1836,7 +1836,7 @@
         setTimeout(() => (repCountEl.style.transform = 'scale(1)'), 150);
         playRep();
         refreshHud();
-        if (MODE_RANKED && targetUnit === 'reps') beginCadence(now);
+        if (targetUnit === 'reps') beginCadence(now);
         // Voz: los nómeros salen de ací, no de la frase. `last` dispara
         // exactamente cuando faltan 3, asá que la cuenta nunca se desincroniza.
         if (targetUnit === 'reps') {
@@ -2146,10 +2146,17 @@
         cadenceHud.classList.remove('urgent');
       }
       function cadenceTick(now) {
-        if (!MODE_RANKED || targetUnit !== 'reps' || !gestureStarted || !seriesOk) return;
+        if (targetUnit !== 'reps' || !seriesOk) return;
+        if (MODE_RANKED && !gestureStarted) return;
         if (awaitingRestart) return;
+        if (!cadenceDeadline) return;
         if (now > cadenceDeadline) {
-          failSeries('Descanso muy largo — fuera de ranking');
+          if (MODE_RANKED) {
+            failSeries('Descanso muy largo — fuera de ranking');
+            return;
+          }
+          cadenceDeadline = 0;
+          cadenceHud.style.display = 'none';
           return;
         }
         const rem = Math.max(0, Math.ceil((cadenceDeadline - now) / 1000));
@@ -2686,10 +2693,8 @@
           if (MODE_RANKED) gestureTick(r);
           if (awaitingRestart) restartTick(r);
         }
-        if (MODE_RANKED) {
-          readyTick(now);
-          cadenceTick(now);
-        }
+        if (MODE_RANKED) readyTick(now);
+        cadenceTick(now);
         requestAnimationFrame(loop);
       }
 
