@@ -47,6 +47,9 @@ Se sube a 130; la rep/hold cuenta bastante antes.
 
 - Aplica a ambos (`sentadillas` y `sentadilla_isometrica`), misma vista frontal.
 - A validar: si 130 sigue pidiendo mucho, subir a 140; si cuenta de más, bajar a 120.
+- **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`
+  (`sentadillas` e `sentadilla_isometrica`, `downThresh: 130`), `VERIFY_VERSION` 17,
+  publicado en gh-pages y **probado por PO en la app: OK**.
 
 ### 2. Segundero de cadencia más visible
 
