@@ -1593,8 +1593,8 @@
         resetRepState();
         applyMirror();
         post('repeat', {});
-        awaitStart();
-        log('Serie reiniciada por el usuario');
+        beginReadyCount(performance.now());
+        log('Serie repetida por el usuario');
       }
 
       // Espera previa a la serie: el inicio ya no es "levantá la mano" sino
