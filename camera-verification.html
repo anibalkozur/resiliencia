@@ -537,7 +537,7 @@
           <span class="dwell-ring" id="exitRing"></span><span>SALIR</span>
         </div>
         <div class="dwell-btn repeat" id="repeatBtn">
-          <span class="dwell-ring" id="repeatRing"></span><span>REPETIR</span>
+          <span class="dwell-ring" id="repeatRing"></span><span id="actionLabel">INICIAR</span>
         </div>
         <div class="liveness-overlay" id="livenessOverlay">
           <div class="lv-line">SEÑAL</div>
@@ -618,6 +618,7 @@
       const exitRing = document.getElementById('exitRing');
       const repeatBtn = document.getElementById('repeatBtn');
       const repeatRing = document.getElementById('repeatRing');
+      const actionLabel = document.getElementById('actionLabel');
 
       const NAME = {
         sentadillas: 'Sentadillas',
@@ -909,8 +910,6 @@
         paceWarnedIdx = 0;
       let waitingGesture = false,
         gestureStarted = false,
-        gestureDeadlineAt = 0,
-        raiseStreak = 0,
         readyCountStart = 0,
         readyCountEnd = 0,
         lastBeeped = -1,
@@ -939,11 +938,14 @@
       const VERTICAL_TOLERANCE = 35,
         SENSOR_CONFIRM_MS = 8000;
 
-      // Botones por gesto (SALIR / REPETIR): la muñeca debe quedarse sobre el
-      // botón DWELL_MS para dispararlo, con anillo de progreso.
+      // Botones por gesto: la muñeca debe quedarse sobre el botón DWELL_MS para
+      // dispararlo, con anillo de progreso. El botón superior derecho es
+      // INICIAR antes de la serie y REPETIR cuando termina.
       const DWELL_MS = 1000;
       let completed = false;
-      const dwellStart = { exit: 0, repeat: 0 };
+      let actionMode = null;
+      let actionArmed = false;
+      const dwellStart = { exit: 0, action: 0 };
 
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
 
@@ -1213,8 +1215,6 @@
         seriesOk = true;
         waitingGesture = false;
         gestureStarted = false;
-        gestureDeadlineAt = 0;
-        raiseStreak = 0;
         readyCountStart = 0;
         readyCountEnd = 0;
         lastBeeped = -1;
@@ -1223,7 +1223,7 @@
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'none';
         completed = false;
-        hideRepeatButton();
+        hideActionButton();
         hideLiveness();
         livenessChallengeActive = false;
         livenessPassed = false;
@@ -1478,7 +1478,7 @@
         stopBtn.style.display = 'none';
         startBtn.style.display = 'none';
         statusText.textContent = 'Serie completa';
-        showRepeatButton();
+        showActionButton('REPETIR', 'repeat');
         resultReps.textContent = repCount + (targetUnit === 'seconds' ? 's' : '');
         resultCard.classList.add('show');
         verifyText.textContent = MODE_RANKED
@@ -1490,18 +1490,7 @@
         log(detail || 'Completado');
       }
 
-      const RAISE_MIN_FRAMES = 4;
-      const RAISE_NOSE_MARGIN = 0.06;
-      function handIsRaised(r) {
-        const lm = r.landmarks && r.landmarks[0];
-        if (!lm || lm.length < 17) return false;
-        const noseY = lm[LID.nose].y;
-        if (noseY < 0.05 || noseY > 0.95) return false;
-        const raisedY = Math.min(lm[LID.left_wrist].y, lm[LID.right_wrist].y);
-        return raisedY < noseY - RAISE_NOSE_MARGIN;
-      }
-
-      // ---------- botones con la mano (SALIR / REPETIR) ----------
+      // ---------- botones con la mano (INICIAR / REPETIR / SALIR) ----------
       // El landmark viene en coords normalizadas del frame de la cámara. Hay
       // que reproducir el mapeo visual: cover (recorte centrado) + espejo CSS
       // (scaleX(-1) cuando la cámara es frontal).
@@ -1557,7 +1546,13 @@
       }
       function dwellTick(pose) {
         dwellStep('exit', exitBtn, exitRing, pose, exitSession);
-        if (completed) dwellStep('repeat', repeatBtn, repeatRing, pose, repeatSeries);
+        if (actionMode) {
+          // Tras mostrarse el botón hay que sacar la mano una vez antes de que
+          // cuente el dwell: evita que dispare solo si la mano ya venía encima.
+          if (!wristOver(repeatBtn, pose)) actionArmed = true;
+          if (actionArmed) dwellStep('action', repeatBtn, repeatRing, pose, actionFire);
+          else repeatRing.style.setProperty('--p', '0');
+        }
       }
       function showExitButton() {
         exitBtn.style.display = 'flex';
@@ -1565,16 +1560,25 @@
       function hideExitButton() {
         exitBtn.style.display = 'none';
       }
-      function showRepeatButton() {
+      function showActionButton(label, mode) {
+        actionLabel.textContent = label;
+        actionMode = mode;
+        actionArmed = false;
         repeatBtn.style.display = 'flex';
       }
-      function hideRepeatButton() {
+      function hideActionButton() {
         repeatBtn.style.display = 'none';
+        actionMode = null;
+        repeatRing.style.setProperty('--p', '0');
+      }
+      function actionFire() {
+        if (actionMode === 'start') startNow();
+        else if (actionMode === 'repeat') repeatSeries();
       }
       function exitSession() {
         completed = false;
         hideExitButton();
-        hideRepeatButton();
+        hideActionButton();
         running = false;
         const s = video.srcObject;
         if (s) s.getTracks().forEach((t) => t.stop());
@@ -1585,49 +1589,41 @@
       }
       function repeatSeries() {
         completed = false;
-        hideRepeatButton();
+        hideActionButton();
         resetRepState();
         applyMirror();
         post('repeat', {});
-        startGesture();
+        awaitStart();
         log('Serie reiniciada por el usuario');
       }
 
-      function startGesture() {
+      // Espera previa a la serie: el inicio ya no es "levantá la mano" sino
+      // sostener la mano sobre el botón INICIAR (mismo dwell de los botones).
+      function awaitStart() {
         waitingGesture = true;
-        raiseStreak = 0;
-        gestureDeadlineAt = performance.now() + 30000;
         gestureHud.style.display = 'block';
-        gestureText.textContent = 'Levantá la mano arriba de la cabeza para empezar';
-        speak('Levantá la mano arriba de la cabeza para empezar');
+        gestureText.textContent = 'Sostené la mano sobre INICIAR para empezar';
+        speak('Sostené la mano sobre INICIAR para empezar');
+        showActionButton('INICIAR', 'start');
       }
-      function gestureTick(pose) {
-        if (!waitingGesture) return;
-        const now = performance.now();
-        if (now > gestureDeadlineAt) {
-          waitingGesture = false;
-          gestureText.textContent = 'No vi tu mano levantada — volvé a intentarlo';
-          speak('No vi tu mano levantada, volvé a intentarlo');
-          setTimeout(startGesture, 15000);
-          return;
-        }
-        if (!pose) return;
+      function startNow() {
         if (!bodyComplete) {
-          raiseStreak = 0;
-          gestureText.textContent = bodyMissing.length
-            ? 'Completá el cuerpo en cámara — falta ver: ' + bodyMissing.map((m) => LABEL[m]).join(', ')
-            : 'Cuerpo incompleto — acomodate frente a la cámara';
+          speak('Completá el cuerpo en cámara para empezar');
           return;
         }
-        gestureText.textContent = 'Levantá la mano arriba de la cabeza para empezar';
-        if (handIsRaised(pose)) {
-          if (++raiseStreak >= RAISE_MIN_FRAMES) {
-            waitingGesture = false;
-            beginReadyCount(now);
-          }
-        } else {
-          raiseStreak = 0;
+        waitingGesture = false;
+        hideActionButton();
+        beginReadyCount(performance.now());
+      }
+      function awaitStartTick(pose) {
+        if (!waitingGesture) return;
+        if (pose && bodyComplete) {
+          gestureText.textContent = 'Sostené la mano sobre INICIAR para empezar';
+          return;
         }
+        gestureText.textContent = bodyMissing.length
+          ? 'Completá el cuerpo en cámara — falta ver: ' + bodyMissing.map((m) => LABEL[m]).join(', ')
+          : 'Cuerpo incompleto — acomodate frente a la cámara';
       }
       function beginReadyCount(now) {
         readyCountStart = now;
@@ -2167,7 +2163,7 @@
           lastTime = video.currentTime;
           const r = poseLandmarker.detectForVideo(video, now);
           if (!completed) {
-            gestureTick(r);
+            awaitStartTick(r);
             processPose(r);
           }
           draw(r);
@@ -2342,7 +2338,7 @@
           resetRepState();
           applyMirror();
           showExitButton();
-          startGesture();
+          awaitStart();
           startBtn.style.display = 'none';
           stopBtn.style.display = 'block';
           statusText.textContent = 'En vivo';
@@ -2368,7 +2364,7 @@
         statusText.textContent = 'Serie completa';
         stopBtn.style.display = 'none';
         startBtn.style.display = 'none';
-        showRepeatButton();
+        showActionButton('REPETIR', 'repeat');
         stateMsg.style.display = 'none';
         checklistHud.style.display = 'none';
         gestureHud.style.display = 'none';
