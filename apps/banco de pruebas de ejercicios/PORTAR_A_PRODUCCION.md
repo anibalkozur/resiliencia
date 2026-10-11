@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v20** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v21** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -714,6 +714,34 @@ Puntos de llamada (en el banco):
   `apps/mobile/components/ChatPanel.tsx` + `src/lib/chat.ts`, abierto desde el
   botón flotante **IA** en Inicio, con dominio cerrado (sin tema de voz) y con los
   datos del perfil leídos por el TTS.
+
+### 13. Botones gestuales SALIR / INICIAR / REPETIR (desarrollo directo en producción)
+
+Cambio pedido por el PO **directamente sobre producción** (no pasó por el banco).
+En la pantalla de cámara, salir / iniciar / repetir se hacen **sosteniendo la mano
+sobre un botón** (dwell de 1 s con anillo de progreso), en lugar del gesto
+"levantá la mano arriba de la cabeza".
+
+- **SALIR**: arriba-izquierda, visible desde que arranca la cámara; abandona la
+  sesión (postea `exit`). El móvil vuelve a la pantalla previa (libre: setup del
+  ejercicio; reto: plan del día).
+- **INICIAR**: arriba-derecha, **solo la primera serie**. Dwell → cuenta 5-4-3-2-1 y
+  arranca.
+- **REPETIR**: arriba-derecha, **de la segunda serie en adelante**. Dwell → arranca
+  directo la serie siguiente (postea `repeat`; el móvil limpia el último resultado).
+- Ambos botones **solo se habilitan si todos los checks del cuerpo están en verde**
+  (`bodyComplete`). Con un check en rojo no cargan y la voz avisa *"Todo tu cuerpo
+  debe verse en cámara, sostené la mano sobre INICIAR"* (o REPETIR).
+- El estado del cuerpo se refresca **también después** de la serie (`refreshBodyState`)
+  para habilitar / deshabilitar REPETIR correctamente.
+- Se quitó el HUD superior (**"En vivo"**, chip **0/n** y botón **"Frontal"**) y los
+  botones se subieron al tope de la pantalla. Nota: con esto se perdió el botón para
+  **cambiar de cámara** (queda frontal por defecto).
+- El flujo inicio / reinicio se maneja dentro de la WebView; el móvil solo reacciona
+  a `exit` (cerrar) y `repeat` (limpiar resultado) en `camretos.tsx` y `retos.tsx`.
+
+**✅ Verificado por PO en la app (2026-10-10)** — `camera-verification.html` con
+`VERIFY_VERSION` 21, publicado en gh-pages.
 
 ---
 

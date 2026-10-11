@@ -55,13 +55,20 @@ export default function LibreScreen() {
         return;
       }
       if (data.type === 'voz_log') return;
+      if (data.type === 'exit') {
+        setSessionOpen(false);
+        return;
+      }
+      if (data.type === 'repeat') {
+        setResult(null);
+        return;
+      }
       if (data.type !== 'complete') return;
       const value = Number(data.value ?? data.reps) || 0;
       const ranked = data.ranked === true;
       const seriesOk = data.seriesOk === true;
       const livenessOk = data.livenessOk === true;
       const unitLabel = translate(lang, freeUnit === 'reps' ? 'unit.reps' : 'unit.seconds');
-      setSessionOpen(false);
       if (ranked) {
         const eligible = seriesOk && livenessOk && value >= libreTarget;
         setResult({

@@ -45,6 +45,8 @@ export default function RetosScreen() {
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [syncState, setSyncState] = useState<Record<string, CompletionSyncState>>({});
   const [retrying, setRetrying] = useState(false);
+  const [camaraAbierta, setCamaraAbierta] = useState(false);
+  const [retoSalido, setRetoSalido] = useState(false);
   const restartKey = useCameraRestart();
   const focused = useScreenFocused();
 
@@ -71,6 +73,7 @@ export default function RetosScreen() {
         setDone(result);
         setSyncState(states);
         setChallenge(todayChallenge);
+        setRetoSalido(false);
       })();
       return () => {
         active = false;
@@ -106,10 +109,21 @@ export default function RetosScreen() {
         return;
       }
       if (data.type === 'voz_log') return;
+      if (data.type === 'exit') {
+        setCamaraAbierta(false);
+        setRetoSalido(true);
+        setRetrying(false);
+        return;
+      }
+      if (data.type === 'repeat') return;
       if (data.type !== 'complete') return;
+      // Dejamos la cámara montada tras completar para ofrecer REPETIR / SALIR
+      // (el primer intento ya marca el reto como completado).
+      setCamaraAbierta(true);
       const reps = Number(data.reps) || 0;
       const target = challenge?.target ?? 0;
-      if (reps >= target) {
+      const already = done[date] === true;
+      if (reps >= target && (!already || retrying)) {
         void (async () => {
           const wasRetrying = retrying;
           await markCompleted(
@@ -141,7 +155,7 @@ export default function RetosScreen() {
         })();
       }
     },
-    [repo, challenge, date, retrying, session],
+    [repo, challenge, date, retrying, session, done],
   );
 
   const webviewRef = useRef<any>(null);
@@ -211,7 +225,7 @@ export default function RetosScreen() {
 
       {challengeBlock ? (
         <View style={styles.cameraContainer}>
-          {challengeDone && !(isRejected && retrying) ? (
+          {challengeDone && !camaraAbierta ? (
             <View style={styles.doneBox}>
               <Text style={styles.cameraDoneText}>{doneLabel}</Text>
               {isRejected ? (
@@ -223,6 +237,16 @@ export default function RetosScreen() {
                   <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
                 </Pressable>
               )}
+            </View>
+          ) : retoSalido && !challengeDone ? (
+            <View style={styles.doneBox}>
+              <Text style={styles.cameraDoneText}>
+                {translate(lang, 'cam.challenge')} ·{' '}
+                {translate(lang, exerciseNameKey(challengeExercise.id))}
+              </Text>
+              <Pressable style={styles.cameraCta} onPress={() => setRetoSalido(false)}>
+                <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_setup_start')}</Text>
+              </Pressable>
             </View>
           ) : focused ? (
             <>
