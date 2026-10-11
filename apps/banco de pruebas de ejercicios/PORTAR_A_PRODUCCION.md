@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v21** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v23** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -743,6 +743,29 @@ sobre un botón** (dwell de 1 s con anillo de progreso), en lugar del gesto
 **✅ Verificado por PO en la app (2026-10-10)** — `camera-verification.html` con
 `VERIFY_VERSION` 21, publicado en gh-pages.
 
+### 14. Guía de técnica en la barra superior + SALIR touch (desarrollo directo en producción)
+
+Cambio pedido por el PO **directamente sobre producción** (no pasó por el banco).
+
+- El texto de ayuda de cada ejercicio (guía de técnica) **se movió a la barra
+  superior** de la app:
+  - **Modo libre** (`camretos.tsx`): la barra de resultado muestra
+    `TECNICA[libreExerciseId].guia` en vez del viejo hint *"Elegí un ejercicio y la
+    cámara se activa al instante"*.
+  - **Reto del día** (`retos.tsx`): la guía aparece en la barra del reto, arriba del
+    video.
+  - Se eliminó la clave i18n `cam.free_hint` (es/en/pt).
+- Se quitó de la **página de cámara** el `<p id="desc">` (era el mismo texto en
+  duplicado, abajo). La guía ya no vive en el HTML.
+- Nuevo botón **SALIR touch** en el header, arriba a la derecha del selector de
+  ejercicios, visible **solo durante la sesión** de cámara en modo libre. Sale igual
+  que el gesto (vuelve al setup). Wiring: `LibreExerciseProvider` expone
+  `libreActive` / `salir`; `camretos.tsx` lo activa al abrir la cámara; `BrandHeader`
+  renderiza el botón. Clave i18n `cam.exit` (es SALIR / en EXIT / pt SAIR).
+
+**✅ Verificado por PO en la app (2026-10-11)** — `camera-verification.html` con
+`VERIFY_VERSION` 23, publicado en gh-pages (`4f3a996`).
+
 ---
 
 ## Cómo portar y verificar
@@ -751,7 +774,7 @@ Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12*
 Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 20) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 23) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con

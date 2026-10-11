@@ -16,6 +16,7 @@ import { buildVerifyUri } from '../../src/retos/verify';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import { hablarVoz } from '../../src/lib/voz';
+import { TECNICA } from '../../src/lib/tecnica';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
 import { useDayKey } from '../../src/retos/DayProvider';
@@ -84,6 +85,7 @@ export default function RetosScreen() {
   const challengeExercise = challenge
     ? EXERCISES.find((e) => e.id === challenge.exerciseId)
     : undefined;
+  const tecnicaGuia = challengeExercise ? TECNICA[challengeExercise.id]?.guia : undefined;
   const date = todayKey();
   const challengeDone = (done[date] ?? false) && !retrying;
   const todayState = syncState[date];
@@ -251,13 +253,16 @@ export default function RetosScreen() {
           ) : focused ? (
             <>
               <View style={styles.challengeBar}>
-                <Text style={styles.cameraTitle}>
-                  {translate(lang, 'cam.challenge')} ·{' '}
-                  {translate(lang, exerciseNameKey(challengeExercise.id))}
-                </Text>
-                <Text style={styles.cameraMeta}>
-                  {challenge.target} {challengeExercise.unit === 'reps' ? 'reps' : 'seg'}
-                </Text>
+                <View style={styles.challengeTop}>
+                  <Text style={styles.cameraTitle}>
+                    {translate(lang, 'cam.challenge')} ·{' '}
+                    {translate(lang, exerciseNameKey(challengeExercise.id))}
+                  </Text>
+                  <Text style={styles.cameraMeta}>
+                    {challenge.target} {challengeExercise.unit === 'reps' ? 'reps' : 'seg'}
+                  </Text>
+                </View>
+                {tecnicaGuia ? <Text style={styles.cameraGuide}>{tecnicaGuia}</Text> : null}
               </View>
               <WebView
                 ref={webviewRef}
@@ -370,11 +375,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   challengeBar: {
+    marginBottom: spacing.xs,
+    marginHorizontal: spacing.md,
+  },
+  challengeTop: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-    marginHorizontal: spacing.md,
+  },
+  cameraGuide: {
+    color: colors.silverDim,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: spacing.xs,
   },
   cameraTitle: {
     color: colors.silver,

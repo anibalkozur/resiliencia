@@ -29,7 +29,7 @@ export default function BrandHeader() {
   const pathname = usePathname();
   const { prefs } = usePrefs();
   const { profile } = useUser();
-  const { libreExerciseId, setLibreExerciseId } = useLibreExercise();
+  const { libreExerciseId, setLibreExerciseId, libreActive, salir } = useLibreExercise();
   const premiumActive = usePremium();
   useDayKey();
   const lang = prefs?.language ?? 'es';
@@ -58,13 +58,26 @@ export default function BrandHeader() {
         <Text style={[styles.text, styles.textStrong]}>{translate(lang, 'settings.title')}</Text>
       ) : null}
       {section === 'libre' ? (
-        <LibrePicker
-          lang={lang}
-          exerciseId={libreExerciseId}
-          onSelect={setLibreExerciseId}
-          insetsTop={insets.top + spacing.sm}
-          premiumActive={premiumActive}
-        />
+        <>
+          <LibrePicker
+            lang={lang}
+            exerciseId={libreExerciseId}
+            onSelect={setLibreExerciseId}
+            insetsTop={insets.top + spacing.sm}
+            premiumActive={premiumActive}
+          />
+          {libreActive ? (
+            <Pressable
+              style={styles.exitBtn}
+              onPress={salir}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={translate(lang, 'cam.exit')}
+            >
+              <Text style={styles.exitBtnText}>{translate(lang, 'cam.exit')}</Text>
+            </Pressable>
+          ) : null}
+        </>
       ) : null}
     </View>
   );
@@ -183,6 +196,19 @@ const styles = StyleSheet.create({
     color: colors.teal,
     fontSize: 13,
     marginLeft: 6,
+  },
+  exitBtn: {
+    marginLeft: 'auto',
+    backgroundColor: colors.ember,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  exitBtnText: {
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   overlay: {
     alignItems: 'center',

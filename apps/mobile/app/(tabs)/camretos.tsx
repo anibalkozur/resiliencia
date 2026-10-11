@@ -13,6 +13,7 @@ import { todayKey } from '../../src/retos/service';
 import { syncAfterLogin } from '../../src/sync/syncService';
 import { translate } from '../../src/i18n/translations';
 import { hablarVoz } from '../../src/lib/voz';
+import { TECNICA } from '../../src/lib/tecnica';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
@@ -25,8 +26,15 @@ export default function LibreScreen() {
   const { session } = useAuth();
   const lang = prefs?.language ?? 'es';
   const repo = getRepo();
-  const { libreExerciseId, libreTarget, setLibreTarget, libreRanked, setLibreRanked } =
-    useLibreExercise();
+  const {
+    libreExerciseId,
+    libreTarget,
+    setLibreTarget,
+    libreRanked,
+    setLibreRanked,
+    setLibreActive,
+    setSalirHandler,
+  } = useLibreExercise();
   const premiumActive = usePremium();
   const [sessionOpen, setSessionOpen] = useState(false);
   const [result, setResult] = useState<{ text: string; tone: Tone } | null>(null);
@@ -41,6 +49,7 @@ export default function LibreScreen() {
   const minTarget = isSeconds ? 5 : 1;
   const maxTarget = isSeconds ? 120 : 200;
   const cadence = REP_CADENCE[libreExerciseId] ?? 5;
+  const tecnicaGuia = TECNICA[libreExerciseId]?.guia ?? '';
 
   const handleMessage = useCallback(
     (event: any) => {
@@ -123,6 +132,17 @@ export default function LibreScreen() {
 
   const webviewRef = useRef<any>(null);
 
+  // El header muestra un botón touch de SALIR mientras la sesión está activa.
+  useEffect(() => {
+    setLibreActive(sessionOpen && focused);
+    return () => setLibreActive(false);
+  }, [sessionOpen, focused, setLibreActive]);
+
+  useEffect(() => {
+    setSalirHandler(() => setSessionOpen(false));
+    return () => setSalirHandler(null);
+  }, [setSalirHandler]);
+
   useEffect(() => {
     if (!sessionOpen || !focused) return;
     let sensorSubscription: { remove: () => void } | null = null;
@@ -154,7 +174,7 @@ export default function LibreScreen() {
         style={[styles.resultBar, result && { borderLeftWidth: 3, borderLeftColor: resultColor }]}
       >
         <Text style={[styles.freeResult, result?.tone === 'bad' && { color: colors.ember }]}>
-          {result ? result.text : translate(lang, 'cam.free_hint')}
+          {result ? result.text : tecnicaGuia}
         </Text>
       </View>
 
