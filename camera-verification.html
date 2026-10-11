@@ -951,6 +951,14 @@
 
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
 
+      // En la app (React Native) la guía de técnica se muestra en la barra
+      // superior; la escondemos de la página para no duplicarla. Abierta en el
+      // navegador, la guía sigue visible igual que antes.
+      if (runningInsideReactNative) {
+        const descEl = document.getElementById('desc');
+        if (descEl) descEl.style.display = 'none';
+      }
+
       function post(type, data) {
         try {
           const payload = { type, ...data };
