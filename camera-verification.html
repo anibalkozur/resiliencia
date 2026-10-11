@@ -545,11 +545,6 @@
         </div>
       </div>
 
-      <button class="btn btn-primary" id="startBtn">Activar cámara</button>
-      <button class="btn btn-ghost" id="stopBtn" style="display: none">
-        Finalizar y verificar serie
-      </button>
-
       <div class="card result" id="resultCard">
         <span class="eyebrow">Resultado</span>
         <h1 id="resultReps">0</h1>
@@ -558,7 +553,6 @@
           <span id="verifyText">Evidencia de pose — verificación en el dispositivo</span>
         </div>
       </div>
-      <div class="log" id="log"></div>
     </div>
 
     <script type="module">
@@ -582,14 +576,14 @@
       const video = document.getElementById('video');
       const canvas = document.getElementById('overlay');
       const ctx = canvas.getContext('2d');
-      const startBtn = document.getElementById('startBtn');
-      const stopBtn = document.getElementById('stopBtn');
+      const startBtn = { disabled: false, textContent: '', style: {}, onclick: null };
+      const stopBtn = { style: {}, onclick: null };
       const repCountEl = document.getElementById('repCount');
       const repLabelEl = document.getElementById('repLabel');
       const stateMsg = document.getElementById('stateMsg');
       const statusText = document.getElementById('statusText');
       const liveDot = document.getElementById('liveDot');
-      const logEl = document.getElementById('log');
+      const logEl = { textContent: '' };
       const targetBadge = document.getElementById('targetBadge');
       const checklistHud = document.getElementById('checklistHud');
       const clTitle = document.getElementById('clTitle');
