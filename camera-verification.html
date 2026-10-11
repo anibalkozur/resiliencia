@@ -945,6 +945,7 @@
       let completed = false;
       let actionMode = null;
       let actionArmed = false;
+      let bodyHintSpoken = false;
       const dwellStart = { exit: 0, action: 0 };
 
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
@@ -1002,6 +1003,23 @@
             );
           })
           .join('');
+      }
+      // Refresca el estado del cuerpo cuando la serie ya terminó (ahí no corre
+      // processPose) para que los botones sepan si deben habilitarse.
+      function refreshBodyState(result) {
+        const lm = result && result.landmarks && result.landmarks[0];
+        let pts = [];
+        if (cfg.type === 'frontal') pts = FRONTAL_POINTS;
+        else if (confirmedSide && cfg.sides[confirmedSide]) pts = cfg.sides[confirmedSide].points;
+        if (!pts.length) {
+          bodyComplete = false;
+          bodyMissing = [];
+          return;
+        }
+        const missing = lm ? checkComplete(lm, pts).missing : pts.slice();
+        bodyComplete = missing.length === 0;
+        bodyMissing = missing;
+        renderChecklist(cfg.type === 'frontal' ? 'Cuerpo' : cfg.name, pts, missing);
       }
       function updateSide(lm, sc) {
         const la = avgVis(lm, sc.sides.left.points),
@@ -1530,6 +1548,13 @@
           if (ring) ring.style.setProperty('--p', '0');
           return;
         }
+        // Los botones solo se pueden usar si TODOS los checks del cuerpo están
+        // en verde (cuerpo completo visible). Si falta algo, no cargan.
+        if (!bodyComplete) {
+          dwellStart[id] = 0;
+          if (ring) ring.style.setProperty('--p', '0');
+          return;
+        }
         if (!wristOver(btn, pose)) {
           dwellStart[id] = 0;
           if (ring) ring.style.setProperty('--p', '0');
@@ -1544,7 +1569,30 @@
           action();
         }
       }
+      function bodyHint() {
+        if (bodyHintSpoken) return;
+        bodyHintSpoken = true;
+        const label = actionMode ? actionLabel.textContent : 'INICIAR';
+        speak('Todo tu cuerpo debe verse en cámara, sostené la mano sobre ' + label);
+      }
+      function bodyHintReset() {
+        bodyHintSpoken = false;
+      }
       function dwellTick(pose) {
+        if (!bodyComplete) {
+          // Cuerpo incompleto: los botones no responden. Si intenta usarlos con
+          // la mano, la IA le recuerda que debe verse todo el cuerpo.
+          dwellStep('exit', exitBtn, exitRing, pose, exitSession);
+          if (actionMode) dwellStep('action', repeatBtn, repeatRing, pose, actionFire);
+          if (
+            pose &&
+            !waitingGesture &&
+            (wristOver(exitBtn, pose) || (actionMode && wristOver(repeatBtn, pose)))
+          )
+            bodyHint();
+          return;
+        }
+        bodyHintReset();
         dwellStep('exit', exitBtn, exitRing, pose, exitSession);
         if (actionMode) {
           // Tras mostrarse el botón hay que sacar la mano una vez antes de que
@@ -1602,13 +1650,12 @@
       function awaitStart() {
         waitingGesture = true;
         gestureHud.style.display = 'block';
-        gestureText.textContent = 'Sostené la mano sobre INICIAR para empezar';
-        speak('Sostené la mano sobre INICIAR para empezar');
+        gestureText.textContent = '';
         showActionButton('INICIAR', 'start');
       }
       function startNow() {
         if (!bodyComplete) {
-          speak('Completá el cuerpo en cámara para empezar');
+          speak('Todo tu cuerpo debe verse en cámara, sostené la mano sobre INICIAR');
           return;
         }
         waitingGesture = false;
@@ -1617,13 +1664,14 @@
       }
       function awaitStartTick(pose) {
         if (!waitingGesture) return;
-        if (pose && bodyComplete) {
-          gestureText.textContent = 'Sostené la mano sobre INICIAR para empezar';
-          return;
+        const msg =
+          pose && bodyComplete
+            ? 'Sostené la mano sobre INICIAR para empezar'
+            : 'Todo tu cuerpo debe verse en cámara, sostené la mano sobre INICIAR';
+        if (gestureText.textContent !== msg) {
+          gestureText.textContent = msg;
+          speak(msg);
         }
-        gestureText.textContent = bodyMissing.length
-          ? 'Completá el cuerpo en cámara — falta ver: ' + bodyMissing.map((m) => LABEL[m]).join(', ')
-          : 'Cuerpo incompleto — acomodate frente a la cámara';
       }
       function beginReadyCount(now) {
         readyCountStart = now;
@@ -1892,6 +1940,8 @@
       function processLateral(lm) {
         const side = updateSide(lm, cfg);
         if (!side) {
+          bodyComplete = false;
+          bodyMissing = [];
           checklistHud.style.display = 'none';
           showState('state-msg blocked', 'Ubicá el celular de perfil');
           return;
@@ -2165,6 +2215,8 @@
           if (!completed) {
             awaitStartTick(r);
             processPose(r);
+          } else {
+            refreshBodyState(r);
           }
           draw(r);
           dwellTick(r);
