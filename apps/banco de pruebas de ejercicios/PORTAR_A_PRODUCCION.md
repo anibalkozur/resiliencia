@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v34** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v35** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -801,6 +801,26 @@ el banco) y verificados en la app. `VERIFY_VERSION` final: **34**.
 **✅ Verificado por PO en la app (2026-10-11)** — `camera-verification.html` con
 `VERIFY_VERSION` **34**, publicado en gh-pages (`6b8b9f6`).
 
+### 16. Bajar los botones gestuales ~0.5 cm (desarrollo directo en producción)
+
+Pedido del PO: los botones gestuales (SALIR / INICIAR-REPETIR) quedaban muy altos y a
+veces no se alcanzaban con la mano. `camera-verification.html`, `.dwell-btn`:
+
+```diff
+ .dwell-btn {
+   position: absolute;
+-  top: 10px;
++  top: 40px;
+```
+
+- Cálculo: pantalla típica ≈6.5 cm de ancho con viewport CSS ≈390 px → 1 cm ≈ 60 px →
+  **0.5 cm ≈ 30 px** (10 + 30 = 40).
+- La detección del gesto usa `getBoundingClientRect()` (`wristOver`), así que la zona
+  sensible se mueve sola con el botón; no hubo cambios de JS.
+
+**✅ Verificado por PO en la app (2026-10-11)** — `VERIFY_VERSION` **35**, publicado en
+gh-pages (`7ae72f2`).
+
 ---
 
 ## Cómo portar y verificar
@@ -809,7 +829,7 @@ Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12*
 Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 34) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 35) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con
