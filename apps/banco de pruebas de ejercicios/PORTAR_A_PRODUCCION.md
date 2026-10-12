@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v35** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v36** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -821,6 +821,36 @@ veces no se alcanzaban con la mano. `camera-verification.html`, `.dwell-btn`:
 **✅ Verificado por PO en la app (2026-10-11)** — `VERIFY_VERSION` **35**, publicado en
 gh-pages (`7ae72f2`).
 
+### 17. Cámara a todo el alto hasta la tab bar (desarrollo directo en producción)
+
+Pedido del PO: la cámara no llegaba hasta la barra de pestañas y dejaba un hueco
+abajo. Ahora ocupa todo el alto disponible, tomando el borde superior de la tab bar
+como referencia (así se adapta a cualquier pantalla hacia abajo).
+`camera-verification.html`:
+
+```diff
+ #app {
+-  min-height: 100vh;
++  height: 100vh;
+   ...
+-  padding: 0 14px 40px;
++  padding: 0 14px;
+ }
+ .video-wrap {
+   ...
+-  aspect-ratio: 125/176;
++  flex: 1;
+ }
+```
+
+- El contenedor RN ya era `flex: 1` (`cameraContainer`/`webView` en `camretos.tsx`),
+  así que la WebView termina justo en el borde superior de la tab bar; el video
+  (`object-fit: cover`) llena sin deformar (recorta a lo ancho si sobra).
+- Reemplaza el ajuste de alto por `aspect-ratio` del punto 15.
+
+**✅ Verificado por PO en la app (2026-10-12)** — `VERIFY_VERSION` **36**, publicado en
+gh-pages (`be550d1`).
+
 ---
 
 ## Cómo portar y verificar
@@ -829,7 +859,7 @@ Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12*
 Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 35) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 36) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con
