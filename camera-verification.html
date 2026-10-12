@@ -137,73 +137,6 @@
         opacity: 0.9;
         font-weight: 700;
       }
-      .state-msg {
-        position: absolute;
-        top: 44px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 5;
-        background: rgba(11, 14, 17, 0.78);
-        border-radius: 999px;
-        padding: 5px 13px;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
-        max-width: 92%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .state-msg.down {
-        color: var(--blue);
-      }
-      .state-msg.up {
-        color: var(--volt);
-      }
-      .state-msg.nobody {
-        color: var(--danger);
-      }
-      .state-msg.blocked {
-        color: var(--ember);
-      }
-      .checklist-hud {
-        position: absolute;
-        bottom: 12px;
-        left: 10px;
-        z-index: 5;
-        background: rgba(11, 14, 17, 0.75);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 7px 9px;
-        font-size: 9.5px;
-        min-width: 92px;
-      }
-      .checklist-hud .cl-title {
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-        color: var(--text-dim);
-        margin-bottom: 3px;
-      }
-      .checklist-hud .cl-row {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        padding: 1px 0;
-        color: var(--text-dim);
-      }
-      .checklist-hud .cl-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--danger);
-        flex-shrink: 0;
-      }
-      .checklist-hud .cl-row.ok .cl-dot {
-        background: var(--volt);
-      }
-      .checklist-hud .cl-row.ok span {
-        color: var(--text);
-      }
       .btn {
         display: block;
         width: 100%;
@@ -474,11 +407,6 @@
             <span id="orientationIcon"></span><span id="orientationText">Vertical</span>
           </div>
         </div>
-        <div class="state-msg" id="stateMsg" style="display: none"></div>
-        <div class="checklist-hud" id="checklistHud" style="display: none">
-          <div class="cl-title" id="clTitle">Cuerpo <span id="clCount">0/0</span></div>
-          <div id="clRows"></div>
-        </div>
         <div class="rep-hud">
           <div class="rep-count" id="repCount">0</div>
           <div class="rep-label" id="repLabel"></div>
@@ -531,14 +459,14 @@
       const stopBtn = { style: {}, onclick: null };
       const repCountEl = document.getElementById('repCount');
       const repLabelEl = document.getElementById('repLabel');
-      const stateMsg = document.getElementById('stateMsg');
+      const stateMsg = { style: {}, className: '', textContent: '' };
       const statusText = document.getElementById('statusText');
       const liveDot = document.getElementById('liveDot');
       const logEl = { textContent: '' };
       const targetBadge = document.getElementById('targetBadge');
-      const checklistHud = document.getElementById('checklistHud');
-      const clTitle = document.getElementById('clTitle');
-      const clRows = document.getElementById('clRows');
+      const checklistHud = { style: {} };
+      const clTitle = { innerHTML: '' };
+      const clRows = { innerHTML: '' };
       const stubClassList = { add() {}, remove() {}, toggle() {} };
       const stubTagEl = { classList: stubClassList };
       const resultCard = { classList: stubClassList, querySelector: () => stubTagEl };
