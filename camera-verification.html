@@ -116,10 +116,9 @@
       }
       .rep-hud {
         position: absolute;
+        right: 12px;
         bottom: 12px;
-        left: 50%;
-        transform: translateX(-50%);
-        text-align: center;
+        text-align: right;
         z-index: 5;
       }
       .rep-count {
@@ -128,14 +127,6 @@
         color: var(--volt);
         text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
         line-height: 1;
-      }
-      .rep-label {
-        font-size: 12px;
-        color: #fff;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        opacity: 0.9;
-        font-weight: 700;
       }
       .checklist-hud {
         position: absolute;
@@ -293,6 +284,19 @@
         --btn: var(--volt);
         --dwell: #ffffff;
         --track: rgba(7, 16, 12, 0.22);
+        box-sizing: border-box;
+        min-width: 146px;
+        min-height: 71px;
+        justify-content: center;
+      }
+      .dwell-btn.repeat.posture .dwell-ring {
+        display: none;
+      }
+      .dwell-btn.repeat.posture-falta {
+        background: var(--ember);
+        color: #1a0a04;
+        --btn: var(--ember);
+        --track: rgba(26, 10, 4, 0.28);
       }
       .dwell-ring {
         position: relative;
@@ -452,7 +456,6 @@
         </div>
         <div class="rep-hud">
           <div class="rep-count" id="repCount">0</div>
-          <div class="rep-label" id="repLabel"></div>
         </div>
         <div class="gesture-hud" id="gestureHud">
           <p class="gesture-text" id="gestureText">
@@ -501,7 +504,6 @@
       const startBtn = { disabled: false, textContent: '', style: {}, onclick: null };
       const stopBtn = { style: {}, onclick: null };
       const repCountEl = document.getElementById('repCount');
-      const repLabelEl = document.getElementById('repLabel');
       const stateMsg = { style: {}, className: '', textContent: '' };
       const statusText = document.getElementById('statusText');
       const liveDot = document.getElementById('liveDot');
@@ -860,6 +862,11 @@
       let actionMode = null;
       let actionArmed = false;
       let bodyHintSpoken = false;
+      // Indicador de postura: durante la serie reusamos el botón superior
+      // derecho (mismas proporciones) para mostrar CORRECTO/FALTA según si el
+      // cuerpo está en el punto que cuenta la repetición. No responde al gesto.
+      let postureMode = false;
+      let postureShown = null;
       const dwellStart = { exit: 0, action: 0 };
 
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
@@ -1117,8 +1124,6 @@
       }
       function refreshHud() {
         targetBadge.textContent = repCount + '/' + targetVal;
-        if (repLabelEl)
-          repLabelEl.textContent = cfg.unit === 'seconds' ? 'segundos' : 'de ' + targetVal;
       }
 
       function resetRepState() {
@@ -1523,15 +1528,39 @@
         exitBtn.style.display = 'none';
       }
       function showActionButton(label, mode) {
+        hidePostureIndicator();
         actionLabel.textContent = label;
         actionMode = mode;
         actionArmed = false;
         repeatBtn.style.display = 'flex';
       }
       function hideActionButton() {
+        hidePostureIndicator();
         repeatBtn.style.display = 'none';
         actionMode = null;
         repeatRing.style.setProperty('--p', '0');
+      }
+      function showPostureIndicator() {
+        postureMode = true;
+        postureShown = null;
+        actionMode = null;
+        actionArmed = false;
+        repeatRing.style.setProperty('--p', '0');
+        repeatBtn.classList.add('posture');
+        repeatBtn.classList.remove('posture-falta');
+        setPostureIndicator(false);
+        repeatBtn.style.display = 'flex';
+      }
+      function setPostureIndicator(correct) {
+        if (postureShown === correct) return;
+        postureShown = correct;
+        actionLabel.textContent = correct ? 'Correcto' : 'Falta';
+        repeatBtn.classList.toggle('posture-falta', !correct);
+      }
+      function hidePostureIndicator() {
+        postureMode = false;
+        postureShown = null;
+        repeatBtn.classList.remove('posture', 'posture-falta');
       }
       function actionFire() {
         if (actionMode === 'start') startNow();
@@ -1594,6 +1623,7 @@
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'flex';
         countdownOverlay.textContent = '5';
+        if (targetUnit === 'reps') showPostureIndicator();
         beep({ freq: 1100, dur: 0.09, gain: 0.8 });
       }
       function readyTick(now) {
@@ -2129,6 +2159,7 @@
           if (!completed) {
             awaitStartTick(r);
             processPose(r);
+            if (postureMode) setPostureIndicator(bodyComplete && repState === 'down');
           } else {
             refreshBodyState(r);
           }

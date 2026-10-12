@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v40** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v45** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -886,6 +886,73 @@ orientación "¡Poné el celular vertical!" / "Vertical" al centro-arriba.
 **✅ Verificado por PO en la app (2026-10-12)** — `VERIFY_VERSION` **40**, publicado en
 gh-pages (`e3e0c3c`).
 
+### 19. HUD de reps (limpieza) y botón superior derecho como indicador de postura (desarrollo directo en producción)
+
+Pedido del PO (v41-v43): en el HUD de repeticiones, quitar la etiqueta "de N"
+(quedaba pisada por el cartel "Serie completa. Recuperate."), subir el número
+grande ~3 mm y llevarlo a la esquina inferior derecha (a ~2 mm de los bordes).
+
+`camera-verification.html`:
+
+```diff
+       <div class="rep-hud">
+         <div class="rep-count" id="repCount">0</div>
+-        <div class="rep-label" id="repLabel">de 5</div>
+       </div>
+```
+
+- Se elimina `#repLabel` (elemento + CSS `.rep-label` + const `repLabelEl` + líneas
+  de `refreshHud`). Solo queda el número (`.rep-count #repCount`).
+- El contenedor `.rep-hud` pasa a la esquina inferior derecha:
+
+```diff
+ .rep-hud {
+   position: absolute;
+-  bottom: 12px;
+-  left: 10px;
++  right: 12px;
++  bottom: 12px;
++  text-align: right;
+   z-index: 5;
+ }
+```
+
+Pedido del PO (v44-v45): el botón superior derecho (el de gesto INICIAR/REPETIR)
+ya no debe desaparecer durante la serie; se reusa como **indicador de postura** —
+verde "CORRECTO" cuando el cuerpo está en el punto que cuenta la repetición
+(agachado en sentadillas) y naranja "FALTA" el resto. Mismo tamaño que INICIAR,
+sin el anillo de carga, solo cambia el texto y el color.
+
+- En la cuenta atrás (5-4-3-2-1) ya se muestra como "FALTA" (la rutina está en
+  curso); al terminar o fallar vuelve al botón REPETIR normal.
+- Solo aplica a ejercicios **por repeticiones** (`targetUnit === 'reps'`); los de
+  tiempo/sostener (plancha) quedan igual.
+- El indicador no responde al gesto (el botón SALIR sigue activo durante la serie).
+- Criterio: cuerpo completo (`bodyComplete`) y estado `repState === 'down'` (el
+  mismo que cuenta las reps) → verde; cualquier otro caso → naranja "FALTA".
+
+```diff
+ .dwell-btn.repeat {
+   ...
++  box-sizing: border-box;
++  min-width: 146px;
++  min-height: 71px;
++  justify-content: center;
+ }
++.dwell-btn.repeat.posture .dwell-ring {
++  display: none;
++}
++.dwell-btn.repeat.posture-falta {
++  background: var(--ember);
++  color: #1a0a04;
++  --btn: var(--ember);
++  --track: rgba(26, 10, 4, 0.28);
++}
+```
+
+**✅ Verificado por PO en la app (2026-10-12)** — `VERIFY_VERSION` **45**, publicado en
+gh-pages (`9840ba2`).
+
 ---
 
 ## Cómo portar y verificar
@@ -894,7 +961,7 @@ Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12*
 Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 40) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 45) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con
