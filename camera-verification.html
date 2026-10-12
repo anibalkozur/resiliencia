@@ -285,6 +285,12 @@
         --dwell: #ffffff;
         --track: rgba(7, 16, 12, 0.22);
       }
+      .dwell-btn.repeat.posture-falta {
+        background: var(--ember);
+        color: #1a0a04;
+        --btn: var(--ember);
+        --track: rgba(26, 10, 4, 0.28);
+      }
       .dwell-ring {
         position: relative;
         flex: 0 0 auto;
@@ -849,6 +855,11 @@
       let actionMode = null;
       let actionArmed = false;
       let bodyHintSpoken = false;
+      // Indicador de postura: durante la serie reusamos el botón superior
+      // derecho (mismas proporciones) para mostrar CORRECTO/FALTA según si el
+      // cuerpo está en el punto que cuenta la repetición. No responde al gesto.
+      let postureMode = false;
+      let postureShown = null;
       const dwellStart = { exit: 0, action: 0 };
 
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
@@ -1510,15 +1521,37 @@
         exitBtn.style.display = 'none';
       }
       function showActionButton(label, mode) {
+        hidePostureIndicator();
         actionLabel.textContent = label;
         actionMode = mode;
         actionArmed = false;
         repeatBtn.style.display = 'flex';
       }
       function hideActionButton() {
+        hidePostureIndicator();
         repeatBtn.style.display = 'none';
         actionMode = null;
         repeatRing.style.setProperty('--p', '0');
+      }
+      function showPostureIndicator() {
+        postureMode = true;
+        postureShown = null;
+        actionMode = null;
+        actionArmed = false;
+        repeatRing.style.setProperty('--p', '0');
+        setPostureIndicator(false);
+        repeatBtn.style.display = 'flex';
+      }
+      function setPostureIndicator(correct) {
+        if (postureShown === correct) return;
+        postureShown = correct;
+        actionLabel.textContent = correct ? 'Correcto' : 'Falta';
+        repeatBtn.classList.toggle('posture-falta', !correct);
+      }
+      function hidePostureIndicator() {
+        postureMode = false;
+        postureShown = null;
+        repeatBtn.classList.remove('posture-falta');
       }
       function actionFire() {
         if (actionMode === 'start') startNow();
@@ -1581,6 +1614,7 @@
         gestureHud.style.display = 'none';
         countdownOverlay.style.display = 'flex';
         countdownOverlay.textContent = '5';
+        if (targetUnit === 'reps') showPostureIndicator();
         beep({ freq: 1100, dur: 0.09, gain: 0.8 });
       }
       function readyTick(now) {
@@ -2116,6 +2150,7 @@
           if (!completed) {
             awaitStartTick(r);
             processPose(r);
+            if (postureMode) setPostureIndicator(bodyComplete && repState === 'down');
           } else {
             refreshBodyState(r);
           }
