@@ -48,15 +48,6 @@
         margin: 0;
         letter-spacing: -0.4px;
       }
-      .eyebrow {
-        font-size: 10px;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: var(--volt);
-        font-weight: 700;
-        display: block;
-        margin-bottom: 6px;
-      }
       p {
         color: var(--text-dim);
         font-size: 12.5px;
@@ -244,30 +235,6 @@
         margin-top: 8px;
         max-height: 60px;
         overflow: auto;
-      }
-      .result {
-        display: none;
-      }
-      .result.show {
-        display: block;
-      }
-      .verify-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #16210c;
-        border: 1px solid var(--volt-dim);
-        color: var(--volt);
-        border-radius: 999px;
-        padding: 5px 12px;
-        font-size: 11px;
-        font-weight: 700;
-        margin-top: 8px;
-      }
-      .verify-tag.broken {
-        background: #210c0c;
-        border-color: var(--danger);
-        color: var(--danger);
       }
       .orientation-row {
         position: absolute;
@@ -485,13 +452,6 @@
           transform: scale(0.97);
         }
       }
-      .card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 14px;
-        margin-top: 10px;
-      }
     </style>
   </head>
   <body>
@@ -544,15 +504,6 @@
           <p class="lv-instruct" id="livenessInstruct"></p>
         </div>
       </div>
-
-      <div class="card result" id="resultCard">
-        <span class="eyebrow">Resultado</span>
-        <h1 id="resultReps">0</h1>
-        <p id="resultDetail"></p>
-        <div class="verify-tag" id="verifyTag">
-          <span id="verifyText">Evidencia de pose — verificación en el dispositivo</span>
-        </div>
-      </div>
     </div>
 
     <script type="module">
@@ -588,10 +539,11 @@
       const checklistHud = document.getElementById('checklistHud');
       const clTitle = document.getElementById('clTitle');
       const clRows = document.getElementById('clRows');
-      const resultCard = document.getElementById('resultCard');
-      const resultReps = document.getElementById('resultReps');
-      const resultDetail = document.getElementById('resultDetail');
-      const verifyText = document.getElementById('verifyText');
+      const stubClassList = { add() {}, remove() {}, toggle() {} };
+      const resultCard = { classList: stubClassList, querySelector: () => stubClassList };
+      const resultReps = { textContent: '' };
+      const resultDetail = { textContent: '' };
+      const verifyText = { textContent: '' };
       const flipBtn = document.getElementById('flipBtn');
       const flipIcon = document.getElementById('flipIcon');
       const facingLabel = document.getElementById('facingLabel');
