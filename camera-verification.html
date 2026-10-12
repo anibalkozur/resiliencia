@@ -36,10 +36,10 @@
       #app {
         max-width: 460px;
         margin: 0 auto;
-        min-height: 100vh;
+        height: 100vh;
         display: flex;
         flex-direction: column;
-        padding: 0 14px 40px;
+        padding: 0 14px;
       }
       h1 {
         font-family: 'Archivo Black', 'Arial Black', sans-serif;
@@ -56,11 +56,11 @@
       }
       .video-wrap {
         position: relative;
+        flex: 1;
         margin: 0 -14px;
         border-radius: 0;
         overflow: hidden;
         background: #000;
-        aspect-ratio: 125/176;
       }
       video,
       canvas {
