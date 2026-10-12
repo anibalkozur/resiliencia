@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v36** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v40** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -851,6 +851,41 @@ como referencia (así se adapta a cualquier pantalla hacia abajo).
 **✅ Verificado por PO en la app (2026-10-12)** — `VERIFY_VERSION` **36**, publicado en
 gh-pages (`be550d1`).
 
+### 18. HUD de cámara: quitar los mensajes de arriba-centro y subir la advertencia de orientación
+
+Pedido del PO: sacar el texto que aparecía arriba-centro sobre el video
+("Poné el celular parado en vertical", "Falta ver: …", "Confirmando cuerpo…",
+"No se detecta cuerpo — pausado", mensajes de postura) y llevar la advertencia de
+orientación "¡Poné el celular vertical!" / "Vertical" al centro-arriba.
+
+`camera-verification.html`:
+
+```diff
+-        <div class="state-msg" id="stateMsg" style="display: none"></div>
+```
+
+- Se elimina el HUD de texto `#stateMsg` (elemento + CSS `.state-msg*`) y se deja
+  un stub JS `const stateMsg = { style: {}, className: '', textContent: '' };`
+  (mismo patrón que `resultCard`): todos los avisos de arriba-centro dejan de
+  mostrarse sin tocar la lógica de detección.
+- Se **conserva** el recuadro de checks `#checklistHud` (abajo-izquierda). *(En v37
+  se había quitado y se restauró en v38.)*
+- La advertencia de orientación `#orientationBadge` se mueve de arriba (`top: 76px`)
+  a pegado arriba-centro (`top: 10px`); ya estaba centrada horizontalmente.
+
+```diff
+       .orientation-row {
+-        top: 76px;
++        top: 10px;
+       }
+```
+
+- La app sigue pausando la detección cuando el celu está acostado (gate de
+  orientación), solo que ahora sin mostrar el mensaje.
+
+**✅ Verificado por PO en la app (2026-10-12)** — `VERIFY_VERSION` **40**, publicado en
+gh-pages (`e3e0c3c`).
+
 ---
 
 ## Cómo portar y verificar
@@ -859,7 +894,7 @@ Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12*
 Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 36) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 40) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con

@@ -137,34 +137,6 @@
         opacity: 0.9;
         font-weight: 700;
       }
-      .state-msg {
-        position: absolute;
-        top: 44px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 5;
-        background: rgba(11, 14, 17, 0.78);
-        border-radius: 999px;
-        padding: 5px 13px;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
-        max-width: 92%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .state-msg.down {
-        color: var(--blue);
-      }
-      .state-msg.up {
-        color: var(--volt);
-      }
-      .state-msg.nobody {
-        color: var(--danger);
-      }
-      .state-msg.blocked {
-        color: var(--ember);
-      }
       .checklist-hud {
         position: absolute;
         bottom: 12px;
@@ -238,7 +210,7 @@
       }
       .orientation-row {
         position: absolute;
-        top: 76px;
+        top: 10px;
         left: 10px;
         right: 10px;
         display: flex;
@@ -474,7 +446,6 @@
             <span id="orientationIcon"></span><span id="orientationText">Vertical</span>
           </div>
         </div>
-        <div class="state-msg" id="stateMsg" style="display: none"></div>
         <div class="checklist-hud" id="checklistHud" style="display: none">
           <div class="cl-title" id="clTitle">Cuerpo <span id="clCount">0/0</span></div>
           <div id="clRows"></div>
@@ -531,7 +502,7 @@
       const stopBtn = { style: {}, onclick: null };
       const repCountEl = document.getElementById('repCount');
       const repLabelEl = document.getElementById('repLabel');
-      const stateMsg = document.getElementById('stateMsg');
+      const stateMsg = { style: {}, className: '', textContent: '' };
       const statusText = document.getElementById('statusText');
       const liveDot = document.getElementById('liveDot');
       const logEl = { textContent: '' };
