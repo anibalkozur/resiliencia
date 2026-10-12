@@ -540,7 +540,8 @@
       const clTitle = document.getElementById('clTitle');
       const clRows = document.getElementById('clRows');
       const stubClassList = { add() {}, remove() {}, toggle() {} };
-      const resultCard = { classList: stubClassList, querySelector: () => stubClassList };
+      const stubTagEl = { classList: stubClassList };
+      const resultCard = { classList: stubClassList, querySelector: () => stubTagEl };
       const resultReps = { textContent: '' };
       const resultDetail = { textContent: '' };
       const verifyText = { textContent: '' };
