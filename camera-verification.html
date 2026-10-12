@@ -129,14 +129,6 @@
         text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
         line-height: 1;
       }
-      .rep-label {
-        font-size: 12px;
-        color: #fff;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        opacity: 0.9;
-        font-weight: 700;
-      }
       .checklist-hud {
         position: absolute;
         bottom: 12px;
@@ -452,7 +444,6 @@
         </div>
         <div class="rep-hud">
           <div class="rep-count" id="repCount">0</div>
-          <div class="rep-label" id="repLabel"></div>
         </div>
         <div class="gesture-hud" id="gestureHud">
           <p class="gesture-text" id="gestureText">
@@ -501,7 +492,6 @@
       const startBtn = { disabled: false, textContent: '', style: {}, onclick: null };
       const stopBtn = { style: {}, onclick: null };
       const repCountEl = document.getElementById('repCount');
-      const repLabelEl = document.getElementById('repLabel');
       const stateMsg = { style: {}, className: '', textContent: '' };
       const statusText = document.getElementById('statusText');
       const liveDot = document.getElementById('liveDot');
@@ -1117,8 +1107,6 @@
       }
       function refreshHud() {
         targetBadge.textContent = repCount + '/' + targetVal;
-        if (repLabelEl)
-          repLabelEl.textContent = cfg.unit === 'seconds' ? 'segundos' : 'de ' + targetVal;
       }
 
       function resetRepState() {
