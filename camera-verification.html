@@ -39,7 +39,7 @@
         min-height: 100vh;
         display: flex;
         flex-direction: column;
-        padding: 16px 14px 40px;
+        padding: 0 14px 40px;
       }
       h1 {
         font-family: 'Archivo Black', 'Arial Black', sans-serif;
@@ -47,15 +47,6 @@
         line-height: 1.1;
         margin: 0;
         letter-spacing: -0.4px;
-      }
-      .eyebrow {
-        font-size: 10px;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
-        color: var(--volt);
-        font-weight: 700;
-        display: block;
-        margin-bottom: 6px;
       }
       p {
         color: var(--text-dim);
@@ -65,12 +56,11 @@
       }
       .video-wrap {
         position: relative;
-        width: 100%;
-        border-radius: 16px;
+        margin: 0 -14px;
+        border-radius: 0;
         overflow: hidden;
-        margin-top: 12px;
         background: #000;
-        aspect-ratio: 3/4;
+        aspect-ratio: 125/176;
       }
       video,
       canvas {
@@ -245,30 +235,6 @@
         margin-top: 8px;
         max-height: 60px;
         overflow: auto;
-      }
-      .result {
-        display: none;
-      }
-      .result.show {
-        display: block;
-      }
-      .verify-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #16210c;
-        border: 1px solid var(--volt-dim);
-        color: var(--volt);
-        border-radius: 999px;
-        padding: 5px 12px;
-        font-size: 11px;
-        font-weight: 700;
-        margin-top: 8px;
-      }
-      .verify-tag.broken {
-        background: #210c0c;
-        border-color: var(--danger);
-        color: var(--danger);
       }
       .orientation-row {
         position: absolute;
@@ -486,13 +452,6 @@
           transform: scale(0.97);
         }
       }
-      .card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 14px;
-        margin-top: 10px;
-      }
     </style>
   </head>
   <body>
@@ -545,21 +504,6 @@
           <p class="lv-instruct" id="livenessInstruct"></p>
         </div>
       </div>
-
-      <button class="btn btn-primary" id="startBtn">Activar cámara</button>
-      <button class="btn btn-ghost" id="stopBtn" style="display: none">
-        Finalizar y verificar serie
-      </button>
-
-      <div class="card result" id="resultCard">
-        <span class="eyebrow">Resultado</span>
-        <h1 id="resultReps">0</h1>
-        <p id="resultDetail"></p>
-        <div class="verify-tag" id="verifyTag">
-          <span id="verifyText">Evidencia de pose — verificación en el dispositivo</span>
-        </div>
-      </div>
-      <div class="log" id="log"></div>
     </div>
 
     <script type="module">
@@ -583,22 +527,24 @@
       const video = document.getElementById('video');
       const canvas = document.getElementById('overlay');
       const ctx = canvas.getContext('2d');
-      const startBtn = document.getElementById('startBtn');
-      const stopBtn = document.getElementById('stopBtn');
+      const startBtn = { disabled: false, textContent: '', style: {}, onclick: null };
+      const stopBtn = { style: {}, onclick: null };
       const repCountEl = document.getElementById('repCount');
       const repLabelEl = document.getElementById('repLabel');
       const stateMsg = document.getElementById('stateMsg');
       const statusText = document.getElementById('statusText');
       const liveDot = document.getElementById('liveDot');
-      const logEl = document.getElementById('log');
+      const logEl = { textContent: '' };
       const targetBadge = document.getElementById('targetBadge');
       const checklistHud = document.getElementById('checklistHud');
       const clTitle = document.getElementById('clTitle');
       const clRows = document.getElementById('clRows');
-      const resultCard = document.getElementById('resultCard');
-      const resultReps = document.getElementById('resultReps');
-      const resultDetail = document.getElementById('resultDetail');
-      const verifyText = document.getElementById('verifyText');
+      const stubClassList = { add() {}, remove() {}, toggle() {} };
+      const stubTagEl = { classList: stubClassList };
+      const resultCard = { classList: stubClassList, querySelector: () => stubTagEl };
+      const resultReps = { textContent: '' };
+      const resultDetail = { textContent: '' };
+      const verifyText = { textContent: '' };
       const flipBtn = document.getElementById('flipBtn');
       const flipIcon = document.getElementById('flipIcon');
       const facingLabel = document.getElementById('facingLabel');

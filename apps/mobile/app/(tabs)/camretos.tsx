@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
@@ -19,8 +19,6 @@ import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
 import { usePremium } from '../../src/premium/usePremium';
 
-type Tone = 'ok' | 'bad' | 'plain';
-
 export default function LibreScreen() {
   const { prefs } = usePrefs();
   const { session } = useAuth();
@@ -37,7 +35,6 @@ export default function LibreScreen() {
   } = useLibreExercise();
   const premiumActive = usePremium();
   const [sessionOpen, setSessionOpen] = useState(false);
-  const [result, setResult] = useState<{ text: string; tone: Tone } | null>(null);
   const restartKey = useCameraRestart();
   const focused = useScreenFocused();
 
@@ -69,7 +66,6 @@ export default function LibreScreen() {
         return;
       }
       if (data.type === 'repeat') {
-        setResult(null);
         return;
       }
       if (data.type !== 'complete') return;
@@ -77,21 +73,6 @@ export default function LibreScreen() {
       const ranked = data.ranked === true;
       const seriesOk = data.seriesOk === true;
       const livenessOk = data.livenessOk === true;
-      const unitLabel = translate(lang, freeUnit === 'reps' ? 'unit.reps' : 'unit.seconds');
-      if (ranked) {
-        const eligible = seriesOk && livenessOk && value >= libreTarget;
-        setResult({
-          tone: eligible ? 'ok' : 'bad',
-          text: eligible
-            ? translate(lang, 'cam.free_ranked_pending', { n: value, unit: unitLabel })
-            : translate(lang, 'cam.free_ranked_bad'),
-        });
-      } else {
-        setResult({
-          tone: 'plain',
-          text: translate(lang, 'cam.free_done', { n: value, unit: unitLabel }),
-        });
-      }
       void pushFreeSession(repo, {
         date: todayKey(),
         exerciseId: libreExerciseId,
@@ -114,17 +95,16 @@ export default function LibreScreen() {
         })
         .catch(() => {});
     },
-    [repo, lang, freeUnit, libreExerciseId, libreTarget, session],
+    [repo, libreExerciseId, libreTarget, session],
   );
 
   const startSession = () => {
-    setResult(null);
     // Defensa en profundidad: un ejercicio premium solo corre si el entitlement
     // está activo (usePremium refleja el servidor, fail-closed). Si por estado
     // residual llegara un premium sin entitlement, no dejamos que la sesión se
     // descarte después como premium_required en el server.
     if (freeExercise && freeExercise.tier !== 'free' && !premiumActive) {
-      setResult({ tone: 'bad', text: translate(lang, 'header.premium_exercise') });
+      Alert.alert(translate(lang, 'header.premium_exercise'));
       return;
     }
     setSessionOpen(true);
@@ -166,16 +146,10 @@ export default function LibreScreen() {
     };
   }, [sessionOpen, focused]);
 
-  const resultColor = result?.tone === 'bad' ? colors.ember : colors.teal;
-
   return (
     <View style={styles.container}>
-      <View
-        style={[styles.resultBar, result && { borderLeftWidth: 3, borderLeftColor: resultColor }]}
-      >
-        <Text style={[styles.freeResult, result?.tone === 'bad' && { color: colors.ember }]}>
-          {result ? result.text : tecnicaGuia}
-        </Text>
+      <View style={styles.resultBar}>
+        <Text style={styles.freeResult}>{tecnicaGuia}</Text>
       </View>
 
       {!sessionOpen ? (

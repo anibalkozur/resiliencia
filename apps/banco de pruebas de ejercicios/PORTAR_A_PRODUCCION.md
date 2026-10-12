@@ -6,7 +6,7 @@ intacta hasta que estos cambios se prueben y se porten a mano.
 
 - Página del banco: `apps/banco de pruebas de ejercicios/camera-verification-bench.html`
 - Publicada en: `https://anibalkozur.github.io/resiliencia/camera-verification-bench.html`
-- Versión del fork: **v47** · Versión de producción: **v23** (`apps/mobile/src/retos/verify.ts`)
+- Versión del fork: **v47** · Versión de producción: **v34** (`apps/mobile/src/retos/verify.ts`)
 - Página de producción: `camera-verification.html`
 
 Cómo sacar el diff completo en cualquier momento:
@@ -766,6 +766,41 @@ Cambio pedido por el PO **directamente sobre producción** (no pasó por el banc
 **✅ Verificado por PO en la app (2026-10-11)** — `camera-verification.html` con
 `VERIFY_VERSION` 23, publicado en gh-pages (`4f3a996`).
 
+### 15. Cámara: marco borde-a-borde, quitar botones/log/recuadro de resultado y barra con guía fija (desarrollo directo en producción)
+
+Serie de ajustes pedidos por el PO **directamente sobre producción** (no pasaron por
+el banco) y verificados en la app. `VERIFY_VERSION` final: **34**.
+
+**Página `camera-verification.html`:**
+
+- **Cámara borde-a-borde y más alta** (`.video-wrap`): se quita el `border-radius`,
+  se lleva a los bordes con `margin: 0 -14px` y el alto se agranda pasando por
+  `aspect-ratio: 3/4 → 5/8 → 25/32 → 125/176` (alto ≈ 1.41× el ancho). `#app` pasa a
+  `padding: 0 14px 40px` (sin espacio arriba).
+- **Se quitan los botones inferiores** (`#startBtn` "Activar cámara" y `#stopBtn`
+  "Finalizar y verificar serie") y el `#log`. La cámara arranca sola y la serie
+  finaliza sola; se dejan **stubs** en el JS (`startBtn`, `stopBtn`, `logEl`) para no
+  tocar el flujo.
+- **Se quita el recuadro de resultado** (`#resultCard`: "Resultado", reps, detalle
+  "reps · duración" y tag "Sesión enviada…"), con su CSS (`.card`, `.eyebrow`,
+  `.result`, `.verify-tag`) y stubs en el JS.
+  - **Gotcha del stub:** `resultCard.querySelector('.verify-tag')` debe devolver un
+    objeto **con `.classList`**, porque la ruta de **fallo** (`failSeries → stopCamera`)
+    hace `tagEl.classList.toggle(...)` dentro del loop de detección. Un stub sin
+    `.classList` lanza excepción, corta el `requestAnimationFrame` y **congela el
+    esqueleto** + deja mudos los botones gestuales. Corregido en v34.
+
+**App `apps/mobile/app/(tabs)/camretos.tsx`:**
+
+- La barra superior muestra **siempre** la guía de técnica (`TECNICA[id].guia`): se
+  eliminó el estado `result` y su render (antes un aviso de fin de serie reemplazaba
+  la guía, cambiaba el alto de la barra y desplazaba la cámara).
+- El bloqueo de ejercicio premium sin entitlement (defensa en profundidad) pasa a
+  `Alert.alert` en vez de ocupar la barra.
+
+**✅ Verificado por PO en la app (2026-10-11)** — `camera-verification.html` con
+`VERIFY_VERSION` **34**, publicado en gh-pages (`6b8b9f6`).
+
 ---
 
 ## Cómo portar y verificar
@@ -774,7 +809,7 @@ Cambios **ya portados** (probados por PO el 2026-10-09): **1, 2, 6, 10, 11 y 12*
 Pendientes: **3, 4, 5, 7, 8 y 9**.
 
 1. Aplicar los diffs **pendientes** a `camera-verification.html` (producción).
-2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 23) para
+2. **Subir `VERIFY_VERSION`** en `apps/mobile/src/retos/verify.ts` (hoy 34) para
    forzar la recarga de la WebView (cache-bust).
 3. Publicar `camera-verification.html` en gh-pages.
 4. Probar en la app real: en sentadillas e isométrica que el tobillo dé **verde con
