@@ -270,12 +270,58 @@
         box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5);
       }
       .dwell-btn.exit {
-        left: 0;
         background: var(--danger);
         color: #fff;
         --btn: var(--danger);
         --dwell: #ffffff;
         --track: rgba(0, 0, 0, 0.35);
+      }
+      .action-row {
+        position: absolute;
+        top: 40px;
+        left: 0;
+        right: 0;
+        z-index: 9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 0 10px;
+        box-sizing: border-box;
+      }
+      .action-row .dwell-btn {
+        position: static;
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+      .action-row .dwell-btn.repeat {
+        min-width: 146px;
+      }
+      .dwell-btn.next {
+        background: var(--blue);
+        color: #fff;
+        --btn: var(--blue);
+        --dwell: #ffffff;
+        --track: rgba(255, 255, 255, 0.3);
+      }
+      .action-row.trio {
+        justify-content: space-between;
+        gap: 6px;
+      }
+      .action-row.trio .dwell-btn {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 0;
+        padding: 21px 8px;
+        font-size: 14px;
+        letter-spacing: 1.2px;
+      }
+      .action-row.trio .dwell-btn.repeat {
+        min-width: 0;
+      }
+      .action-row.trio .dwell-ring {
+        width: 26px;
+        height: 26px;
       }
       .dwell-btn.repeat {
         right: 0;
@@ -465,11 +511,16 @@
         <div class="countdown-overlay" id="countdownOverlay">5</div>
         <div class="cadence-hud" id="cadenceHud">6</div>
         <div class="voice-badge" id="voiceBadge" style="display: none"></div>
-        <div class="dwell-btn exit" id="exitBtn">
-          <span class="dwell-ring" id="exitRing"></span><span>SALIR</span>
-        </div>
-        <div class="dwell-btn repeat" id="repeatBtn">
-          <span class="dwell-ring" id="repeatRing"></span><span id="actionLabel">INICIAR</span>
+        <div class="action-row" id="actionRow">
+          <div class="dwell-btn exit" id="exitBtn">
+            <span class="dwell-ring" id="exitRing"></span><span>SALIR</span>
+          </div>
+          <div class="dwell-btn next" id="nextBtn">
+            <span class="dwell-ring" id="nextRing"></span><span id="nextLabel">SIGUIENTE</span>
+          </div>
+          <div class="dwell-btn repeat" id="repeatBtn">
+            <span class="dwell-ring" id="repeatRing"></span><span id="actionLabel">INICIAR</span>
+          </div>
         </div>
         <div class="liveness-overlay" id="livenessOverlay">
           <div class="lv-line">SEÑAL</div>
@@ -488,9 +539,28 @@
       } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
 
       const qs = new URLSearchParams(location.search);
-      const EX_ID = qs.get('exercise') || 'sentadillas';
-      const TARGET = Math.max(1, parseInt(qs.get('target') || '10', 10));
-      const UNIT = qs.get('unit') || 'reps';
+      // Rutina (modo libre con varios ejercicios): `seq=id:objetivo,id:objetivo,...`.
+      // Sin `seq` queda el ejercicio único (`exercise` + `target`), como antes.
+      const readTarget = (raw, fallback) => {
+        const n = parseInt(raw, 10);
+        return Number.isFinite(n) && n > 0 ? n : fallback;
+      };
+      const SEQ = (qs.get('seq') || '')
+        .split(',')
+        .map((part) => {
+          const i = part.indexOf(':');
+          const id = (i > -1 ? part.slice(0, i) : part).trim();
+          const t = i > -1 ? part.slice(i + 1) : '';
+          return { id, target: readTarget(t, 10) };
+        })
+        .filter((s) => s.id);
+      if (!SEQ.length) {
+        SEQ.push({
+          id: qs.get('exercise') || 'sentadillas',
+          target: readTarget(qs.get('target'), 10),
+        });
+      }
+      const EX_ID = SEQ[0].id;
       const MODE_RANKED = qs.get('ranked') === '1';
       const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
@@ -537,6 +607,10 @@
       const repeatBtn = document.getElementById('repeatBtn');
       const repeatRing = document.getElementById('repeatRing');
       const actionLabel = document.getElementById('actionLabel');
+      const nextBtn = document.getElementById('nextBtn');
+      const nextRing = document.getElementById('nextRing');
+      const nextLabel = document.getElementById('nextLabel');
+      const actionRow = document.getElementById('actionRow');
 
       const NAME = {
         sentadillas: 'Sentadillas',
@@ -780,10 +854,10 @@
           liveness: 'hand',
         },
       };
-      const cfg = CFG[EX_ID] || CFG.sentadillas;
-      const targetUnit = cfg.unit;
-      const targetVal = TARGET;
-      const livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+      let cfg = CFG[EX_ID] || CFG.sentadillas;
+      let targetUnit = cfg.unit;
+      let targetVal = SEQ[0].target;
+      let livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
       const FRONTAL_POINTS = [
         'left_shoulder',
         'right_shoulder',
@@ -867,7 +941,15 @@
       // cuerpo está en el punto que cuenta la repetición. No responde al gesto.
       let postureMode = false;
       let postureShown = null;
-      const dwellStart = { exit: 0, action: 0 };
+      const dwellStart = { exit: 0, action: 0, next: 0 };
+      // Rutina: índice del ejercicio actual, completados y si terminó toda la secuencia.
+      let seqIndex = 0;
+      let seqDone = 0;
+      let seqFinished = false;
+      let nextMode = null;
+      let nextArmed = false;
+      let nextHintSpoken = false;
+      let nextHintText = '';
 
       const runningInsideReactNative = Boolean(window.ReactNativeWebView);
 
@@ -1362,6 +1444,10 @@
         const finishedAt = Math.trunc(performance.now());
         const durationMs = startedAt > 0 ? Math.max(0, finishedAt - startedAt) : 0;
         return {
+          exerciseId: SEQ[seqIndex].id,
+          seqIndex,
+          seqLength: SEQ.length,
+          target: targetVal,
           reps: value,
           detail,
           ranked: MODE_RANKED,
@@ -1399,9 +1485,28 @@
         // y la rotación se desalinearía una frase por serie.
         const done = voiceTake('done');
         const withDone = (msg) => (done && msg ? done + ' ' + msg : msg || done);
+        const nextEntry = seqIndex + 1 < SEQ.length ? SEQ[seqIndex + 1] : null;
         if (done) voiceFlash(done);
-        speak(withDone(''));
+        if (nextEntry) {
+          const nextName = NAME[nextEntry.id] || nextEntry.id;
+          const nextUnitName =
+            (CFG[nextEntry.id] || CFG.sentadillas).unit === 'seconds' ? ' segundos' : ' reps';
+          nextHintText =
+            'Cuando estés listo, mantené tu mano sobre SIGUIENTE para empezar ' + nextName;
+          speak(
+            'Meta cumplida. Siguiente: ' +
+              nextName +
+              '. Meta ' +
+              nextEntry.target +
+              nextUnitName +
+              '. Sostené tu mano sobre SIGUIENTE para empezar',
+          );
+        } else {
+          speak(withDone(''));
+        }
         voiceRound++;
+        seqDone++;
+        seqFinished = !nextEntry;
         // La serie terminó, pero NO apagamos la cámara: dejamos el loop vivo
         // para detectar el gesto sobre REPETIR / SALIR. `completed` hace que
         // gestos y conteo de reps queden en pausa en el loop.
@@ -1416,6 +1521,7 @@
         startBtn.style.display = 'none';
         statusText.textContent = 'Serie completa';
         showActionButton('REPETIR', 'repeat');
+        if (nextEntry) showNextButton();
         resultReps.textContent = repCount + (targetUnit === 'seconds' ? 's' : '');
         resultCard.classList.add('show');
         verifyText.textContent = MODE_RANKED
@@ -1491,7 +1597,7 @@
       function bodyHint() {
         if (bodyHintSpoken) return;
         bodyHintSpoken = true;
-        const label = actionMode ? actionLabel.textContent : 'INICIAR';
+        const label = nextMode ? 'SIGUIENTE' : actionMode ? actionLabel.textContent : 'INICIAR';
         speak('Todo tu cuerpo debe verse en cámara, sostené la mano sobre ' + label);
       }
       function bodyHintReset() {
@@ -1503,19 +1609,32 @@
           // la mano, la IA le recuerda que debe verse todo el cuerpo.
           dwellStep('exit', exitBtn, exitRing, pose, exitSession);
           if (actionMode) dwellStep('action', repeatBtn, repeatRing, pose, actionFire);
+          if (nextMode) dwellStep('next', nextBtn, nextRing, pose, nextFire);
           if (
             pose &&
             !waitingGesture &&
-            (wristOver(exitBtn, pose) || (actionMode && wristOver(repeatBtn, pose)))
+            (wristOver(exitBtn, pose) ||
+              (actionMode && wristOver(repeatBtn, pose)) ||
+              (nextMode && wristOver(nextBtn, pose)))
           )
             bodyHint();
           return;
         }
         bodyHintReset();
         dwellStep('exit', exitBtn, exitRing, pose, exitSession);
-        if (actionMode) {
+        if (nextMode) {
           // Tras mostrarse el botón hay que sacar la mano una vez antes de que
           // cuente el dwell: evita que dispare solo si la mano ya venía encima.
+          if (!wristOver(nextBtn, pose)) nextArmed = true;
+          if (nextArmed) dwellStep('next', nextBtn, nextRing, pose, nextFire);
+          else nextRing.style.setProperty('--p', '0');
+          // Hint hablado la primera vez que apoya la mano sobre SIGUIENTE.
+          if (wristOver(nextBtn, pose) && !nextHintSpoken) {
+            nextHintSpoken = true;
+            speak(nextHintText);
+          }
+        }
+        if (actionMode) {
           if (!wristOver(repeatBtn, pose)) actionArmed = true;
           if (actionArmed) dwellStep('action', repeatBtn, repeatRing, pose, actionFire);
           else repeatRing.style.setProperty('--p', '0');
@@ -1536,9 +1655,27 @@
       }
       function hideActionButton() {
         hidePostureIndicator();
+        hideNextButton();
         repeatBtn.style.display = 'none';
         actionMode = null;
         repeatRing.style.setProperty('--p', '0');
+      }
+      function showNextButton() {
+        nextMode = 'next';
+        nextArmed = false;
+        nextHintSpoken = false;
+        nextBtn.style.display = 'flex';
+        actionRow.classList.add('trio');
+      }
+      function hideNextButton() {
+        nextMode = null;
+        nextArmed = false;
+        nextBtn.style.display = 'none';
+        actionRow.classList.remove('trio');
+        nextRing.style.setProperty('--p', '0');
+      }
+      function nextFire() {
+        if (nextMode === 'next') nextSeries();
       }
       function showPostureIndicator() {
         postureMode = true;
@@ -1586,6 +1723,32 @@
         post('repeat', {});
         beginReadyCount(performance.now());
         log('Serie repetida por el usuario');
+      }
+      // Carga un ejercicio de la rutina (`seq`): actualiza configuración y
+      // objetivo y deja todo listo para la próxima serie.
+      function loadExercise(i) {
+        seqIndex = i;
+        seqDone = 0;
+        seqFinished = i + 1 >= SEQ.length;
+        cfg = CFG[SEQ[i].id] || CFG.sentadillas;
+        targetUnit = cfg.unit;
+        targetVal = SEQ[i].target;
+        livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+        document.title = NAME[SEQ[i].id] || 'Verificación';
+        completed = false;
+        postureMode = false;
+        postureShown = null;
+        hideNextButton();
+        resetRepState();
+      }
+      function nextSeries() {
+        if (seqIndex + 1 >= SEQ.length) return;
+        hideNextButton();
+        const next = seqIndex + 1;
+        loadExercise(next);
+        post('exercise', { index: next, exerciseId: SEQ[next].id, target: SEQ[next].target });
+        beginReadyCount(performance.now());
+        log('Siguiente: ' + (NAME[SEQ[next].id] || SEQ[next].id));
       }
 
       // Espera previa a la serie: el inicio ya no es "levantá la mano" sino

@@ -1,11 +1,24 @@
 import { createContext, useCallback, useContext, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { DEFAULT_TARGETS } from '../retos/catalog';
+
+export type RoutineItem = {
+  id: string;
+  target: number;
+};
 
 type LibreExerciseState = {
-  libreExerciseId: string;
-  setLibreExerciseId: (id: string) => void;
-  libreTarget: number;
-  setLibreTarget: (target: number) => void;
+  /** Rutina del modo libre: ejercicios en orden con su meta (1 o más). */
+  routine: RoutineItem[];
+  /** Agrega un ejercicio al final de la rutina con su meta por defecto. */
+  addExercise: (id: string) => void;
+  /** Quita un ejercicio (mínimo queda 1). */
+  removeExercise: (index: number) => void;
+  /** Mueve un ejercicio dentro de la rutina (`dir`: -1 arriba, 1 abajo). */
+  moveExercise: (index: number, dir: -1 | 1) => void;
+  /** Cambia la meta de un ejercicio. */
+  setExerciseTarget: (index: number, target: number) => void;
+  /** Solo aplica a rutinas de un ejercicio (modo único). */
   libreRanked: boolean;
   setLibreRanked: (ranked: boolean) => void;
   /** True mientras hay una sesión de cámara activa en modo libre. */
@@ -20,11 +33,35 @@ type LibreExerciseState = {
 const LibreExerciseContext = createContext<LibreExerciseState | null>(null);
 
 export function LibreExerciseProvider({ children }: { children: ReactNode }) {
-  const [libreExerciseId, setLibreExerciseId] = useState('sentadillas');
-  const [libreTarget, setLibreTarget] = useState(20);
+  const [routine, setRoutine] = useState<RoutineItem[]>([
+    { id: 'sentadillas', target: DEFAULT_TARGETS['sentadillas'] ?? 20 },
+  ]);
   const [libreRanked, setLibreRanked] = useState(false);
   const [libreActive, setLibreActive] = useState(false);
   const salirHandler = useRef<(() => void) | null>(null);
+
+  const addExercise = useCallback((id: string) => {
+    setRoutine((r) => [...r, { id, target: DEFAULT_TARGETS[id] ?? 10 }]);
+  }, []);
+  const removeExercise = useCallback((index: number) => {
+    setRoutine((r) => {
+      if (r.length <= 1) return r;
+      return r.filter((_, i) => i !== index);
+    });
+  }, []);
+  const moveExercise = useCallback((index: number, dir: -1 | 1) => {
+    setRoutine((r) => {
+      const j = index + dir;
+      if (j < 0 || j >= r.length) return r;
+      const copy = r.slice();
+      const [item] = copy.splice(index, 1);
+      copy.splice(j, 0, item);
+      return copy;
+    });
+  }, []);
+  const setExerciseTarget = useCallback((index: number, target: number) => {
+    setRoutine((r) => r.map((it, i) => (i === index ? { ...it, target } : it)));
+  }, []);
 
   const setSalirHandler = useCallback((handler: (() => void) | null) => {
     salirHandler.current = handler;
@@ -36,10 +73,11 @@ export function LibreExerciseProvider({ children }: { children: ReactNode }) {
   return (
     <LibreExerciseContext.Provider
       value={{
-        libreExerciseId,
-        setLibreExerciseId,
-        libreTarget,
-        setLibreTarget,
+        routine,
+        addExercise,
+        removeExercise,
+        moveExercise,
+        setExerciseTarget,
         libreRanked,
         setLibreRanked,
         libreActive,

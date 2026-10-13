@@ -1,16 +1,13 @@
-import { useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../src/prefs/PrefsProvider';
 import { useUser } from '../src/user/UserProvider';
-import { EXERCISES, exerciseNameKey } from '../src/retos/catalog';
 import { translate } from '../src/i18n/translations';
 import { greetingKey } from '../src/i18n/greeting';
 import { useLibreExercise } from '../src/header/LibreExerciseProvider';
 import { useDayKey } from '../src/retos/DayProvider';
-import { usePremium } from '../src/premium/usePremium';
 
 const logo = require('../assets/brand/logo.png');
 
@@ -29,8 +26,7 @@ export default function BrandHeader() {
   const pathname = usePathname();
   const { prefs } = usePrefs();
   const { profile } = useUser();
-  const { libreExerciseId, setLibreExerciseId, libreActive, salir } = useLibreExercise();
-  const premiumActive = usePremium();
+  const { routine, libreActive, salir } = useLibreExercise();
   useDayKey();
   const lang = prefs?.language ?? 'es';
   const section = sectionForPath(pathname);
@@ -59,13 +55,11 @@ export default function BrandHeader() {
       ) : null}
       {section === 'libre' ? (
         <>
-          <LibrePicker
-            lang={lang}
-            exerciseId={libreExerciseId}
-            onSelect={setLibreExerciseId}
-            insetsTop={insets.top + spacing.sm}
-            premiumActive={premiumActive}
-          />
+          <View style={styles.routineChip}>
+            <Text style={[styles.text, styles.routineChipText]} numberOfLines={1}>
+              {translate(lang, 'cam.free_routine', { n: String(routine.length) })}
+            </Text>
+          </View>
           {libreActive ? (
             <Pressable
               style={styles.exitBtn}
@@ -80,73 +74,6 @@ export default function BrandHeader() {
         </>
       ) : null}
     </View>
-  );
-}
-
-function LibrePicker({
-  lang,
-  exerciseId,
-  onSelect,
-  insetsTop,
-  premiumActive,
-}: {
-  lang: 'es' | 'en' | 'pt';
-  exerciseId: string;
-  onSelect: (id: string) => void;
-  insetsTop: number;
-  premiumActive: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Pressable style={styles.picker} onPress={() => setOpen(true)}>
-        <Text style={[styles.text, styles.pickerText]} numberOfLines={1}>
-          {translate(lang, exerciseNameKey(exerciseId))}
-        </Text>
-        <Text style={styles.pickerCaret}>▾</Text>
-      </Pressable>
-      <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.overlay} onPress={() => setOpen(false)}>
-          <View style={[styles.menu, { paddingTop: insetsTop + spacing.sm }]}>
-            <Text style={styles.menuTitle}>{translate(lang, 'header.pick_exercise')}</Text>
-            {EXERCISES.map((e) => {
-              const locked = e.tier !== 'free' && !premiumActive;
-              return (
-                <Pressable
-                  key={e.id}
-                  disabled={locked}
-                  style={[
-                    styles.menuItem,
-                    e.id === exerciseId && styles.menuItemActive,
-                    locked && styles.menuItemLocked,
-                  ]}
-                  onPress={() => {
-                    onSelect(e.id);
-                    setOpen(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.menuItemText,
-                      e.id === exerciseId && styles.menuItemTextActive,
-                      locked && styles.menuItemTextLocked,
-                    ]}
-                  >
-                    {locked ? '🔒 ' : ''}
-                    {translate(lang, exerciseNameKey(e.id))}
-                  </Text>
-                  {locked ? (
-                    <Text style={styles.menuItemTag}>
-                      {translate(lang, 'header.premium_locked')}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
-    </>
   );
 }
 
@@ -177,25 +104,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
   },
-  picker: {
+  routineChip: {
     alignItems: 'center',
+    backgroundColor: colors.surface,
     borderColor: colors.line,
     borderRadius: radius.sm,
     borderWidth: 1,
-    flexDirection: 'row',
-    maxWidth: 240,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
-  pickerText: {
+  routineChipText: {
     color: colors.silver,
     fontSize: 14,
     fontWeight: '700',
-  },
-  pickerCaret: {
-    color: colors.teal,
-    fontSize: 13,
-    marginLeft: 6,
   },
   exitBtn: {
     marginLeft: 'auto',
@@ -209,59 +130,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 1,
-  },
-  overlay: {
-    alignItems: 'center',
-  },
-  menu: {
-    alignSelf: 'stretch',
-    backgroundColor: colors.surface,
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  menuTitle: {
-    color: colors.silverDim,
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-  },
-  menuItem: {
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  menuItemActive: {
-    backgroundColor: colors.line,
-  },
-  menuItemLocked: {
-    opacity: 0.55,
-  },
-  menuItemText: {
-    color: colors.silver,
-    fontSize: 15,
-    fontWeight: '600',
-    flexShrink: 1,
-  },
-  menuItemTextActive: {
-    color: colors.teal,
-    fontWeight: '800',
-  },
-  menuItemTextLocked: {
-    color: colors.silverDim,
-    fontWeight: '600',
-  },
-  menuItemTag: {
-    color: colors.teal,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
   },
 });
