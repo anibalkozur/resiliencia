@@ -1095,3 +1095,244 @@ gh-pages. La app real sigue con `camera-verification.html`, sin cambios.
 diffs exactos en `apps/exercise-tester/PORTAR_A_PRODUCCION.md`.
 
 **Verificación:** `node --check` del módulo del HTML OK.
+
+---
+
+## Registro del 2026-10-03 al 2026-10-12 (año 2026-10-12, [PM])
+
+*Este bloque recupera el atraso de la bitácora (cortaba el 2026-10-02), según la
+acción del acta de gate Fase 0 (`docs/equipo/actas/2026-10-09_gate_fase0.md`). El
+contenido del 2026-10-09 en adelante está al día porque se escribió el mismo día.*
+
+### 2026-10-03 — El banco pasa a copia 1:1 de la página y suma 15 ejercicios
+
+La copia del banco dejó de ser una reimplementación y pasó a **cargar la página por
+URL (HTTPS) como producción**, en vez de HTML embebido (`5960dfc`). Se eliminaron
+`pose.ts`/`repEngine.ts`/`liveness.ts`/`tilt.ts` y sus tests; el banco consume el
+reporte de la página. `verify.ts` con `VERIFY_VERSION` 24, `buildVerifyUri` y tests
+de `verify`/`report`.
+
+Catálogo nuevo: **elevación de piernas + 14 ejercicios** — zancadas (reversa /
+lateral / búlgara), patada de glúteo, elevación lateral de pierna, flexiones
+(rodillas / declinada / pica), fondos en silla, superman, encogimientos (inverso /
+bicicleta), burpee y rodillas altas. El motor del banco mide el pliegue de rodilla
+por `cfg.kneeFold` y `cfg.metric='ratio'`. Documentó `EJERCICIOS_CANDIDATOS.md`,
+`PORTAR_A_PRODUCCION.md` y `RELEVAMIENTO_CAMARA.md`.
+
+**Verificación:** tests del tester en verde, `tsc`, lint.
+
+### 2026-10-04 — Secuencia de ejercicios, paso por mano, voz del entrenador y chat en el banco
+
+Día intenso en el banco (`apps/banco de pruebas de ejercicios`, en ese momento
+`apps/exercise-tester`):
+
+- **Reinicio por mano sin apagar la cámara** (`7ce7c5b`): al completar o al romper
+  la serie, la cámara sigue encendida; levantar la mano reinicia con el mismo
+  5-4-3-2-1. `failSeries` ya no detiene la cámara; cadencia por rep **6 s** (antes
+  5) y señal de vida **12 s** (antes 10). Se documenta `IDEAS_RESILIENCIA.md` con
+  la idea de sesión con secuencia de ejercicios.
+- **Sesión con secuencia de ejercicios y paso por mano** (`646ff06`): en la home se
+  eligen varios ejercicios con orden y objetivo propio; la página los recorre en
+  vivo con `loadExercise()` sin recargar cámara ni modelo. La mano que habilita el
+  paso es la de arranque (sin segundo gesto); sin ranking la secuencia avanza sola a
+  3 s. Cada ejercicio reporta `exerciseId`, `seqIndex`, `seqLength` y `seqDone`.
+- **Objetivos editables y prueba de vida en el setup** (`194f430`): cada fila de la
+  secuencia tiene −/+ con el paso y límites de la pantalla de prueba; el toggle de
+  ranking/prueba de vida se mueve junto con la secuencia y el setup scrollea con 8
+  ejercicios.
+- **Voz del entrenador sin modelo** (`8aa7ce2`, `VERIFY_VERSION` 26→27): 40 frases
+  escritas en 5 puestos (pre/mid/last/done/rest × 8), una por serie y por puesto, el
+  índice sale de `seqDone`. Reglas duras: los números los pone el código, en
+  isométricos no se habla dentro de la serie, en ranking hay silencio (cadencia),
+  gap de 2,5 s y el descanso se compone en un solo utterance.
+- **Chat del entrenador en el banco + fix de la frase de fin de serie** (`72fe1a8`,
+  27→28): `postComplete` tomaba la frase con `voiceTake()` y la componía con el
+  mensaje de transición (antes `speechSynthesis.cancel()` cortaba a media palabra).
+  Chat con dominio cerrado en `src/lib/chat.ts` (sin modelo en Expo Go; por texto,
+  con micrófono deshabilitado y nota al pie). Tres reglas coded con test: puerta de
+  edad (<18 sin perfil ni consejo, evaluada primero), datos del perfil se leen pero
+  **no se hablan** (`habla:false`, TTS cloud), y el perfil no genera consejo.
+- **Estilo técnico y puente TTS RN** (`b7943b7`): respuestas sin reps/tier, guía por
+  ejercicio, `speak()` RN-first con `{type:'voz',text}` hacia `expo-speech` desde
+  `apps/mobile/src/lib/voz.ts`, y precalculo de frases. Ajustes de chat: perfil solo
+  en primera persona + "para qué sirve la app" + tests anti-falsos positivos
+  (`cb30475`), TTS de datos del perfil a pedido (`c07bf04`), "Medís X cm" en vez de
+  "Mirá X cm" (`71f7d32`).
+- **Precalculo de frases, gap estable, no hablar desde WebView y log a RN** (`88c0239`,
+  v29): la rotación se resuelve en RN, el WebView no habla por sí mismo y loguea
+  `voz`/`voz_log` al nativo.
+- **`done` antes de `waitForRestart`** (`17ff2b0`, `0d4f591`, `a029b0a`): al terminar
+  una serie (no ranking) la frase `done` se pronuncia antes de avanzar; con la cámara
+  apagada el mensaje es "toca Reiniciar".
+
+**Verificación:** tests del dominio (14 nuevos de chat) en verde, `tsc`, lint.
+
+### 2026-10-05 — Reverts a la base estable y precalculo de frases en vivo
+
+El cambio de `loadExercise()` que cambiaba `cfg`/objetivo en vivo **rompió la
+carga**: la WebView quedaba en negro. Se revirtió el HTML a la base estable
+`72fe1a8` (`74e4dda`, `b5ac134`) y el cambio de `loadExercise` (`b091a88`,
+`14a7f27`). Sobre esa base se reaplicó el **precalculo de frases del guion al cargar
+el ejercicio** (`1c0551c`, `34a68bf`, `VERIFY_VERSION` **30**) — la lección quedó
+documentada: los cambios de "secuencia/rotación" se llevan por la vía del
+precalculo y la inicialización, no mutando el camino de carga a mitad de vuelo.
+
+**Verificación:** el banco vuelve a cargar la cámara y el contador; tests en verde.
+
+### 2026-10-06 — Reparación del bench (sensor gate, UTF-8) y puente de TTS a RN
+
+- **Restauración de la base estable** (`3d92f58`, `5aa209e`): el HTML del banco
+  vuelve a la base `72fe1a8` que carga y enciende la cámara.
+- **Puente RN sobre base estable** (`7ded6a0`) y **puente TTS a RN** (`27d5c6b`,
+  v31): la WebView no usa `speechSynthesis`; manda `{type:'voz'}` y
+  `{type:'voz_log'}` al nativo, que habla con `expo-speech`.
+- **Reparación del HTML del banco** (`d351a0c`): fix de sintaxis y restauración del
+  **gate de sensor** (`__resilienciaSetNativeOrientation`); `VERIFY_VERSION` sube a
+  **32**; launcher y README corregidos.
+- **UTF-8 y ortografía de la UI** (`e01a326`, `0f6efb5`, `190af81`, `3f7dfca`): se
+  limpian los caracteres no-ASCII (mojibake) del texto visible y se corrigen
+  "levanté/cámara/completá" etc.
+
+**Verificación:** 7 tests del tester, `tsc`, lint. La cámara vuelve a verse en el
+banco con el esqueleto y el sensor conectado al RN.
+
+### 2026-10-07 — Renombre de la carpeta del banco y plan de IA durante el ejercicio
+
+- **Renombre de carpeta** (`bb1bae0`): `apps/exercise-tester` → `apps/banco de
+  pruebas de ejercicios` y la cámara del banco pasó a **9:16 sin recortes** (todo el
+  cuerpo entra en las sentadillas sin cortar pies ni cabeza).
+- **Docs(plan)** (`8a265cc`): mejoras IA durante el ejercicio + chatbot entrenador
+  quedan planificadas (revisión de REQUIREMENTS/roadmap), alineadas con lo que ya
+  existía en el banco (voz sin modelo + chat de dominio cerrado).
+
+**Verificación:** el banco abre con la cámara completa; rutas del repo actualizadas.
+
+### 2026-10-08 — Checks del cuerpo más estrictos y tobillos con proporción anatómica
+
+En el banco, la verificación del cuerpo se endureció para que **los checks en rojo
+sean de verdad**:
+
+- **Cuerpo completo con checks verdes para iniciar o reiniciar** (`0058c09`): la
+  sesión no arranca ni se reintenta si falta alguna parte visible.
+- **Límites del marco visible** (`5b3a2d3`): una parte fuera del encuadre se marca
+  en rojo de inmediato (antes quedaba en gris/ambigua).
+- **Corte de pies + proporción anatómica de tibia** (`5509442`): los tobillos
+  dependen de que se vean los pies y de una relación anatómica razonable.
+- **Unificación de `isLandmarkValid`** (`7787025`, `VERIFY_VERSION` **38**): el
+  dibujo del esqueleto y la lista de checks usan el mismo criterio de validez.
+- **Contenedor de cámara 9:19.5** (`086d6c8`): más alto y con menos espaciado, para
+  que el checklist inferior no se pierda (prepara la verificación de tobillos).
+
+**Verificación:** 7 tests del tester, `tsc`, lint. Este bloque dejó documentado en
+`estado.md` que **aún no estaba en `BITACORA.md`** (el atraso que este bloque
+recupera).
+
+### 2026-10-09 — Gate Fase 0 (devuelta), tobillos verificados y primeros portes a producción
+
+- **Estado y gate al día** (`9fdfa0f`): `estado.md` repuesto al 2026-10-09 (estado
+  verificado: typecheck 5/5, ~300 tests, lint; Keep-Alive **resuelto**, run
+  `37978602425`, con los secrets `SUPABASE_URL`/`SUPABASE_ANON_KEY` cargados) y acta
+  de gate `2026-10-09_gate_fase0.md` **firmada por el PO**. La Fase 0 **no se
+  cierra**: faltan B1 (marca, [LEG]), ítem 4 (backup `healthz` formal + medición
+  del free-tier, [SRE]) y la disciplina de "un PR por tarea" ([PM]).
+- **Checks de tobillos pulidos en el banco** (`e586eb2`→`b196e3e`, v39→v46):
+  tobillo derivado del pie con umbral propio e histéresis (v39), HUD inferior
+  anclado al viewport (v40), altura de cámara limitada para que entre sin scroll
+  (v41), umbrales de pie/talón y márgenes aflojados (v42/v43), pie/tobillo hasta el
+  borde inferior (v44), tolerar el pie levemente por debajo del borde
+  (`ANKLE_MAX_Y 1.08`, v45) y quitar el debug de visibilidad (v46). Verificado en
+  acta **010** (`docs/equipo/actas/2026-10-09_verificacion_tobillos_bench.md`):
+  verde con el pie en el borde, rojo al desaparecer.
+- **Portes a producción** (registrados en `PORTAR_A_PRODUCCION.md`):
+  - **Cambio 1 — `downThresh` 130** en sentadillas e isométrica, `VERIFY_VERSION`
+    **17** (`a030350`).
+  - **Cadencia 6 s/12 s + segundero 72 px con aviso urgente**, v**18**, y el banco
+    espejo pasa a v47 (`f864542`); registro de los cambios 2/10/11.
+  - **Inicio con la mano en todos los modos + cuerpo completo** (punto 4), v**19**
+    (`389b03f`).
+  - **Voz guía del entrenador (punto 12) + chat IA en Inicio**, v**20** (`3a3e68f`).
+- **Housekeeping**: el backup personal del banco y el de la app resiliencia pasan a
+  `.gitignore` (`eb4393d`; el del banco con `f3d2fa5`/`9fdfa0f`); lista nueva de
+  pendientes 1-6 en el PORTAR + prod en v20 (`d78016b`); cambio 10 (cadencia)
+  registrado con `a301aa5`.
+
+**Verificación:** portes probados por el PO en la app el 2026-10-09 (1, 2, 6, 10,
+11 y 12); banco con **300 tests**, typecheck 5/5 y lint.
+
+### 2026-10-10 — Botones gestuales SALIR / INICIAR / REPETIR (punto 13)
+
+Primer pedido del PO **desarrollado directo sobre producción** (sin pasar por el
+banco), v**21** (`14a1de9`, punto 13): salir / iniciar / repetir se hacen con la
+mano sostenida sobre un botón (dwell de 1 s con anillo de progreso), en lugar del
+gesto "levantá la mano arriba de la cabeza".
+
+- **SALIR** (arriba-izquierda, siempre visible): postea `exit` y vuelve a la pantalla
+  previa. **INICIAR** (arriba-derecha, primera serie) → cuenta 5-4-3-2-1. **REPETIR**
+  (arriba-derecha, de la segunda serie en adelante) → serie siguiente.
+- Ambos **solo se habilitan con el cuerpo completo en verde** (`bodyComplete`), con
+  aviso de voz; el estado del cuerpo se refresca también después de la serie.
+- Se quitó el HUD superior ("En vivo", chip 0/n, botón "Frontal"); con esto se
+  **perdió el botón de cambiar de cámara** (queda frontal por defecto). El flujo
+  inicio/reinicio vive en la WebView; el móvil reacciona a `exit` y `repeat`.
+
+**Verificación por PO (2026-10-10):** OK en la app (v21, gh-pages).
+
+### 2026-10-11 — Guía de técnica en barra superior y pantalla de cámara minimalista (puntos 14-15)
+
+- **Punto 14** (v23, `caae124`): la guía de técnica pasa a la **barra superior de la
+  app** (libre y reto del día) y se elimina el `<p id="desc">` duplicado de la
+  página; se agrega el botón **SALIR touch** en el header, visible solo durante la
+  sesión en modo libre (`LibreExerciseProvider` expone `libreActive`/`salir`;
+  `BrandHeader` lo renderiza; clave i18n `cam.exit`).
+- **Punto 15** (v24→v34, `4dd99f7`): la cámara queda **borde-a-borde** (sin
+  `border-radius`, `margin: 0 -14px`, alto ≈1.41× el ancho) y se quitan los botones
+  inferiores ("Activar cámara", "Finalizar y verificar serie"), el `#log` y el
+  recuadro de resultado `#resultCard` (con stubs en el JS). En la app, la barra
+  superior muestra **siempre** la guía (se elimina el estado `result`) y el bloqueo
+  premium pasa a `Alert.alert`.
+  - **Gotcha corregido en v34:** el stub de `resultCard.querySelector('.verify-tag')`
+    debe devolver un objeto **con `.classList`**; si no, la ruta de fallo
+    (`failSeries → stopCamera`) lanzaba excepción, cortaba el `requestAnimationFrame`
+    y **congelaba el esqueleto** dejando mudos los botones gestuales.
+
+**Verificación por PO (2026-10-11):** OK en la app (v23 `4f3a996`, v34 `6b8b9f6`).
+
+### 2026-10-12 — HUD de cámara y reps, botón indicador de postura y rutina en modo libre (puntos 16-20)
+
+- **Punto 16** (v35, `8ea261c`): los botones gestuales bajan **~0,5 cm**
+  (`.dwell-btn` `top: 10px → 40px`); el `getBoundingClientRect()` del gesto sigue al
+  botón, sin tocar JS.
+- **Punto 17** (v36, `d2d269b`): la cámara ocupa **todo el alto hasta la tab bar**
+  (`#app` `height: 100vh`, `.video-wrap` `flex: 1` con el video en `cover`),
+  reemplazando el `aspect-ratio` del punto 15.
+- **Punto 18** (v40, `85c88aa`): se elimina el HUD de texto arriba-centro
+  (`#stateMsg`, con stub JS) conservando `#checklistHud` (restaurado en v38), y la
+  advertencia de orientación sube a `top: 10px`. La app **sigue pausando** la
+  detección con el celu acostado, solo que sin mensaje visible.
+- **Punto 19** (v41→v45, `68bb5c8`): en el HUD de reps se quita la etiqueta "de N",
+  el número sube ~3 mm y pasa a la **esquina inferior derecha**; el botón superior
+  derecho deja de desaparecer durante la serie y se reusa como **indicador de
+  postura**: verde "CORRECTO" (`repState === 'down'` y cuerpo completo) / naranja
+  "FALTA" (solo ejercicios por reps; el gesto queda inactivo; SALIR sigue activo).
+- **Punto 20 — Rutina en modo libre** (v46, `c9c2ca3`): en el tab Libre se arma una
+  rutina de 1+ ejercicios (editor en el setup: orden ↑↓, meta −/+ por ejercicio,
+  quitar, agregar con premium bloqueados). Con 1 ejercicio se conserva el flujo
+  único (ranking posible); con 2+ corre `seq=id:objetivo,...` sin ranking. Al
+  terminar cada ejercicio aparecen **SALIR | SIGUIENTE | REPETIR** con anillo de
+  carga (trio `26px`), `REPETIR` repite y `SIGUIENTE` carga el próximo con su cuenta
+  regresiva y la voz *"Meta cumplida. Siguiente: X, meta N reps. Sostené tu mano
+  sobre SIGUIENTE para empezar"* (+ hint al apoyar la mano). `cfg`/`targetVal`/
+  `targetUnit`/`livenessEnabled` pasan a `let` por ejercicio (`loadExercise`); cada
+  `complete` postea `exerciseId`/`target`/`seqIndex`/`seqLength`. En RN:
+  `LibreExerciseProvider` expone `routine` + mutators, el setup de `camretos.tsx` lo
+  edita, `BrandHeader` muestra "Rutina · N" y `verify.ts` sube a **46** con
+  `opts.seq`.
+- **Cierre (rutina de cada port):** registro en `PORTAR_A_PRODUCCION.md` (punto 20),
+  commit + push a main (la rama quedó limpia contra `origin/main`), **backup local**:
+  tag `backup-resiliencia-20261012-160500` → `c9c2ca3` + manifest
+  `apps/mobile/backup app resiliencia.txt` (gitignored, solo local), y este registro.
+
+**Verificación por PO (2026-10-12):** OK en la app (v35 `7ae72f2`, v36 `be550d1`,
+v40 `e3e0c3c`, v45 `9840ba2`, v46 `ddebf47`). Validaciones previas al cierre:
+`node --check`, typecheck, tests mobile 14 suites / 175, lint en los archivos
+tocados.

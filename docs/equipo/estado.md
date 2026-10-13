@@ -37,11 +37,11 @@ artefacto del checkout, no del repo.
   `admin_console`) con Copilot on-device (Qwen3-1.7B, llama.cpp). Probada por el PO.
 - **Banco de pruebas** (`apps/banco de pruebas de ejercicios`): carga la misma
   página de producción; fork `camera-verification-bench.html` (`VERIFY_VERSION`
-  = **46**) en gh-pages. **2026-10-09**: verificación de tobillos (rojo fuera de
+  = **47**) en gh-pages. **2026-10-09**: verificación de tobillos (rojo fuera de
   cuadro) + cámara completa sin scroll — acta 010
   (`docs/equipo/actas/2026-10-09_verificacion_tobillos_bench.md`). Los cambios
-  del 2026-10-06→08 **no están registrados en `BITACORA.md`** (que corta el
-  2026-10-02).
+  del 2026-10-03→08 ya están registrados en `BITACORA.md`, puesto al día el
+  **2026-10-12** (sección "Registro del 2026-10-03 al 2026-10-12").
 - **Docs de decisión**: 1 ADR (`2026-09-29_...`); el resto de las decisiones del
   mes viven en `docs/BITACORA.md`. **No hay actas nuevas desde la 008
   (2026-09-08).**
@@ -53,8 +53,9 @@ artefacto del checkout, no del repo.
    una URL sin host (exit 3). [SRE] cargó ambos secrets y el workflow volvió a
    **success** (run `37978602425`). Proyecto verificado vivo (REST `exercises` →
    HTTP 200). Backups formales y medición del free-tier siguen pendientes.
-2. **Estado y bitácora atrasados**: `estado.md` no se publicaba desde el 08/09 y
-   `BITACORA.md` corta el 02/10 pese a commits hasta el 08/10. Dueño **[PM]**.
+2. **Estado y bitácora atrasados — RESUELTO (2026-10-12)**: `estado.md` se
+   repuso el 2026-10-09 y `BITACORA.md` se puso al día el 2026-10-12 (recupera
+   del 2026-10-03 al 2026-10-12). Dueño **[PM]**.
 3. **Disciplina de PR**: el DoD de Fase 0 pide "un PR con cada tarea"; el mes
    avanzó por commits directos a `main`. Dueño **[PM]**.
 4. **Sin gate**: no existe acta de gate de Fase 0. Dueño **[PM]** + PO.
@@ -85,7 +86,8 @@ visual del PO).
 
 - **[SRE]**: ~~reparar el Keep-Alive~~ ✓ (2026-10-09); falta el backup `healthz`
   formal y la medición del free-tier.
-- **[PM]**: publicar estado + bitácora al día y retomar PRs.
+- **[PM]**: ~~publicar estado + bitácora al día~~ ✓ (estado 2026-10-09, bitácora
+  2026-10-12); falta **retomar PRs**.
 - **[QA]+[SEC]**: revisión cruzada de auth/RLS/entitlements del mes antes de firmar.
 - **[LEG]**: cerrar el chequeo formal de marca (B1).
 - **PO**: ✓ acta de gate **firmada** (2026-10-09,
