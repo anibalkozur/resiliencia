@@ -504,9 +504,7 @@
           <div class="rep-count" id="repCount">0</div>
         </div>
         <div class="gesture-hud" id="gestureHud">
-          <p class="gesture-text" id="gestureText">
-            Sostené la mano sobre INICIAR para empezar
-          </p>
+          <p class="gesture-text" id="gestureText">Sostené la mano sobre INICIAR para empezar</p>
         </div>
         <div class="countdown-overlay" id="countdownOverlay">5</div>
         <div class="cadence-hud" id="cadenceHud">6</div>
@@ -562,6 +560,11 @@
       }
       const EX_ID = SEQ[0].id;
       const MODE_RANKED = qs.get('ranked') === '1';
+      // Sesión validada para ranking (libre rankeado o reto diario con
+      // `liveness=1`): EXIGE la prueba de vida para acreditar el resultado. La
+      // vida se pide durante la serie (temporizador) o, si la serie termina
+      // antes, al finalizarla (fallback) — nunca se envía sin haberla hecho.
+      const LIVENESS_REQUIRED = MODE_RANKED || qs.get('liveness') === '1';
       const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
       const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
@@ -857,7 +860,7 @@
       let cfg = CFG[EX_ID] || CFG.sentadillas;
       let targetUnit = cfg.unit;
       let targetVal = SEQ[0].target;
-      let livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+      let livenessEnabled = LIVENESS_REQUIRED || targetUnit === 'seconds' || targetVal > 5;
       const FRONTAL_POINTS = [
         'left_shoulder',
         'right_shoulder',
@@ -912,6 +915,10 @@
         livenessNextTriggerAt = null,
         livenessConfirmFrames = 0,
         livenessHoldStartTime = null;
+      // Vida garantizada: si la serie termina sin haberla pasado, se pide recién
+      // al final y el resultado se envía al confirmarla (ver `onLivenessPassed`).
+      let livenessFinal = false,
+        pendingCompletionDetail = null;
       const LIVENESS_MIN_MS = 4000,
         LIVENESS_MAX_MS = 13000,
         LIVENESS_FRAMES = 5,
@@ -1102,8 +1109,16 @@
           livenessConfirmFrames = 0;
           const now = performance.now();
           extendCadenceForLiveness(now);
-          showLiveness('Levantá la mano por encima de la cabeza');
-          speak('Señal de vida. Levantá la mano por encima de la cabeza');
+          showLiveness(
+            livenessFinal
+              ? 'Serie completa — levantá la mano para validar'
+              : 'Levantá la mano por encima de la cabeza',
+          );
+          speak(
+            livenessFinal
+              ? 'Serie completa. Levantá la mano para validar la sesión'
+              : 'Señal de vida. Levantá la mano por encima de la cabeza',
+          );
         }
         const rw = lm[LID.right_wrist],
           lw = lm[LID.left_wrist],
@@ -1114,11 +1129,7 @@
         if (rUp || lUp) livenessConfirmFrames++;
         else livenessConfirmFrames = 0;
         if (livenessConfirmFrames >= LIVENESS_FRAMES) {
-          livenessPassed = true;
-          livenessChallengeActive = false;
-          hideLiveness();
-          log('Prueba de vida confirmada');
-          speak('Listo, gracias');
+          onLivenessPassed();
         }
         return true;
       }
@@ -1130,24 +1141,43 @@
           livenessHoldStartTime = null;
           const now = performance.now();
           extendCadenceForLiveness(now);
-          showLiveness('Bajá y aguantá abajo unos segundos');
-          speak('Señal de vida. Bajá y aguantá abajo unos segundos');
+          showLiveness(
+            livenessFinal
+              ? 'Serie completa — bajá y aguantá para validar'
+              : 'Bajá y aguantá abajo unos segundos',
+          );
+          speak(
+            livenessFinal
+              ? 'Serie completa. Bajá y aguantá abajo para validar la sesión'
+              : 'Señal de vida. Bajá y aguantá abajo unos segundos',
+          );
         }
         const inDown = smoothed < down;
         if (inDown) {
           if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
           const rem = Math.max(0, LIVENESS_HOLD_MS - (performance.now() - livenessHoldStartTime));
           if (rem <= 0) {
-            livenessPassed = true;
-            livenessChallengeActive = false;
-            hideLiveness();
-            log('Prueba de vida confirmada');
-            speak('Listo, gracias');
+            onLivenessPassed();
           }
         } else {
           livenessHoldStartTime = null;
         }
         return true;
+      }
+      function onLivenessPassed() {
+        livenessPassed = true;
+        livenessChallengeActive = false;
+        hideLiveness();
+        log('Prueba de vida confirmada');
+        speak('Listo, gracias');
+        // Si el resultado quedó pendiente de vida (fallback al final), recién
+        // ahora se envía: la vida es garantía, no afirmación.
+        if (pendingCompletionDetail != null) {
+          const detail = pendingCompletionDetail;
+          pendingCompletionDetail = null;
+          livenessFinal = false;
+          postComplete(detail);
+        }
       }
       function ensureAudio() {
         if (!audioCtx) {
@@ -1249,6 +1279,8 @@
         livenessNextTriggerAt = null;
         livenessConfirmFrames = 0;
         livenessHoldStartTime = null;
+        livenessFinal = false;
+        pendingCompletionDetail = null;
         repCountEl.textContent = '0';
         refreshHud();
         resultCard.classList.remove('show');
@@ -1480,6 +1512,26 @@
         );
       }
       function postComplete(detail) {
+        // Si ya hay un resultado esperando la prueba de vida, no se reenvía (la
+        // serie de segundos vuelve a llamar acá en cada cuadro mientras sostiene).
+        if (pendingCompletionDetail != null) return;
+        // Vida garantizada: la serie cumplió la meta pero todavía no hay prueba
+        // de vida y la sesión se valida para ranking. Se pide AHORA (al final) y
+        // el resultado se envía recién al confirmarla. Evita que una serie corta
+        // termine antes del temporizador y evada la vida.
+        if (
+          LIVENESS_REQUIRED &&
+          livenessEnabled &&
+          !livenessPassed &&
+          currentValue() >= targetVal
+        ) {
+          pendingCompletionDetail = detail;
+          livenessFinal = true;
+          livenessChallengeActive = false;
+          livenessNextTriggerAt = performance.now();
+          log('Prueba de vida pendiente: se pide antes de enviar el resultado');
+          return;
+        }
         // `done` se toma antes de avanzar `voiceRound`: el índice de grupo es
         // `voiceRound`, así que si se hablara después usaría el grupo siguiente
         // y la rotación se desalinearía una frase por serie.
@@ -1733,7 +1785,7 @@
         cfg = CFG[SEQ[i].id] || CFG.sentadillas;
         targetUnit = cfg.unit;
         targetVal = SEQ[i].target;
-        livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+        livenessEnabled = LIVENESS_REQUIRED || targetUnit === 'seconds' || targetVal > 5;
         document.title = NAME[SEQ[i].id] || 'Verificación';
         completed = false;
         postureMode = false;
