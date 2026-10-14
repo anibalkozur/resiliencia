@@ -1163,13 +1163,15 @@
         livenessChallengeActive = false;
         hideLiveness();
         log('Prueba de vida confirmada');
-        speak('Listo, gracias');
-        // Si el resultado quedó pendiente de vida (fallback al final), recién
-        // ahora se envía: la vida es garantía, no afirmación.
+        // Vida al final: se envía el resultado y la voz lo anuncia como "Serie
+        // completa" (una sola locución, para que no se corte). Vida durante la
+        // serie: solo un acuse breve.
         if (pendingCompletionDetail != null) {
           const detail = pendingCompletionDetail;
           pendingCompletionDetail = null;
-          postComplete(detail);
+          postComplete(detail, 'Serie completa');
+        } else {
+          speak('Listo, gracias');
         }
       }
       function ensureAudio() {
@@ -1506,7 +1508,7 @@
           (livenessPassed || !livenessEnabled)
         );
       }
-      function postComplete(detail) {
+      function postComplete(detail, voiceLead) {
         // Si ya hay un resultado esperando la prueba de vida, no se reenvía (la
         // serie de segundos vuelve a llamar acá en cada cuadro mientras sostiene).
         if (pendingCompletionDetail != null) return;
@@ -1526,6 +1528,9 @@
         // y la rotación se desalinearía una frase por serie.
         const done = voiceTake('done');
         const withDone = (msg) => (done && msg ? done + ' ' + msg : msg || done);
+        // `voiceLead` (p. ej. "Serie completa") se antepone a la locución final
+        // en una sola frase para que el TTS no corte lo anterior.
+        const lead = (msg) => (voiceLead ? (msg ? voiceLead + '. ' + msg : voiceLead) : msg);
         const nextEntry = seqIndex + 1 < SEQ.length ? SEQ[seqIndex + 1] : null;
         if (done) voiceFlash(done);
         if (nextEntry) {
@@ -1535,15 +1540,17 @@
           nextHintText =
             'Cuando estés listo, mantené tu mano sobre SIGUIENTE para empezar ' + nextName;
           speak(
-            'Meta cumplida. Siguiente: ' +
-              nextName +
-              '. Meta ' +
-              nextEntry.target +
-              nextUnitName +
-              '. Sostené tu mano sobre SIGUIENTE para empezar',
+            lead(
+              'Meta cumplida. Siguiente: ' +
+                nextName +
+                '. Meta ' +
+                nextEntry.target +
+                nextUnitName +
+                '. Sostené tu mano sobre SIGUIENTE para empezar',
+            ),
           );
         } else {
-          speak(withDone(''));
+          speak(lead(withDone('')));
         }
         voiceRound++;
         seqDone++;
