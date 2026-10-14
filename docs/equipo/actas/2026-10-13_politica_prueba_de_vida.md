@@ -1,7 +1,7 @@
 # Acta 012 — Política de prueba de vida ("solo se rankea con vida")
 
 - **Fecha**: 2026-10-13 · **Tipo**: decisión de producto + implementación · **Fase**: 3 (producto) con efecto en el gate (Fase 0).
-- **Estado**: **implementado** (código en cámara + móvil). Pendiente de verificación del PO con Expo Go.
+- **Estado**: **implementado y verificado** (código en cámara + móvil; cámara v51 publicada en gh-pages; probado por el PO en Expo Go: OK).
 - **Conduce**: [DER] · **Decide**: [PO] · **Implementa**: [DER].
 - **Referencia**: acta 011 `2026-10-13_revision_seguridad_calidad.md`, `docs/equipo/estado.md`, `camera-verification.html` (prod).
 
@@ -63,7 +63,7 @@ Reglas derivadas:
 
 - `pnpm typecheck` ✓ · `pnpm lint` ✓ · `pnpm prettier --check` ✓.
 - `apps/mobile` tests **181/181** (15 suites) ✓ · `apps/console` **39/39** ✓.
-- Pendiente: prueba manual del PO con Expo Go (series cortas y largas, con y sin ranking; reto diario).
+- Prueba manual del PO con Expo Go (series cortas y largas, con y sin ranking; reto diario): **OK**.
 
 ## 5. Efectos y límites
 
@@ -74,6 +74,6 @@ Reglas derivadas:
 
 ## 6. Acciones
 
-1. **[PO]**: probar con Expo Go y firmar/observar.
-2. **[DER]**: publicar a gh-pages (`camera-verification.html` v51) para la prueba.
-3. **[DER]**: con OK del PO, commit + push a `main`, backup y actualizar `estado.md`/`BITACORA.md`.
+1. **[PO]**: probar con Expo Go y firmar/observar. — **Hecho: OK.**
+2. **[DER]**: publicar a gh-pages (`camera-verification.html` v51) para la prueba. — **Hecho** (verificado en CDN).
+3. **[DER]**: con OK del PO, commit + push a `main`, backup y actualizar `estado.md`/`BITACORA.md`. — **Hecho** (`1442353` + `732b181`, tag `backup-resiliencia-20261013-221615`, snapshot local y Punto 21).

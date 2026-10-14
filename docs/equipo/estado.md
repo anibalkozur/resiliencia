@@ -4,7 +4,8 @@
   Fase 0 pese a trabajo de Fases 0–1/E en `main` (el plan v4 free/pro rige
   desde 2026-09-28).
 - **Última actualización**: 2026-10-13 ([DER]: política de prueba de vida —
-  acta 012, cámara v47 publicada en gh-pages; pendiente prueba del PO). Antes:
+  acta 012, cámara v51 publicada en gh-pages y probada por el PO en Expo Go: OK;
+  commits `1442353` + `732b181`, tag `backup-resiliencia-20261013-221615`). Antes:
   2026-10-09 (reposición por [PM], acta 010). El estado base era del
   **2026-09-08**; se declara atrasado en el historial inferior.
 

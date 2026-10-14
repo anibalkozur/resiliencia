@@ -1378,8 +1378,11 @@ targetVal<=10` (no arma el temporizador); la vida aleatoria no se arma antes de
 - Móvil: `verify.ts` opción `requireLiveness` + **`VERIFY_VERSION` 46 → 51**;
   `retos.tsx` abre el reto diario con `{ requireLiveness: true }`. El libre
   rankeado ya pasaba `ranked=libreRanked`.
-- **Publicado:** gh-pages (v51) y verificado en CDN. Pendiente: **prueba del PO
-  con Expo Go** y, con su OK, commit + push a `main` + backup + estado.
+- **Publicado:** gh-pages (v51) y verificado en CDN. **Probado por el PO en Expo
+  Go: OK.** Commits en `main`: `1442353` (feature v47-v51) + `732b181`
+  (`.gitignore` de `backups/`); tag `backup-resiliencia-20261013-221615`; snapshot
+  local `backups/camera-verification-v51-20261013-221615.html`; registro local en
+  `apps/mobile/backup app resiliencia.txt` (Punto 21).
 - Verificación local: prettier ✓, typecheck ✓, lint ✓, mobile **181/181** (15
   suites), console **39/39**.
 
