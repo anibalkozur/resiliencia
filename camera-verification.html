@@ -861,6 +861,10 @@
       let targetUnit = cfg.unit;
       let targetVal = SEQ[0].target;
       let livenessEnabled = LIVENESS_REQUIRED || targetUnit === 'seconds' || targetVal > 5;
+      // Meta de repes ≤ 10 → la vida se pide AL FINAL (la serie corta termina
+      // antes del temporizador y no conviene interrumpirla). Meta > 10 → DURANTE
+      // la serie (temporizador aleatorio), con los 12 s de esa repe (6 + 6).
+      let livenessEndOnly = targetUnit === 'reps' && targetVal <= 10;
       const FRONTAL_POINTS = [
         'left_shoulder',
         'right_shoulder',
@@ -1076,7 +1080,7 @@
         return true;
       }
       function scheduleLiveness() {
-        if (livenessPassed || livenessNextTriggerAt || !livenessEnabled) return;
+        if (livenessPassed || livenessNextTriggerAt || !livenessEnabled || livenessEndOnly) return;
         livenessNextTriggerAt =
           performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
       }
@@ -1097,9 +1101,11 @@
           livenessBeepTimer = null;
         }
       }
+      // Al pedir la vida en medio de la serie, esa repetición pasa a tener los
+      // 6 s de cadencia + 6 s extra = 12 s, para dar la señal y completar la repe.
       function extendCadenceForLiveness(now) {
         if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
-          cadenceDeadline = Math.max(cadenceDeadline, now + 12000);
+          cadenceDeadline = Math.max(cadenceDeadline, now + CADENCE_MS + 6000);
       }
       function checkHandLiveness(lm) {
         if (livenessPassed || !livenessEnabled) return false;
@@ -1515,16 +1521,11 @@
         // Si ya hay un resultado esperando la prueba de vida, no se reenvía (la
         // serie de segundos vuelve a llamar acá en cada cuadro mientras sostiene).
         if (pendingCompletionDetail != null) return;
-        // Vida garantizada: la serie cumplió la meta pero todavía no hay prueba
-        // de vida y la sesión se valida para ranking. Se pide AHORA (al final) y
-        // el resultado se envía recién al confirmarla. Evita que una serie corta
-        // termine antes del temporizador y evada la vida.
-        if (
-          LIVENESS_REQUIRED &&
-          livenessEnabled &&
-          !livenessPassed &&
-          currentValue() >= targetVal
-        ) {
+        // Vida garantizada: la serie cumplió la meta y todavía no hay prueba de
+        // vida. Con meta de repes ≤ 10 ESTE es el camino normal (la vida se pide
+        // al final); con > 10 es el respaldo si la serie terminó antes de que
+        // saliera el temporizador. Se envía recién al confirmarla.
+        if (livenessEnabled && !livenessPassed && currentValue() >= targetVal) {
           pendingCompletionDetail = detail;
           livenessFinal = true;
           livenessChallengeActive = false;
@@ -1786,6 +1787,7 @@
         targetUnit = cfg.unit;
         targetVal = SEQ[i].target;
         livenessEnabled = LIVENESS_REQUIRED || targetUnit === 'seconds' || targetVal > 5;
+        livenessEndOnly = targetUnit === 'reps' && targetVal <= 10;
         document.title = NAME[SEQ[i].id] || 'Verificación';
         completed = false;
         postureMode = false;
