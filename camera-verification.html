@@ -504,9 +504,7 @@
           <div class="rep-count" id="repCount">0</div>
         </div>
         <div class="gesture-hud" id="gestureHud">
-          <p class="gesture-text" id="gestureText">
-            Sostené la mano sobre INICIAR para empezar
-          </p>
+          <p class="gesture-text" id="gestureText">Sostené la mano sobre INICIAR para empezar</p>
         </div>
         <div class="countdown-overlay" id="countdownOverlay">5</div>
         <div class="cadence-hud" id="cadenceHud">6</div>
@@ -562,6 +560,11 @@
       }
       const EX_ID = SEQ[0].id;
       const MODE_RANKED = qs.get('ranked') === '1';
+      // Sesión validada para ranking (libre rankeado o reto diario con
+      // `liveness=1`): EXIGE la prueba de vida para acreditar el resultado. La
+      // vida se pide durante la serie (temporizador) o, si la serie termina
+      // antes, al finalizarla (fallback) — nunca se envía sin haberla hecho.
+      const LIVENESS_REQUIRED = MODE_RANKED || qs.get('liveness') === '1';
       const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
       const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
@@ -857,7 +860,11 @@
       let cfg = CFG[EX_ID] || CFG.sentadillas;
       let targetUnit = cfg.unit;
       let targetVal = SEQ[0].target;
-      let livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+      let livenessEnabled = LIVENESS_REQUIRED || targetUnit === 'seconds' || targetVal > 5;
+      // Meta de repes ≤ 10 → la vida se pide AL FINAL (la serie corta termina
+      // antes del temporizador y no conviene interrumpirla). Meta > 10 → DURANTE
+      // la serie (temporizador aleatorio), con los 12 s de esa repe (6 + 6).
+      let livenessEndOnly = targetUnit === 'reps' && targetVal <= 10;
       const FRONTAL_POINTS = [
         'left_shoulder',
         'right_shoulder',
@@ -912,10 +919,16 @@
         livenessNextTriggerAt = null,
         livenessConfirmFrames = 0,
         livenessHoldStartTime = null;
+      // Vida garantizada: si la serie termina sin haberla pasado, se pide recién
+      // al final y el resultado se envía al confirmarla (ver `onLivenessPassed`).
+      let pendingCompletionDetail = null;
       const LIVENESS_MIN_MS = 4000,
         LIVENESS_MAX_MS = 13000,
         LIVENESS_FRAMES = 5,
-        LIVENESS_HOLD_MS = 2000;
+        LIVENESS_HOLD_MS = 2000,
+        // Con meta de repes > 10 la vida sale aleatoria pero nunca antes de
+        // terminar esta repetición.
+        LIVENESS_MIN_REP = 5;
       let audioCtx = null,
         masterGain = null,
         soundEnabled = true;
@@ -1069,7 +1082,9 @@
         return true;
       }
       function scheduleLiveness() {
-        if (livenessPassed || livenessNextTriggerAt || !livenessEnabled) return;
+        if (livenessPassed || livenessNextTriggerAt || !livenessEnabled || livenessEndOnly) return;
+        // Aleatoria, pero recién a partir de la repe LIVENESS_MIN_REP.
+        if (targetUnit === 'reps' && repCount < LIVENESS_MIN_REP) return;
         livenessNextTriggerAt =
           performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
       }
@@ -1090,9 +1105,11 @@
           livenessBeepTimer = null;
         }
       }
+      // Al pedir la vida en medio de la serie, esa repetición pasa a tener los
+      // 6 s de cadencia + 6 s extra = 12 s, para dar la señal y completar la repe.
       function extendCadenceForLiveness(now) {
         if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
-          cadenceDeadline = Math.max(cadenceDeadline, now + 12000);
+          cadenceDeadline = Math.max(cadenceDeadline, now + CADENCE_MS + 6000);
       }
       function checkHandLiveness(lm) {
         if (livenessPassed || !livenessEnabled) return false;
@@ -1114,11 +1131,7 @@
         if (rUp || lUp) livenessConfirmFrames++;
         else livenessConfirmFrames = 0;
         if (livenessConfirmFrames >= LIVENESS_FRAMES) {
-          livenessPassed = true;
-          livenessChallengeActive = false;
-          hideLiveness();
-          log('Prueba de vida confirmada');
-          speak('Listo, gracias');
+          onLivenessPassed();
         }
         return true;
       }
@@ -1138,16 +1151,28 @@
           if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
           const rem = Math.max(0, LIVENESS_HOLD_MS - (performance.now() - livenessHoldStartTime));
           if (rem <= 0) {
-            livenessPassed = true;
-            livenessChallengeActive = false;
-            hideLiveness();
-            log('Prueba de vida confirmada');
-            speak('Listo, gracias');
+            onLivenessPassed();
           }
         } else {
           livenessHoldStartTime = null;
         }
         return true;
+      }
+      function onLivenessPassed() {
+        livenessPassed = true;
+        livenessChallengeActive = false;
+        hideLiveness();
+        log('Prueba de vida confirmada');
+        // Vida al final: se envía el resultado y la voz lo anuncia como "Serie
+        // completa" (una sola locución, para que no se corte). Vida durante la
+        // serie: solo un acuse breve.
+        if (pendingCompletionDetail != null) {
+          const detail = pendingCompletionDetail;
+          pendingCompletionDetail = null;
+          postComplete(detail, 'Serie completa');
+        } else {
+          speak('Listo, gracias');
+        }
       }
       function ensureAudio() {
         if (!audioCtx) {
@@ -1249,6 +1274,7 @@
         livenessNextTriggerAt = null;
         livenessConfirmFrames = 0;
         livenessHoldStartTime = null;
+        pendingCompletionDetail = null;
         repCountEl.textContent = '0';
         refreshHud();
         resultCard.classList.remove('show');
@@ -1418,6 +1444,9 @@
         }
         repCount++;
         repTimestamps.push(now);
+        // Al completar la repe LIVENESS_MIN_REP se arma la vida aleatoria (con
+        // meta > 10). Antes de eso no puede aparecer.
+        if (targetUnit === 'reps' && repCount === LIVENESS_MIN_REP) scheduleLiveness();
         repCountEl.textContent = repCount;
         repCountEl.style.transform = 'scale(1.15)';
         setTimeout(() => (repCountEl.style.transform = 'scale(1)'), 150);
@@ -1479,12 +1508,35 @@
           (livenessPassed || !livenessEnabled)
         );
       }
-      function postComplete(detail) {
+      function postComplete(detail, voiceLead) {
+        // Si ya hay un resultado esperando la prueba de vida, no se reenvía (la
+        // serie de segundos vuelve a llamar acá en cada cuadro mientras sostiene).
+        if (pendingCompletionDetail != null) return;
+        // Vida garantizada: la serie cumplió la meta y todavía no hay prueba de
+        // vida. Con meta de repes ≤ 10 ESTE es el camino normal (la vida se pide
+        // al final); con > 10 es el respaldo si la serie terminó antes de que
+        // saliera el temporizador. Se envía recién al confirmarla.
+        if (livenessEnabled && !livenessPassed && currentValue() >= targetVal) {
+          pendingCompletionDetail = detail;
+          livenessChallengeActive = false;
+          livenessNextTriggerAt = performance.now();
+          log('Prueba de vida pendiente: se pide antes de enviar el resultado');
+          return;
+        }
         // `done` se toma antes de avanzar `voiceRound`: el índice de grupo es
         // `voiceRound`, así que si se hablara después usaría el grupo siguiente
         // y la rotación se desalinearía una frase por serie.
         const done = voiceTake('done');
         const withDone = (msg) => (done && msg ? done + ' ' + msg : msg || done);
+        // `voiceLead` (p. ej. "Serie completa") se antepone a la locución final
+        // en una sola frase para que el TTS no corte lo anterior. Si la frase
+        // elegida ya empieza con el lead (el corpus `done` tiene "Serie
+        // completa. Recuperate."), no se duplica.
+        const lead = (msg) => {
+          if (!voiceLead) return msg;
+          if (msg && msg.toLowerCase().indexOf(voiceLead.toLowerCase()) === 0) return msg;
+          return msg ? voiceLead + '. ' + msg : voiceLead;
+        };
         const nextEntry = seqIndex + 1 < SEQ.length ? SEQ[seqIndex + 1] : null;
         if (done) voiceFlash(done);
         if (nextEntry) {
@@ -1494,15 +1546,17 @@
           nextHintText =
             'Cuando estés listo, mantené tu mano sobre SIGUIENTE para empezar ' + nextName;
           speak(
-            'Meta cumplida. Siguiente: ' +
-              nextName +
-              '. Meta ' +
-              nextEntry.target +
-              nextUnitName +
-              '. Sostené tu mano sobre SIGUIENTE para empezar',
+            lead(
+              'Meta cumplida. Siguiente: ' +
+                nextName +
+                '. Meta ' +
+                nextEntry.target +
+                nextUnitName +
+                '. Sostené tu mano sobre SIGUIENTE para empezar',
+            ),
           );
         } else {
-          speak(withDone(''));
+          speak(lead(withDone('')));
         }
         voiceRound++;
         seqDone++;
@@ -1733,7 +1787,8 @@
         cfg = CFG[SEQ[i].id] || CFG.sentadillas;
         targetUnit = cfg.unit;
         targetVal = SEQ[i].target;
-        livenessEnabled = targetUnit === 'seconds' || targetVal > 5;
+        livenessEnabled = LIVENESS_REQUIRED || targetUnit === 'seconds' || targetVal > 5;
+        livenessEndOnly = targetUnit === 'reps' && targetVal <= 10;
         document.title = NAME[SEQ[i].id] || 'Verificación';
         completed = false;
         postureMode = false;

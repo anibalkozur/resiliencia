@@ -3,9 +3,10 @@
 - **Fase**: 0 (Fundaciones) · **Sprint**: 0 → **atrasada**: sin acta de gate de
   Fase 0 pese a trabajo de Fases 0–1/E en `main` (el plan v4 free/pro rige
   desde 2026-09-28).
-- **Última actualización**: 2026-10-09 (reposición por [PM]; ampliado por [DER]
-  con la verificación de tobillos del banco, acta 010). El estado previo era del
-  **2026-09-08**; se declara atrasado antes de usarlo.
+- **Última actualización**: 2026-10-13 ([DER]: política de prueba de vida —
+  acta 012, cámara v47 publicada en gh-pages; pendiente prueba del PO). Antes:
+  2026-10-09 (reposición por [PM], acta 010). El estado base era del
+  **2026-09-08**; se declara atrasado en el historial inferior.
 
 ## Estado actual (2026-10-09) — verificado
 
@@ -29,7 +30,11 @@ artefacto del checkout, no del repo.
   NO existe**: todo entra `pending` y la UI es honesta ("enviado a validación"),
   nunca "verificado". No se comunica ranking verificado.
 - **Cámara**: página `camera-verification.html` en gh-pages (HTTPS) en WebView +
-  puente de sensor (`expo-sensors`). `VERIFY_VERSION` en producción mobile = **16**.
+  puente de sensor (`expo-sensors`). `VERIFY_VERSION` en producción mobile = **51**
+  (2026-10-13). **Prueba de vida**: en sesiones validadas (libre rankeado y reto
+  diario) se pide **durante** la serie si la meta es > 10 repes (aleatoria, nunca
+  antes de la repe 5) y **al final** si es ≤ 10 — nunca se envía sin vida; tras
+  dar la señal al final, la voz dice "Serie completa" (sin duplicarla) (acta 012).
 - **Premium/free**: ADR `2026-09-29_free-sin-ranking_premium-todo.md` — el free
   no participa de ningún ranking; entitlements reales server-side (migración
   `0018` + `validate_workout` v2, fail-closed).
@@ -43,8 +48,9 @@ artefacto del checkout, no del repo.
   del 2026-10-03→08 ya están registrados en `BITACORA.md`, puesto al día el
   **2026-10-12** (sección "Registro del 2026-10-03 al 2026-10-12").
 - **Docs de decisión**: 1 ADR (`2026-09-29_...`); el resto de las decisiones del
-  mes viven en `docs/BITACORA.md`. **No hay actas nuevas desde la 008
-  (2026-09-08).**
+  mes viven en `docs/BITACORA.md`. **Actas 009–012** (2026-10-09→13): gate Fase 0,
+  verificación de tobillos, revisión de seguridad/calidad (011) y política de
+  prueba de vida (012).
 
 ## Alertas [DER]/[SRE] (2026-10-09)
 

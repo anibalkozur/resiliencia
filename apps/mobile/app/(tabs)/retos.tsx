@@ -273,6 +273,7 @@ export default function RetosScreen() {
                     challenge.exerciseId,
                     challenge.target,
                     challengeExercise.unit,
+                    { requireLiveness: true },
                   ),
                 }}
                 javaScriptEnabled={true}

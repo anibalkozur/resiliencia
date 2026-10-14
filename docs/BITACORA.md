@@ -1100,9 +1100,9 @@ diffs exactos en `apps/exercise-tester/PORTAR_A_PRODUCCION.md`.
 
 ## Registro del 2026-10-03 al 2026-10-12 (año 2026-10-12, [PM])
 
-*Este bloque recupera el atraso de la bitácora (cortaba el 2026-10-02), según la
+_Este bloque recupera el atraso de la bitácora (cortaba el 2026-10-02), según la
 acción del acta de gate Fase 0 (`docs/equipo/actas/2026-10-09_gate_fase0.md`). El
-contenido del 2026-10-09 en adelante está al día porque se escribió el mismo día.*
+contenido del 2026-10-09 en adelante está al día porque se escribió el mismo día._
 
 ### 2026-10-03 — El banco pasa a copia 1:1 de la página y suma 15 ejercicios
 
@@ -1128,8 +1128,7 @@ Día intenso en el banco (`apps/banco de pruebas de ejercicios`, en ese momento
 
 - **Reinicio por mano sin apagar la cámara** (`7ce7c5b`): al completar o al romper
   la serie, la cámara sigue encendida; levantar la mano reinicia con el mismo
-  5-4-3-2-1. `failSeries` ya no detiene la cámara; cadencia por rep **6 s** (antes
-  5) y señal de vida **12 s** (antes 10). Se documenta `IDEAS_RESILIENCIA.md` con
+  5-4-3-2-1. `failSeries` ya no detiene la cámara; cadencia por rep **6 s** (antes 5) y señal de vida **12 s** (antes 10). Se documenta `IDEAS_RESILIENCIA.md` con
   la idea de sesión con secuencia de ejercicios.
 - **Sesión con secuencia de ejercicios y paso por mano** (`646ff06`): en la home se
   eligen varios ejercicios con orden y objetivo propio; la página los recorre en
@@ -1199,7 +1198,7 @@ banco con el esqueleto y el sensor conectado al RN.
 ### 2026-10-07 — Renombre de la carpeta del banco y plan de IA durante el ejercicio
 
 - **Renombre de carpeta** (`bb1bae0`): `apps/exercise-tester` → `apps/banco de
-  pruebas de ejercicios` y la cámara del banco pasó a **9:16 sin recortes** (todo el
+pruebas de ejercicios` y la cámara del banco pasó a **9:16 sin recortes** (todo el
   cuerpo entra en las sentadillas sin cortar pies ni cabeza).
 - **Docs(plan)** (`8a265cc`): mejoras IA durante el ejercicio + chatbot entrenador
   quedan planificadas (revisión de REQUIREMENTS/roadmap), alineadas con lo que ya
@@ -1320,8 +1319,8 @@ gesto "levantá la mano arriba de la cabeza".
   único (ranking posible); con 2+ corre `seq=id:objetivo,...` sin ranking. Al
   terminar cada ejercicio aparecen **SALIR | SIGUIENTE | REPETIR** con anillo de
   carga (trio `26px`), `REPETIR` repite y `SIGUIENTE` carga el próximo con su cuenta
-  regresiva y la voz *"Meta cumplida. Siguiente: X, meta N reps. Sostené tu mano
-  sobre SIGUIENTE para empezar"* (+ hint al apoyar la mano). `cfg`/`targetVal`/
+  regresiva y la voz _"Meta cumplida. Siguiente: X, meta N reps. Sostené tu mano
+  sobre SIGUIENTE para empezar"_ (+ hint al apoyar la mano). `cfg`/`targetVal`/
   `targetUnit`/`livenessEnabled` pasan a `let` por ejercicio (`loadExercise`); cada
   `complete` postea `exerciseId`/`target`/`seqIndex`/`seqLength`. En RN:
   `LibreExerciseProvider` expone `routine` + mutators, el setup de `camretos.tsx` lo
@@ -1336,3 +1335,54 @@ gesto "levantá la mano arriba de la cabeza".
 v40 `e3e0c3c`, v45 `9840ba2`, v46 `ddebf47`). Validaciones previas al cierre:
 `node --check`, typecheck, tests mobile 14 suites / 175, lint en los archivos
 tocados.
+
+### 2026-10-13 — Revisión [DER] de seguridad/calidad (acta 011) + sesión cifrada; política de prueba de vida (acta 012)
+
+**Acta 011 — Revisión de seguridad y calidad del producto** ([DER], insumo del
+gate Fase 0, sin cambios de código en esa revisión): RLS completo (22 tablas),
+autoridad server-side, entitlements fail-closed, consola admin cerrada, sin
+secretos en el repo. **Sin hallazgos críticos ni altos**. Medios: token de sesión
+móvil en SQLite; `verify.ts` sin test + versión 46/47; rejections async sin
+manejar; lint parcial. Acta: `docs/equipo/actas/2026-10-13_revision_seguridad_calidad.md`.
+
+**Cierre medio [SEC] — sesión móvil cifrada en `expo-secure-store`** (`ac13c25`):
+`apps/mobile/src/auth/authStorage.ts` (troceo de 1800 bytes, migra y borra el
+texto plano previo de SQLite; `supabase.ts` conserva la excepción PKCE);
+`expo-secure-store ~57.0.3→57.0.4`; tests `authStorage.test.ts` (6). Corre en
+Expo Go sin rebuild. (Acta 011 commiteada en `acd6dba`.)
+
+**Decisión del PO — "solo se rankea con prueba de vida" (acta 012):** un resultado
+validado (libre rankeado o reto diario) **nunca** se envía sin vida. **Cuándo**:
+meta de repes **> 10** → durante la serie (temporizador aleatorio 4–13 s), **nunca
+antes de la repe 5**; meta **≤ 10** → al finalizarla (sin interrumpir series
+cortas). Segundos (plancha/isométrica): durante. La vida al final usa la **misma
+consigna** ("Señal de vida. Levantá la mano…") que la aleatoria y, **tras dar la
+señal**, la voz anuncia "Serie completa". Cierra el bypass de metas ≤ 5 y el reto
+diario que abría sin `ranked=1`.
+
+**Implementación:**
+
+- `camera-verification.html` (**v51**): `LIVENESS_REQUIRED = MODE_RANKED ||
+qs.get('liveness')==='1'`; `livenessEndOnly = targetUnit==='reps' &&
+targetVal<=10` (no arma el temporizador); la vida aleatoria no se arma antes de
+  `LIVENESS_MIN_REP = 5` y se arma al completar la repe 5; **fallback al final**
+  en `postComplete` (si la meta está cumplida y no hay vida → arma el desafío y no
+  envía, camino normal de las series ≤ 10); `onLivenessPassed()` centraliza el
+  "pasó" y envía el resultado pendiente con la voz "Serie completa" (en la misma
+  locución final, para que el TTS no la corte; **sin duplicar** si el turno de voz
+  del corpus `done` ya empieza con "Serie completa", p. ej. "Serie completa.
+  Recuperate."); la consigna final es la misma que la aleatoria; sin re-entrada si
+  ya hay resultado pendiente. La repe con vida **durante** pasa a **12 s**
+  (`CADENCE_MS + 6000`). Sin cambios de servidor (la evidencia
+  `livenessRequired`/`livenessPassed` ya existía).
+- Móvil: `verify.ts` opción `requireLiveness` + **`VERIFY_VERSION` 46 → 51**;
+  `retos.tsx` abre el reto diario con `{ requireLiveness: true }`. El libre
+  rankeado ya pasaba `ranked=libreRanked`.
+- **Publicado:** gh-pages (v51) y verificado en CDN. Pendiente: **prueba del PO
+  con Expo Go** y, con su OK, commit + push a `main` + backup + estado.
+- Verificación local: prettier ✓, typecheck ✓, lint ✓, mobile **181/181** (15
+  suites), console **39/39**.
+
+**Límite declarado:** la vida sigue siendo **reportada por el cliente** (no es
+prueba criptográfica) y el ranking real sigue en `pending` hasta que exista el
+validador server-side (acta 011 §7) — no se simula nada.
