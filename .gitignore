@@ -10,3 +10,4 @@ metro.log
 supabase/.temp/
 apps/banco de pruebas de ejercicios/backup banco de pruebas.txt
 apps/mobile/backup app resiliencia.txt
+backups/
