@@ -1529,8 +1529,14 @@
         const done = voiceTake('done');
         const withDone = (msg) => (done && msg ? done + ' ' + msg : msg || done);
         // `voiceLead` (p. ej. "Serie completa") se antepone a la locución final
-        // en una sola frase para que el TTS no corte lo anterior.
-        const lead = (msg) => (voiceLead ? (msg ? voiceLead + '. ' + msg : voiceLead) : msg);
+        // en una sola frase para que el TTS no corte lo anterior. Si la frase
+        // elegida ya empieza con el lead (el corpus `done` tiene "Serie
+        // completa. Recuperate."), no se duplica.
+        const lead = (msg) => {
+          if (!voiceLead) return msg;
+          if (msg && msg.toLowerCase().indexOf(voiceLead.toLowerCase()) === 0) return msg;
+          return msg ? voiceLead + '. ' + msg : voiceLead;
+        };
         const nextEntry = seqIndex + 1 < SEQ.length ? SEQ[seqIndex + 1] : null;
         if (done) voiceFlash(done);
         if (nextEntry) {
