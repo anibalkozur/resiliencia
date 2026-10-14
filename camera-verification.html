@@ -921,12 +921,14 @@
         livenessHoldStartTime = null;
       // Vida garantizada: si la serie termina sin haberla pasado, se pide recién
       // al final y el resultado se envía al confirmarla (ver `onLivenessPassed`).
-      let livenessFinal = false,
-        pendingCompletionDetail = null;
+      let pendingCompletionDetail = null;
       const LIVENESS_MIN_MS = 4000,
         LIVENESS_MAX_MS = 13000,
         LIVENESS_FRAMES = 5,
-        LIVENESS_HOLD_MS = 2000;
+        LIVENESS_HOLD_MS = 2000,
+        // Con meta de repes > 10 la vida sale aleatoria pero nunca antes de
+        // terminar esta repetición.
+        LIVENESS_MIN_REP = 5;
       let audioCtx = null,
         masterGain = null,
         soundEnabled = true;
@@ -1081,6 +1083,8 @@
       }
       function scheduleLiveness() {
         if (livenessPassed || livenessNextTriggerAt || !livenessEnabled || livenessEndOnly) return;
+        // Aleatoria, pero recién a partir de la repe LIVENESS_MIN_REP.
+        if (targetUnit === 'reps' && repCount < LIVENESS_MIN_REP) return;
         livenessNextTriggerAt =
           performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
       }
@@ -1115,16 +1119,8 @@
           livenessConfirmFrames = 0;
           const now = performance.now();
           extendCadenceForLiveness(now);
-          showLiveness(
-            livenessFinal
-              ? 'Serie completa — levantá la mano para validar'
-              : 'Levantá la mano por encima de la cabeza',
-          );
-          speak(
-            livenessFinal
-              ? 'Serie completa. Levantá la mano para validar la sesión'
-              : 'Señal de vida. Levantá la mano por encima de la cabeza',
-          );
+          showLiveness('Levantá la mano por encima de la cabeza');
+          speak('Señal de vida. Levantá la mano por encima de la cabeza');
         }
         const rw = lm[LID.right_wrist],
           lw = lm[LID.left_wrist],
@@ -1147,16 +1143,8 @@
           livenessHoldStartTime = null;
           const now = performance.now();
           extendCadenceForLiveness(now);
-          showLiveness(
-            livenessFinal
-              ? 'Serie completa — bajá y aguantá para validar'
-              : 'Bajá y aguantá abajo unos segundos',
-          );
-          speak(
-            livenessFinal
-              ? 'Serie completa. Bajá y aguantá abajo para validar la sesión'
-              : 'Señal de vida. Bajá y aguantá abajo unos segundos',
-          );
+          showLiveness('Bajá y aguantá abajo unos segundos');
+          speak('Señal de vida. Bajá y aguantá abajo unos segundos');
         }
         const inDown = smoothed < down;
         if (inDown) {
@@ -1181,7 +1169,6 @@
         if (pendingCompletionDetail != null) {
           const detail = pendingCompletionDetail;
           pendingCompletionDetail = null;
-          livenessFinal = false;
           postComplete(detail);
         }
       }
@@ -1285,7 +1272,6 @@
         livenessNextTriggerAt = null;
         livenessConfirmFrames = 0;
         livenessHoldStartTime = null;
-        livenessFinal = false;
         pendingCompletionDetail = null;
         repCountEl.textContent = '0';
         refreshHud();
@@ -1456,6 +1442,9 @@
         }
         repCount++;
         repTimestamps.push(now);
+        // Al completar la repe LIVENESS_MIN_REP se arma la vida aleatoria (con
+        // meta > 10). Antes de eso no puede aparecer.
+        if (targetUnit === 'reps' && repCount === LIVENESS_MIN_REP) scheduleLiveness();
         repCountEl.textContent = repCount;
         repCountEl.style.transform = 'scale(1.15)';
         setTimeout(() => (repCountEl.style.transform = 'scale(1)'), 150);
@@ -1527,7 +1516,6 @@
         // saliera el temporizador. Se envía recién al confirmarla.
         if (livenessEnabled && !livenessPassed && currentValue() >= targetVal) {
           pendingCompletionDetail = detail;
-          livenessFinal = true;
           livenessChallengeActive = false;
           livenessNextTriggerAt = performance.now();
           log('Prueba de vida pendiente: se pide antes de enviar el resultado');
