@@ -4,10 +4,10 @@ import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { translate } from '../../src/i18n/translations';
 import HouseIcon from '../../components/icons/HouseIcon';
 import DumbbellIcon from '../../components/icons/DumbbellIcon';
-import UserIcon from '../../components/icons/UserIcon';
 import GearIcon from '../../components/icons/GearIcon';
 import ChartIcon from '../../components/icons/ChartIcon';
 import BoltIcon from '../../components/icons/BoltIcon';
+import PodiumIcon from '../../components/icons/PodiumIcon';
 import BrandHeader from '../../components/BrandHeader';
 import { LibreExerciseProvider } from '../../src/header/LibreExerciseProvider';
 import { DayProvider } from '../../src/retos/DayProvider';
@@ -46,13 +46,6 @@ export default function TabsLayout() {
             }}
           />
           <Tabs.Screen
-            name="progreso"
-            options={{
-              title: translate(lang, 'tabs.progreso'),
-              tabBarIcon: ({ color, size }) => <ChartIcon color={color} size={size} />,
-            }}
-          />
-          <Tabs.Screen
             name="camretos"
             options={{
               title: translate(lang, 'tabs.camretos'),
@@ -60,10 +53,17 @@ export default function TabsLayout() {
             }}
           />
           <Tabs.Screen
-            name="perfil"
+            name="progreso"
             options={{
-              title: translate(lang, 'tabs.perfil'),
-              tabBarIcon: ({ color, size }) => <UserIcon color={color} size={size} />,
+              title: translate(lang, 'tabs.progreso'),
+              tabBarIcon: ({ color, size }) => <ChartIcon color={color} size={size} />,
+            }}
+          />
+          <Tabs.Screen
+            name="ranking"
+            options={{
+              title: translate(lang, 'tabs.ranking'),
+              tabBarIcon: ({ color, size }) => <PodiumIcon color={color} size={size} />,
             }}
           />
           <Tabs.Screen

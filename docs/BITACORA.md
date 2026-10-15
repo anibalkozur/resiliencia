@@ -1389,3 +1389,39 @@ targetVal<=10` (no arma el temporizador); la vida aleatoria no se arma antes de
 **Límite declarado:** la vida sigue siendo **reportada por el cliente** (no es
 prueba criptográfica) y el ranking real sigue en `pending` hasta que exista el
 validador server-side (acta 011 §7) — no se simula nada.
+
+### 2026-10-14 — Reorganización de pestañas, historial en Progreso, Perfil en Ajustes y selector de días de entrenamiento (acta 013)
+
+Decisiones del PO desarrolladas directo sobre producción (sin pasar por el banco).
+
+- **Ranking, ahora pestaña propia.** Se extrae la UI de ranking de Progreso a
+  **`app/(tabs)/ranking.tsx`** (Racha | Reps | Total, chips de ejercicio, estados
+  vacíos honestos; `fetchRanking`/`fetchRepsRanking`/`fetchTotalRepsRanking`). Progreso
+  deja de mezclar ranking con lo personal.
+- **Progreso = historial de ejercicios.** Tarjeta **HISTORIAL DE EJERCICIOS** que une
+  retos completados y sesiones libres (orden por fecha descendente, etiqueta
+  Reto/Libre, `valor/meta unidad`). Lógica pura en **`src/retos/history.ts`**
+  (`buildHistory`, `unitForExercise`) con tests.
+- **Perfil deja de ser pestaña.** Su contenido pasa a **`components/PerfilPanel.tsx`**;
+  `app/(tabs)/perfil.tsx` se elimina. En Ajustes se muestra una fila **plegable
+  "Perfil ▸"** (colapsada por defecto, con accesibilidad `expanded`).
+- **Orden de pestañas**: Inicio · Retos · Libre · Progreso · Ranking · Ajustes;
+  nuevo ícono `PodiumIcon` (SVG de tokens) para Ranking. Inicio suma el CTA
+  **VER RANKING** junto a **EMPEZAR RETO**.
+- **Día de descanso sin simulación.** Nuevo **`buildNextTraining`** (`week.ts`); si hoy
+  no toca entreno, el CTA de Inicio **no navega** y avisa con un mensaje **adaptativo**
+  ("mañana vuelven los retos" solo si el próximo reto es mañana; si no, el día concreto).
+- **Selector de días de entrenamiento (reemplaza "Días por semana").** El modelo pasa
+  de `Prefs.daysPerWeek: number` a **`Prefs.trainingDays: number[]`** (0=dom…6=sáb),
+  default `[1,3,5,6]`, con **migración** automática desde `daysPerWeek`
+  (`LEGACY_TRAINING_SLOTS`) y validación (enteros 0–6, únicos, ordenados, mínimo 1); se
+  retiran `MIN_DAYS`/`MAX_DAYS`. En Ajustes, fila de **7 chips Lun→Dom** en una línea
+  (adaptativos) con la leyenda **"Selecciona los días en que quieres entrenar."**; el
+  último día activo no se puede deseleccionar. `buildWeek`/`buildNextTraining` toman
+  `trainingDays`; "Plan N días" en Retos usa `trainingDays.length`. i18n `settings.days`
+  → "DÍAS DE ENTRENAMIENTO" + nueva `settings.days_hint` (es/en/pt); se retira
+  `settings.saved`. La abreviatura de miércoles en ES pasa de `X` a `M`.
+
+**Verificación:** prettier ✓, typecheck ✓, lint ✓, `apps/mobile` **198/198** (16
+suites). **Probado por el PO en Expo Go: OK.** Acta:
+`docs/equipo/actas/2026-10-14_reorg_pestanas_selector_dias.md`.

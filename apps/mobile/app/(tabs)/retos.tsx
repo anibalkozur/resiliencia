@@ -5,6 +5,7 @@ import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { DEFAULT_TRAINING_DAYS } from '../../src/prefs/service';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
@@ -39,7 +40,7 @@ export default function RetosScreen() {
   const { session } = useAuth();
   const lang = prefs?.language ?? 'es';
   const goal = prefs?.goal ?? 'mantener';
-  const daysPerWeek = prefs?.daysPerWeek ?? 4;
+  const trainingDays = prefs?.trainingDays ?? DEFAULT_TRAINING_DAYS;
   const repo = getRepo();
   const dayKey = useDayKey();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
@@ -52,8 +53,8 @@ export default function RetosScreen() {
   const focused = useScreenFocused();
 
   const week = useMemo(
-    () => buildWeek(goal, daysPerWeek, new Date(`${dayKey}T00:00:00`)),
-    [goal, daysPerWeek, dayKey],
+    () => buildWeek(goal, trainingDays, new Date(`${dayKey}T00:00:00`)),
+    [goal, trainingDays, dayKey],
   );
 
   useFocusEffect(
@@ -193,7 +194,7 @@ export default function RetosScreen() {
         <View style={styles.titleRow}>
           <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
           <Text style={styles.planSmall}>
-            {translate(lang, 'retos.plan_small', { n: daysPerWeek })}
+            {translate(lang, 'retos.plan_small', { n: trainingDays.length })}
           </Text>
         </View>
         <View style={styles.weekRow}>

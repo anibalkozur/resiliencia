@@ -1,19 +1,38 @@
-import { useCallback, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { ChatPanel } from '../../components/ChatPanel';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
+import { DEFAULT_TRAINING_DAYS } from '../../src/prefs/service';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
 import { buildChallenge, getTodayChallenge, tomorrowKey } from '../../src/retos/service';
+import { buildNextTraining, buildWeek } from '../../src/retos/week';
 import { isCompleted } from '../../src/retos/completions';
 import { getCompletedCount, getStreak } from '../../src/retos/streak';
 import { useDayKey } from '../../src/retos/DayProvider';
 import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
+import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 import type { Goal } from '../../src/prefs/types';
+
+const WEEKDAYS: TranslationKey[] = [
+  'weekday.sun',
+  'weekday.mon',
+  'weekday.tue',
+  'weekday.wed',
+  'weekday.thu',
+  'weekday.fri',
+  'weekday.sat',
+];
+
+function daysBetween(from: string, to: string): number {
+  const a = new Date(`${from}T00:00:00`);
+  const b = new Date(`${to}T00:00:00`);
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
 
 export default function InicioScreen() {
   const router = useRouter();
@@ -23,6 +42,15 @@ export default function InicioScreen() {
   const goal: Goal = prefs?.goal ?? 'mantener';
   const repo = getRepo();
   const dayKey = useDayKey();
+  const trainingDays = prefs?.trainingDays ?? DEFAULT_TRAINING_DAYS;
+  const trainingToday = useMemo(() => {
+    const week = buildWeek(goal, trainingDays, new Date(`${dayKey}T00:00:00`));
+    return week.find((d) => d.isToday)?.isTraining ?? true;
+  }, [goal, trainingDays, dayKey]);
+  const nextTraining = useMemo(
+    () => buildNextTraining(goal, trainingDays, new Date(`${dayKey}T00:00:00`)),
+    [goal, trainingDays, dayKey],
+  );
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [streak, setStreak] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
@@ -52,6 +80,19 @@ export default function InicioScreen() {
 
   function handleGoToReto() {
     if (completedToday) return;
+    if (!trainingToday) {
+      const restMessage = nextTraining
+        ? daysBetween(dayKey, nextTraining.date) <= 1
+          ? translate(lang, 'home.rest_tomorrow')
+          : translate(lang, 'home.rest_next', {
+              day: translate(lang, WEEKDAYS[nextTraining.dayOfWeek]),
+            })
+        : translate(lang, 'retos.rest_note');
+      Alert.alert(translate(lang, 'home.rest_title'), restMessage, [
+        { text: translate(lang, 'home.rest_ok') },
+      ]);
+      return;
+    }
     router.push('/(tabs)/retos');
   }
 
@@ -95,12 +136,12 @@ export default function InicioScreen() {
             onPress={handleGoToReto}
           >
             <Text style={[styles.ctaText, completedToday && styles.ctaTextDone]}>
-              {translate(lang, completedToday ? 'home.completed' : 'home.complete')}
+              {translate(lang, completedToday ? 'home.completed' : 'home.start')}
             </Text>
           </Pressable>
 
-          <Pressable style={styles.secondary} onPress={() => router.push('/(tabs)/retos')}>
-            <Text style={styles.secondaryText}>{translate(lang, 'home.view')}</Text>
+          <Pressable style={styles.secondary} onPress={() => router.push('/(tabs)/ranking')}>
+            <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -142,11 +183,7 @@ export default function InicioScreen() {
         <View style={[styles.chatRoot, { paddingTop: insets.top }]}>
           <View style={styles.chatHeader}>
             <Text style={styles.chatTitle}>{translate(lang, 'home.ia_title')}</Text>
-            <Pressable
-              style={styles.chatClose}
-              onPress={() => setChatAbierto(false)}
-              hitSlop={8}
-            >
+            <Pressable style={styles.chatClose} onPress={() => setChatAbierto(false)} hitSlop={8}>
               <Text style={styles.chatCloseText}>{translate(lang, 'auth.back')}</Text>
             </Pressable>
           </View>

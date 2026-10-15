@@ -25,25 +25,20 @@ function mondayOf(d: Date): Date {
   return copy;
 }
 
-const TRAINING_SLOTS: Record<number, number[]> = {
-  2: [0, 3],
-  3: [0, 2, 4],
-  4: [0, 2, 4, 5],
-  5: [0, 1, 2, 4, 5],
-  6: [0, 1, 2, 3, 4, 5],
-};
-
-export function buildWeek(goal: Goal, daysPerWeek: number, today: Date = new Date()): WeekDay[] {
+export function buildWeek(
+  goal: Goal,
+  trainingDays: readonly number[],
+  today: Date = new Date(),
+): WeekDay[] {
   const monday = mondayOf(today);
   const todayIso = iso(today);
-  const slots = TRAINING_SLOTS[daysPerWeek] ?? TRAINING_SLOTS[4];
   const days: WeekDay[] = [];
 
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const date = iso(d);
-    const isTraining = slots.includes(i);
+    const isTraining = trainingDays.includes(d.getDay());
 
     if (isTraining) {
       const challenge = buildChallenge(date, goal);
@@ -68,4 +63,19 @@ export function buildWeek(goal: Goal, daysPerWeek: number, today: Date = new Dat
   }
 
   return days;
+}
+
+// Primer día con reto posterior a `today` (mira hasta dos semanas). Sirve para
+// avisar "mañana vuelven los retos" o el próximo día concreto.
+export function buildNextTraining(
+  goal: Goal,
+  trainingDays: readonly number[],
+  today: Date = new Date(),
+): WeekDay | null {
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+    const day = buildWeek(goal, trainingDays, d).find((x) => x.isToday);
+    if (day && day.isTraining) return day;
+  }
+  return null;
 }

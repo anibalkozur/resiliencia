@@ -3,9 +3,13 @@
 - **Fase**: 0 (Fundaciones) · **Sprint**: 0 → **atrasada**: sin acta de gate de
   Fase 0 pese a trabajo de Fases 0–1/E en `main` (el plan v4 free/pro rige
   desde 2026-09-28).
-- **Última actualización**: 2026-10-13 ([DER]: política de prueba de vida —
-  acta 012, cámara v51 publicada en gh-pages y probada por el PO en Expo Go: OK;
-  commits `1442353` + `732b181`, tag `backup-resiliencia-20261013-221615`). Antes:
+- **Última actualización**: 2026-10-14 ([MOB]: reorganización de pestañas (nueva
+  pestaña **Ranking**, historial en Progreso, Perfil plegable dentro de Ajustes) y
+  **selector de días de entrenamiento** (reemplaza "Días por semana"; modelo
+  `Prefs.trainingDays`), más cartel de descanso adaptativo en Inicio — acta 013;
+  probado por el PO en Expo Go: **OK**). Antes: 2026-10-13 ([DER]: política de prueba
+  de vida — acta 012, cámara v51 publicada en gh-pages y probada por el PO en Expo Go:
+  OK; commits `1442353` + `732b181`, tag `backup-resiliencia-20261013-221615`).
   2026-10-09 (reposición por [PM], acta 010). El estado base era del
   **2026-09-08**; se declara atrasado en el historial inferior.
 

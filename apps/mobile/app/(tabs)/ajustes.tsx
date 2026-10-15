@@ -1,13 +1,26 @@
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
+import PerfilPanel from '../../components/PerfilPanel';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { getSupabase } from '../../src/auth/supabase';
 import { getRepo } from '../../src/repo';
 import { resetCloudProgress, resetLocalProgress } from '../../src/retos/reset';
-import { LANGUAGE_OPTIONS, MAX_DAYS, MIN_DAYS } from '../../src/prefs/service';
+import { LANGUAGE_OPTIONS } from '../../src/prefs/service';
 import { translate } from '../../src/i18n/translations';
+import type { TranslationKey } from '../../src/i18n/translations';
 import type { Language } from '../../src/prefs/types';
+
+const DAY_ORDER: { label: TranslationKey; value: number }[] = [
+  { label: 'weekday.mon', value: 1 },
+  { label: 'weekday.tue', value: 2 },
+  { label: 'weekday.wed', value: 3 },
+  { label: 'weekday.thu', value: 4 },
+  { label: 'weekday.fri', value: 5 },
+  { label: 'weekday.sat', value: 6 },
+  { label: 'weekday.sun', value: 0 },
+];
 
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
@@ -28,12 +41,19 @@ export default function AjustesScreen() {
   const { prefs, updatePrefs } = usePrefs();
   const { session, signOut } = useAuth();
   const lang = prefs?.language ?? 'es';
-
-  if (!prefs) {
-    return <View style={styles.container} />;
-  }
+  const [perfilOpen, setPerfilOpen] = useState(false);
 
   const email = session?.user?.email ?? null;
+
+  function toggleTrainingDay(day: number) {
+    if (!prefs) return;
+    const has = prefs.trainingDays.includes(day);
+    if (has && prefs.trainingDays.length === 1) return;
+    const trainingDays = has
+      ? prefs.trainingDays.filter((d) => d !== day)
+      : [...prefs.trainingDays, day].sort((a, b) => a - b);
+    void updatePrefs({ trainingDays });
+  }
 
   function confirmReset() {
     Alert.alert(
@@ -75,84 +95,114 @@ export default function AjustesScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.body}>
-        <Text style={styles.section}>{translate(lang, 'settings.days')}</Text>
-        <View style={styles.row}>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <Pressable
+        style={styles.profileHeader}
+        onPress={() => setPerfilOpen((open) => !open)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: perfilOpen }}
+      >
+        <Text style={styles.profileHeaderText}>{translate(lang, 'settings.profile')}</Text>
+        <Text style={styles.profileHeaderChevron}>{perfilOpen ? '▾' : '▸'}</Text>
+      </Pressable>
+      {perfilOpen ? <PerfilPanel /> : null}
+      {prefs && (
+        <View style={styles.body}>
+          <Text style={styles.section}>{translate(lang, 'settings.days')}</Text>
+          <Text style={styles.hint}>{translate(lang, 'settings.days_hint')}</Text>
+          <View style={styles.daysRow}>
+            {DAY_ORDER.map(({ label, value }) => {
+              const active = prefs.trainingDays.includes(value);
+              return (
+                <Pressable
+                  key={value}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={({ pressed }) => [
+                    styles.dayChip,
+                    active && styles.dayChipActive,
+                    pressed && styles.chipPressed,
+                  ]}
+                  onPress={() => toggleTrainingDay(value)}
+                >
+                  <Text style={[styles.dayChipText, active && styles.dayChipTextActive]}>
+                    {translate(lang, label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={styles.section}>{translate(lang, 'settings.language')}</Text>
+          <View style={styles.row}>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <Chip
+                key={option.code}
+                label={option.label}
+                active={prefs.language === option.code}
+                onPress={() => updatePrefs({ language: option.code as Language })}
+              />
+            ))}
+          </View>
+
+          <Text style={styles.section}>{translate(lang, 'settings.account')}</Text>
+          <Text style={styles.accountLine}>
+            {translate(lang, 'settings.logged_as', { email: email ?? '' })}
+          </Text>
           <Pressable
-            style={({ pressed }) => [
-              styles.step,
-              (pressed || prefs.daysPerWeek <= MIN_DAYS) && styles.stepDim,
-            ]}
-            onPress={() => updatePrefs({ daysPerWeek: prefs.daysPerWeek - 1 })}
-            disabled={prefs.daysPerWeek <= MIN_DAYS}
+            style={({ pressed }) => [styles.action, pressed && styles.chipPressed]}
+            onPress={() => signOut()}
           >
-            <Text style={styles.stepText}>−</Text>
+            <Text style={styles.actionText}>{translate(lang, 'settings.logout')}</Text>
           </Pressable>
-          <Text style={styles.stepValue}>{prefs.daysPerWeek}</Text>
+          <Text style={styles.section}>{translate(lang, 'settings.reset')}</Text>
+          <Text style={styles.accountLine}>{translate(lang, 'settings.reset_desc')}</Text>
           <Pressable
-            style={({ pressed }) => [
-              styles.step,
-              (pressed || prefs.daysPerWeek >= MAX_DAYS) && styles.stepDim,
-            ]}
-            onPress={() => updatePrefs({ daysPerWeek: prefs.daysPerWeek + 1 })}
-            disabled={prefs.daysPerWeek >= MAX_DAYS}
+            style={({ pressed }) => [styles.actionDanger, pressed && styles.chipPressed]}
+            onPress={confirmReset}
           >
-            <Text style={styles.stepText}>+</Text>
+            <Text style={styles.actionDangerText}>{translate(lang, 'settings.reset')}</Text>
           </Pressable>
         </View>
-
-        <Text style={styles.section}>{translate(lang, 'settings.language')}</Text>
-        <View style={styles.row}>
-          {LANGUAGE_OPTIONS.map((option) => (
-            <Chip
-              key={option.code}
-              label={option.label}
-              active={prefs.language === option.code}
-              onPress={() => updatePrefs({ language: option.code as Language })}
-            />
-          ))}
-        </View>
-
-        <Text style={styles.saved}>{translate(lang, 'settings.saved')}</Text>
-
-        <Text style={styles.section}>{translate(lang, 'settings.account')}</Text>
-        <Text style={styles.accountLine}>
-          {translate(lang, 'settings.logged_as', { email: email ?? '' })}
-        </Text>
-        <Pressable
-          style={({ pressed }) => [styles.action, pressed && styles.chipPressed]}
-          onPress={() => signOut()}
-        >
-          <Text style={styles.actionText}>{translate(lang, 'settings.logout')}</Text>
-        </Pressable>
-        <Text style={styles.section}>{translate(lang, 'settings.reset')}</Text>
-        <Text style={styles.accountLine}>{translate(lang, 'settings.reset_desc')}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.actionDanger, pressed && styles.chipPressed]}
-          onPress={confirmReset}
-        >
-          <Text style={styles.actionDangerText}>{translate(lang, 'settings.reset')}</Text>
-        </Pressable>
-      </View>
-    </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: colors.bg,
-    paddingHorizontal: spacing.lg,
   },
-  title: {
-    color: colors.silver,
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 1,
+  container: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   body: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    padding: spacing.lg,
+  },
+  profileHeaderText: {
+    color: colors.silver,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  profileHeaderChevron: {
+    color: colors.teal,
+    fontSize: 16,
+    fontWeight: '800',
   },
   section: {
     color: colors.silverDim,
@@ -165,6 +215,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  daysRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  dayChip: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    flex: 1,
+    paddingVertical: spacing.sm,
+  },
+  dayChipActive: {
+    borderColor: colors.teal,
+    backgroundColor: colors.surface,
+  },
+  dayChipText: {
+    color: colors.silverDim,
+    fontSize: 13,
+  },
+  dayChipTextActive: {
+    color: colors.teal,
+    fontWeight: '700',
   },
   chip: {
     borderColor: colors.line,
@@ -188,33 +262,11 @@ const styles = StyleSheet.create({
     color: colors.teal,
     fontWeight: '700',
   },
-  step: {
-    borderColor: colors.line,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    minWidth: 48,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-  },
-  stepDim: {
-    opacity: 0.4,
-  },
-  stepText: {
-    color: colors.silver,
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  stepValue: {
-    color: colors.silver,
-    fontSize: 20,
-    fontWeight: '800',
-    minWidth: 56,
-    textAlign: 'center',
-  },
-  saved: {
-    color: colors.teal,
+  hint: {
+    color: colors.silverDim,
     fontSize: 13,
-    marginTop: spacing.lg,
+    lineHeight: 19,
+    marginBottom: spacing.sm,
   },
   accountLine: {
     color: colors.silverDim,

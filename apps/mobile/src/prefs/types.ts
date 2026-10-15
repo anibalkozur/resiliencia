@@ -3,6 +3,7 @@ export type Language = 'es' | 'en' | 'pt';
 
 export interface UserPrefs {
   goal: Goal;
-  daysPerWeek: number;
+  /** Días de entrenamiento elegidos por el usuario (0=domingo … 6=sábado). */
+  trainingDays: number[];
   language: Language;
 }
