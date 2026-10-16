@@ -61,7 +61,13 @@ export function ConsoleShell({ session, role, onSignOut }: Props) {
 
       <main className="content">
         {tab === 'dashboard' && <DashboardView role={role} session={session} />}
-        {tab === 'entitlements' && <EntitlementsView role={role} />}
+        {tab === 'entitlements' && (
+          <EntitlementsView
+            role={role}
+            currentUserId={session.user.id}
+            email={session.user.email ?? null}
+          />
+        )}
         {tab === 'config' && <ConfigView role={role} />}
         {tab === 'audit' && <AuditView />}
         {tab === 'copilot' && <CopilotView />}

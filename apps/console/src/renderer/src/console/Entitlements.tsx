@@ -2,16 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { admin_console } from '../lib/adminApi';
 import type { EntitlementRow } from '../lib/types';
 import { EVENT_CATALOGUE, PRODUCT_CHOICES, eventById } from '../lib/events';
+import { QuickPremium } from './QuickPremium';
 
 type Props = {
   role: string | null;
+  currentUserId: string;
+  email: string | null;
 };
 
 function shortName(userId: string): string {
   return userId.length > 13 ? `${userId.slice(0, 8)}…${userId.slice(-4)}` : userId;
 }
 
-export function EntitlementsView({ role }: Props) {
+export function EntitlementsView({ role, currentUserId, email }: Props) {
   const isDirector = role === 'director';
 
   const [userId, setUserId] = useState('');
@@ -108,6 +111,18 @@ export function EntitlementsView({ role }: Props) {
 
   return (
     <div>
+      {isDirector && (
+        <div className="card">
+          <h2>Mi cuenta (director)</h2>
+          <p className="empty" style={{ textAlign: 'left' }}>
+            Cambiá <strong>tu propia cuenta</strong> entre free y premium con un solo botón, para
+            probar la app sin cargar tu <code>user_id</code>. Escribe tu entitlement en el servidor
+            (auditado). Después <strong>reiniciá la app</strong> ResiliencIA para ver el cambio.
+          </p>
+          <QuickPremium userId={currentUserId} email={email} />
+        </div>
+      )}
+
       <div className="card">
         <div className="section-title">
           <h2>Entitlements</h2>
