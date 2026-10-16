@@ -102,9 +102,9 @@ export const TECNICA: Record<string, Tecnica> = {
       'Ponete de perfil con las manos y los pies en el piso y la cadera bien alta (V invertida). Bajá la cabeza doblando los codos y volvé a subir.',
   },
   fondos_silla: {
-    guia: 'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás. Bajá la cadera flexionando los codos y volvé a subir. Cada fondo cuenta como 1.',
+    guia: 'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás y las piernas extendidas hacia adelante. Bajá la cadera flexionando los codos y volvé a subir empujando con los brazos: mantené las piernas extendidas, no te ayudés con las piernas. Cada fondo cuenta como 1.',
     resumen:
-      'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás. Bajá la cadera flexionando los codos y volvé a subir.',
+      'Ponete de perfil a la cámara sentado al borde de una silla, manos atrás y piernas extendidas hacia adelante. Bajá y subí la cadera empujando con los brazos, sin ayudarte con las piernas.',
   },
   superman: {
     guia: 'Recostate boca abajo con brazos y piernas extendidos. Elevá al mismo tiempo brazos y piernas del piso apretando la espalda baja y bajá con control. Cada elevación cuenta como 1.',

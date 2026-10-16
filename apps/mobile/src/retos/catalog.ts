@@ -19,6 +19,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'puente_gluteo', unit: 'reps', tier: 'premium' },
   { id: 'mountain_climbers', unit: 'seconds', tier: 'premium' },
   { id: 'sentadilla_isometrica', unit: 'seconds', tier: 'premium' },
+  { id: 'fondos_silla', unit: 'reps', tier: 'premium' },
 ];
 
 export const DEFAULT_TARGETS: Record<string, number> = {
@@ -30,13 +31,24 @@ export const DEFAULT_TARGETS: Record<string, number> = {
   puente_gluteo: 15,
   mountain_climbers: 30,
   sentadilla_isometrica: 25,
+  fondos_silla: 12,
 };
 
+// Cadencia (segundos máximos entre repes) para ejercicios por repeticiones.
+// Los ejercicios por tiempo/cuenta (plancha, mountain_climbers,
+// sentadilla_isometrica) no la usan: la cámara solo la aplica en modo reps.
 export const REP_CADENCE: Record<string, number> = {
   sentadillas: 5,
   flexiones: 5,
   abdominales: 3,
+  zancadas: 4,
+  puente_gluteo: 4,
+  fondos_silla: 5,
 };
+
+// Fallback cuando un ejercicio por repes no está en REP_CADENCE. Alineado con
+// el default de la cámara (CADENCE_SEC) y con chat.ts.
+export const DEFAULT_CADENCE_SEC = 6;
 
 export const FREE_EXERCISE_ORDER: string[] = ['sentadillas', 'flexiones', 'abdominales'];
 

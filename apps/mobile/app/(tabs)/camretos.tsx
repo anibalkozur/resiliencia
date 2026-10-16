@@ -1,21 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { getRepo } from '../../src/repo';
-import { EXERCISES, REP_CADENCE, exerciseNameKey } from '../../src/retos/catalog';
+import {
+  EXERCISES,
+  REP_CADENCE,
+  DEFAULT_CADENCE_SEC,
+  exerciseNameKey,
+} from '../../src/retos/catalog';
 import { buildVerifyUri } from '../../src/retos/verify';
 import { pushFreeSession } from '../../src/retos/freeSessions';
 import { todayKey } from '../../src/retos/service';
@@ -57,7 +53,7 @@ export default function LibreScreen() {
 
   const isMulti = routine.length > 1;
   const first = routine[0];
-  const cadence = REP_CADENCE[first?.id ?? ''] ?? 5;
+  const cadence = REP_CADENCE[first?.id ?? ''] ?? DEFAULT_CADENCE_SEC;
   const tecnicaGuia = TECNICA[first?.id ?? '']?.guia ?? '';
   const routineKey = routine.map((it) => `${it.id}:${it.target}`).join(',');
   const canStart = routine.length > 0;
@@ -216,10 +212,7 @@ export default function LibreScreen() {
               {routine.map((item, index) => {
                 const unit = unitOf(item.id);
                 const cfg = instance(unit);
-                const unitLabel = translate(
-                  lang,
-                  unit === 'reps' ? 'unit.reps' : 'unit.seconds',
-                );
+                const unitLabel = translate(lang, unit === 'reps' ? 'unit.reps' : 'unit.seconds');
                 return (
                   <View key={`${item.id}-${index}`} style={styles.routineItem}>
                     <View style={styles.routineHead}>
@@ -395,7 +388,9 @@ function AddExerciseModal({
                   onPress={() => onSelect(e.id)}
                   accessibilityRole="button"
                 >
-                  <Text style={[styles.menuItemText, (locked || added) && styles.menuItemTextLocked]}>
+                  <Text
+                    style={[styles.menuItemText, (locked || added) && styles.menuItemTextLocked]}
+                  >
                     {locked ? '🔒 ' : ''}
                     {translate(lang, exerciseNameKey(e.id))}
                   </Text>

@@ -18,7 +18,7 @@
 //    derivar una recomendación de peso, edad u objetivo.
 
 import { translate } from '../i18n/translations';
-import { EXERCISES, REP_CADENCE, exerciseNameKey } from '../retos/catalog';
+import { EXERCISES, REP_CADENCE, DEFAULT_CADENCE_SEC, exerciseNameKey } from '../retos/catalog';
 import { TECNICA } from './tecnica';
 
 export type Nivel = 'principiante' | 'intermedio' | 'avanzado';
@@ -202,7 +202,9 @@ function buscarCampo(n: string): CampoPerfil | null {
  */
 function fichaEjercicio(n: string, ranked: boolean): ChatReply | null {
   const ejercicio = EXERCISES.find(
-    (e) => normalizar(nombreEjercicio(e.id)).includes(n) || n.includes(normalizar(nombreEjercicio(e.id))),
+    (e) =>
+      normalizar(nombreEjercicio(e.id)).includes(n) ||
+      n.includes(normalizar(nombreEjercicio(e.id))),
   );
   if (!ejercicio) return null;
   const tec = TECNICA[ejercicio.id];
@@ -211,7 +213,7 @@ function fichaEjercicio(n: string, ranked: boolean): ChatReply | null {
 
   const arranque =
     'Para arrancar, levantá la mano arriba de la cabeza y esperá la cuenta de 5 a 1.';
-  const cad = segundos ? 6 : REP_CADENCE[ejercicio.id] ?? 6;
+  const cad = segundos ? DEFAULT_CADENCE_SEC : (REP_CADENCE[ejercicio.id] ?? DEFAULT_CADENCE_SEC);
   const vida =
     ranked && !segundos
       ? `Con el ranking activado tenés que llegar a ${cad} segundos entre reps y el sistema te avisa cada 12 segundos levantando la mano.`

@@ -1425,3 +1425,44 @@ Decisiones del PO desarrolladas directo sobre producción (sin pasar por el banc
 **Verificación:** prettier ✓, typecheck ✓, lint ✓, `apps/mobile` **198/198** (16
 suites). **Probado por el PO en Expo Go: OK.** Acta:
 `docs/equipo/actas/2026-10-14_reorg_pestanas_selector_dias.md`.
+
+### 2026-10-16 — Fix de la prueba de vida (mano) + cadencia de ejercicios premium
+
+**Reporte del PO (vía chat):**
+
+1. Al probar **Fondos en silla** (premium), al terminar la serie la app pedía la
+   **prueba de vida**; levantaba la mano por encima de la cabeza y la cámara
+   **no la detectaba** ("SEÑAL VIDA" quedaba fijo, varios intentos).
+2. Consulta: "¿hay 6 segundos para cada repe?".
+
+**Análisis y hallazgos ([CV]/[DER]):**
+
+- La detección de vida con mano **no era independiente del ejercicio**: vivía
+  dentro de `processFrontal`/`processLateral`, **después** de los gates
+  anti-trampa de postura, y exigía `repStateInitialized`.
+- `fondos_silla` exige **rodilla extendida** (`kneeExtendMin: 150`): al levantar
+  el brazo con las piernas no perfectamente estiradas, el gate hacía `return`
+  temprano y **reiniciaba la calibración** → nunca se leía la mano.
+- La vida es una señal **deliberada** del usuario: no debe quedar bloqueada por
+  los anti-trampa (que sancionan el **conteo**, no la vida).
+
+**Cambios aplicados:**
+
+- `camera-verification.html` (**v53**) y banco espejo: la vida de mano se evalúa
+  **al inicio de `processPose`, antes de cualquier gate**; se quita el requisito
+  de `repStateInitialized`; se eliminan los call sites duplicados en
+  `processFrontal`/`processLateral`; visibilidad de muñeca **0.5 → 0.3** y
+  `LIVENESS_FRAMES` **5 → 3**. Mejora colateral en abdominales, puente y
+  escaladores.
+- **Cadencia** (máximo de descanso entre repes; se sanciona solo en ranking):
+  `REP_CADENCE` suma **zancadas 4 s**, **puente_gluteo 4 s**, **fondos_silla 5 s**
+  (además de sentadillas 5, flexiones 5, abdominales 3) y se **unifica el
+  fallback en 6 s** (`DEFAULT_CADENCE_SEC`, default de la cámara y de `chat.ts`;
+  antes `camretos.tsx` usaba 5). Los ejercicios por tiempo no usan cadencia.
+- App: `VERIFY_VERSION` **52 → 53**.
+
+**Verificación:** `node --check` OK (prod y banco); banco y espejo idénticos
+(MD5); typecheck ✓, lint ✓, `apps/mobile` **198/198** (16 suites) ✓; publicado en
+**gh-pages** (`camera-verification.html` + `camera-verification-bench.html`) y
+CDN confirmado. **Probado por el PO en Expo Go: OK.** Acta:
+`docs/equipo/actas/2026-10-16_fix_prueba_de_vida.md`.

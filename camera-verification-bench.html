@@ -645,7 +645,7 @@
         flexion_pica:
           'Ponete de perfil con las manos y los pies en el piso y la cadera bien alta (V invertida). Bajá la cabeza doblando los codos y volvé a subir. Cada flexión cuenta como 1.',
         fondos_silla:
-          'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás. Bajá la cadera flexionando los codos y volvé a subir. Cada fondo cuenta como 1.',
+          'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás y las piernas extendidas hacia adelante. Bajá la cadera flexionando los codos y volvé a subir empujando con los brazos: mantené las piernas extendidas, no te ayudés con las piernas. Cada fondo cuenta como 1.',
         superman:
           'Recostate boca abajo con brazos y piernas extendidos. Elevá al mismo tiempo brazos y piernas del piso apretando la espalda baja y bajá con control. Cada elevación cuenta como 1.',
         encogimiento_inverso:
@@ -1075,19 +1075,38 @@
           type: 'lateral',
           sides: {
             left: {
-              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip'],
+              points: [
+                'left_shoulder',
+                'left_elbow',
+                'left_wrist',
+                'left_hip',
+                'left_knee',
+                'left_ankle',
+              ],
               angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
             },
             right: {
-              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip'],
+              points: [
+                'right_shoulder',
+                'right_elbow',
+                'right_wrist',
+                'right_hip',
+                'right_knee',
+                'right_ankle',
+              ],
               angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
             },
           },
           downDelta: 35,
           upDelta: 12,
+          // Anti-trampa: rodilla extendida (ángulo cadera-rodilla-tobillo). Si
+          // baja de 150° se está agachando para ayudarse con las piernas.
+          kneeExtendMin: 150,
+          kneeExtendMsg: 'Estirá las piernas: no te agachés para ayudarte con las piernas',
           liveness: 'hand',
           postureMsg: 'Ponete de perfil con las manos apoyadas atrás en la silla',
-          startMsg: 'Sentate al borde de la silla, manos atrás, quieto un segundo',
+          startMsg:
+            'Sentate al borde de la silla, manos atrás, piernas extendidas, quieto un segundo',
         },
         superman: {
           name: 'Superman',
@@ -1251,6 +1270,7 @@
         angleHistory = [],
         groundedHistory = [],
         lineAngleHistory = [],
+        kneeExtendHistory = [],
         sideVotes = [],
         confirmedSide = null;
       let candidateState = null,
@@ -1285,7 +1305,7 @@
         livenessHoldStartTime = null;
       const LIVENESS_MIN_MS = 4000,
         LIVENESS_MAX_MS = 13000,
-        LIVENESS_FRAMES = 5,
+        LIVENESS_FRAMES = 3,
         LIVENESS_HOLD_MS = 2000;
       let audioCtx = null,
         masterGain = null,
@@ -1520,8 +1540,8 @@
           lw = lm[LID.left_wrist],
           rs = lm[LID.right_shoulder],
           ls = lm[LID.left_shoulder];
-        const rUp = rw && rs && (rw.visibility ?? 0) > 0.5 && rw.y < rs.y - 0.05,
-          lUp = lw && ls && (lw.visibility ?? 0) > 0.5 && lw.y < ls.y - 0.05;
+        const rUp = rw && rs && (rw.visibility ?? 0) > 0.3 && rw.y < rs.y - 0.05,
+          lUp = lw && ls && (lw.visibility ?? 0) > 0.3 && lw.y < ls.y - 0.05;
         if (rUp || lUp) livenessConfirmFrames++;
         else livenessConfirmFrames = 0;
         if (livenessConfirmFrames >= LIVENESS_FRAMES) {
@@ -1767,6 +1787,7 @@
         angleHistory = [];
         groundedHistory = [];
         lineAngleHistory = [];
+        kneeExtendHistory = [];
         sideVotes = [];
         confirmedSide = null;
         candidateState = null;
@@ -2265,6 +2286,13 @@
           return;
         }
         const lm = poseLm;
+        // Prueba de vida (mano): se evalúa ACÁ, antes de cualquier gate de
+        // postura. La señal de vida es independiente del ejercicio y no debe
+        // quedar bloqueada por los anti-trampa (p. ej. fondos en silla exige
+        // rodilla extendida). Antes vivía dentro de processFrontal/processLateral,
+        // después de esos gates, así que un desvío de postura dejaba la mano
+        // ignorada.
+        if (cfg.liveness === 'hand' && checkHandLiveness(lm)) return;
         if (cfg.type === 'frontal') return processFrontal(lm);
         return processLateral(lm);
       }
@@ -2298,7 +2326,6 @@
           showState('state-msg blocked', 'Confirmando cuerpo…');
           return;
         }
-        if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
         const la = angleBetween(lm[LID.left_hip], lm[LID.left_knee], lm[LID.left_ankle]);
         const ra = angleBetween(lm[LID.right_hip], lm[LID.right_knee], lm[LID.right_ankle]);
         if (la == null || ra == null) return;
@@ -2407,6 +2434,7 @@
         if (!complete) {
           bodyOkStreak = 0;
           angleHistory = [];
+          kneeExtendHistory = [];
           candidateState = null;
           candidateStreak = 0;
           repStateInitialized = false;
@@ -2465,6 +2493,30 @@
             return;
           }
         }
+        // Anti-trampa de fondos en silla: si la rodilla se flexiona (agacharse
+        // para ayudarse con las piernas en vez de empujar con los tríceps),
+        // se bloquea. Las piernas deben quedar extendidas durante el fondo.
+        if (cfg.kneeExtendMin) {
+          const hip = lm[LID[side + '_hip']],
+            knee = lm[LID[side + '_knee']],
+            ankle = lm[LID[side + '_ankle']];
+          const kneeAngle = angleBetween(hip, knee, ankle);
+          if (kneeAngle != null) {
+            kneeExtendHistory.push(kneeAngle);
+            if (kneeExtendHistory.length > 5) kneeExtendHistory.shift();
+            const ka = kneeExtendHistory.reduce((a, b) => a + b, 0) / kneeExtendHistory.length;
+            if (ka < cfg.kneeExtendMin) {
+              candidateState = null;
+              candidateStreak = 0;
+              repStateInitialized = false;
+              calibBuffer = [];
+              dynamicDownThresh = null;
+              dynamicUpThresh = null;
+              showState('state-msg blocked', cfg.kneeExtendMsg);
+              return;
+            }
+          }
+        }
         if (sc.line) {
           const A = lm[LID[sc.line.a]],
             B = lm[LID[sc.line.b]],
@@ -2486,8 +2538,6 @@
             }
           }
         }
-        if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
-
         // mountain climbers / rodillas altas: conteo por pliegue de rodilla
         if (cfg.kneeFold) {
           const ka = angleBetween(lm[LID[sc.knee.a]], lm[LID[sc.knee.b]], lm[LID[sc.knee.c]]);

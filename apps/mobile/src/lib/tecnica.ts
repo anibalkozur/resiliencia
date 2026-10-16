@@ -56,4 +56,9 @@ export const TECNICA: Record<string, Tecnica> = {
     resumen:
       'Parate derecho y bajá a una sentadilla hasta que tus rodillas queden cerca de 90°. Mantené la posición sin subir hasta completar el tiempo.',
   },
+  fondos_silla: {
+    guia: 'Ponete de perfil a la cámara sentado al borde de una silla, con las manos apoyadas en el borde por detrás y las piernas extendidas hacia adelante. Bajá la cadera flexionando los codos y volvé a subir empujando con los brazos: mantené las piernas extendidas, no te ayudés con las piernas. Cada fondo cuenta como 1.',
+    resumen:
+      'Ponete de perfil a la cámara sentado al borde de una silla, manos atrás y piernas extendidas hacia adelante. Bajá y subí la cadera empujando con los brazos, sin ayudarte con las piernas.',
+  },
 };

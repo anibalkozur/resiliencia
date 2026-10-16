@@ -251,6 +251,8 @@ const es = {
   'exercise.mountain_climbers.desc': 'Cardio y core',
   'exercise.sentadilla_isometrica.name': 'Sentadilla isométrica',
   'exercise.sentadilla_isometrica.desc': 'Tren inferior',
+  'exercise.fondos_silla.name': 'Fondos en silla',
+  'exercise.fondos_silla.desc': 'Tren superior',
 } as const;
 
 export type TranslationKey = keyof typeof es;
@@ -507,6 +509,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'exercise.mountain_climbers.desc': 'Cardio and core',
     'exercise.sentadilla_isometrica.name': 'Wall sit',
     'exercise.sentadilla_isometrica.desc': 'Lower body',
+    'exercise.fondos_silla.name': 'Chair dips',
+    'exercise.fondos_silla.desc': 'Upper body',
   },
   pt: {
     'onboarding.title': 'Bem-vindo',
@@ -758,6 +762,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'exercise.mountain_climbers.desc': 'Cardio e core',
     'exercise.sentadilla_isometrica.name': 'Agachamento isométrico',
     'exercise.sentadilla_isometrica.desc': 'Parte inferior',
+    'exercise.fondos_silla.name': 'Mergulho na cadeira',
+    'exercise.fondos_silla.desc': 'Parte superior',
   },
 };
 
