@@ -1304,7 +1304,7 @@
         livenessHoldStartTime = null;
       const LIVENESS_MIN_MS = 4000,
         LIVENESS_MAX_MS = 13000,
-        LIVENESS_FRAMES = 5,
+        LIVENESS_FRAMES = 3,
         LIVENESS_HOLD_MS = 2000;
       let audioCtx = null,
         masterGain = null,
@@ -1539,8 +1539,8 @@
           lw = lm[LID.left_wrist],
           rs = lm[LID.right_shoulder],
           ls = lm[LID.left_shoulder];
-        const rUp = rw && rs && (rw.visibility ?? 0) > 0.5 && rw.y < rs.y - 0.05,
-          lUp = lw && ls && (lw.visibility ?? 0) > 0.5 && lw.y < ls.y - 0.05;
+        const rUp = rw && rs && (rw.visibility ?? 0) > 0.3 && rw.y < rs.y - 0.05,
+          lUp = lw && ls && (lw.visibility ?? 0) > 0.3 && lw.y < ls.y - 0.05;
         if (rUp || lUp) livenessConfirmFrames++;
         else livenessConfirmFrames = 0;
         if (livenessConfirmFrames >= LIVENESS_FRAMES) {
@@ -2285,6 +2285,13 @@
           return;
         }
         const lm = poseLm;
+        // Prueba de vida (mano): se evalúa ACÁ, antes de cualquier gate de
+        // postura. La señal de vida es independiente del ejercicio y no debe
+        // quedar bloqueada por los anti-trampa (p. ej. fondos en silla exige
+        // rodilla extendida). Antes vivía dentro de processFrontal/processLateral,
+        // después de esos gates, así que un desvío de postura dejaba la mano
+        // ignorada.
+        if (cfg.liveness === 'hand' && checkHandLiveness(lm)) return;
         if (cfg.type === 'frontal') return processFrontal(lm);
         return processLateral(lm);
       }
@@ -2318,7 +2325,6 @@
           showState('state-msg blocked', 'Confirmando cuerpo…');
           return;
         }
-        if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
         const la = angleBetween(lm[LID.left_hip], lm[LID.left_knee], lm[LID.left_ankle]);
         const ra = angleBetween(lm[LID.right_hip], lm[LID.right_knee], lm[LID.right_ankle]);
         if (la == null || ra == null) return;
@@ -2531,8 +2537,6 @@
             }
           }
         }
-        if (cfg.liveness === 'hand' && repStateInitialized && checkHandLiveness(lm)) return;
-
         // mountain climbers / rodillas altas: conteo por pliegue de rodilla
         if (cfg.kneeFold) {
           const ka = angleBetween(lm[LID[sc.knee.a]], lm[LID[sc.knee.b]], lm[LID[sc.knee.c]]);
