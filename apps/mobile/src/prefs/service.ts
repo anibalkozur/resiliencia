@@ -10,6 +10,7 @@ export const DEFAULT_PREFS: UserPrefs = {
   goal: 'mantener',
   trainingDays: DEFAULT_TRAINING_DAYS,
   language: 'es',
+  showInRanking: true,
 };
 
 // Migración de la preferencia vieja `daysPerWeek` (cantidad) a días concretos.
@@ -62,7 +63,8 @@ export function normalizePrefs(input: Partial<UserPrefs> | undefined): UserPrefs
     trainingDays: input?.trainingDays,
     daysPerWeek: (input as { daysPerWeek?: unknown } | undefined)?.daysPerWeek,
   });
-  return { goal, trainingDays, language };
+  const showInRanking = typeof input?.showInRanking === 'boolean' ? input.showInRanking : true;
+  return { goal, trainingDays, language, showInRanking };
 }
 
 export async function getPrefs(repo: IRepo): Promise<UserPrefs> {

@@ -6,4 +6,6 @@ export interface UserPrefs {
   /** Días de entrenamiento elegidos por el usuario (0=domingo … 6=sábado). */
   trainingDays: number[];
   language: Language;
+  /** El usuario permite aparecer en el ranking público. */
+  showInRanking: boolean;
 }

@@ -15,6 +15,7 @@ import {
   type RepsRankingRow,
   type TotalRepsRankingRow,
 } from '../../src/sync/syncService';
+import { RANK_PERIODS, rankPeriodLabelKey, type RankPeriod } from '../../src/sync/rankingPeriods';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 
@@ -39,6 +40,7 @@ export default function RankingScreen() {
   const lang = prefs?.language ?? 'es';
   const [ranking, setRanking] = useState<RankingRow[]>([]);
   const [tab, setTab] = useState<RankTab>('streak');
+  const [period, setPeriod] = useState<RankPeriod>('all');
   const [repsExercise, setRepsExercise] = useState('sentadillas');
   const [repsRanking, setRepsRanking] = useState<RepsRankingRow[]>([]);
   const [totalRanking, setTotalRanking] = useState<TotalRepsRankingRow[]>([]);
@@ -90,6 +92,25 @@ export default function RankingScreen() {
       <View style={styles.card}>
         <Text style={styles.cardLabel}>{translate(lang, 'progress.ranking')}</Text>
         <Text style={styles.rankingNote}>{translate(lang, 'progress.ranking_note')}</Text>
+        <View style={styles.periodsRow}>
+          {RANK_PERIODS.map((p) => {
+            const active = p === period;
+            return (
+              <Pressable
+                key={p}
+                style={[styles.periodChip, active && styles.periodChipActive]}
+                onPress={() => setPeriod(p)}
+              >
+                <Text
+                  style={[styles.periodChipText, active && styles.periodChipTextActive]}
+                  numberOfLines={1}
+                >
+                  {translate(lang, rankPeriodLabelKey(p))}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <View style={styles.tabsRow}>
           {RANK_TABS.map((t) => (
             <Pressable
@@ -106,6 +127,8 @@ export default function RankingScreen() {
 
         {!session ? (
           <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+        ) : period !== 'all' ? (
+          <Text style={styles.rankingEmpty}>{translate(lang, 'progress.period_empty')}</Text>
         ) : tab === 'streak' ? (
           ranking.length === 0 ? (
             <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
@@ -206,7 +229,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   container: {
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
   },
@@ -215,7 +237,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: spacing.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.md,
   },
   cardLabel: {
     color: colors.silverDim,
@@ -300,6 +323,33 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   tabTextActive: {
+    color: colors.teal,
+  },
+  periodsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+  },
+  periodChip: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  periodChipActive: {
+    borderColor: colors.teal,
+    backgroundColor: 'rgba(45, 212, 168, 0.08)',
+  },
+  periodChipText: {
+    color: colors.silverDim,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  periodChipTextActive: {
     color: colors.teal,
   },
   chipsRow: {

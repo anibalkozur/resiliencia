@@ -35,6 +35,14 @@ describe('normalizePrefs', () => {
     expect(normalizePrefs({ goal: 'otro' as never }).goal).toBe(DEFAULT_PREFS.goal);
     expect(normalizePrefs({ language: 'xx' as never }).language).toBe(DEFAULT_PREFS.language);
   });
+
+  it('defaults to appearing in the ranking when visibility is not set', () => {
+    expect(normalizePrefs(undefined).showInRanking).toBe(true);
+  });
+
+  it('keeps an explicit ranking visibility flag', () => {
+    expect(normalizePrefs({ showInRanking: false }).showInRanking).toBe(false);
+  });
 });
 
 describe('prefs roundtrip', () => {

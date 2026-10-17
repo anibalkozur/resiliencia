@@ -1466,3 +1466,45 @@ suites). **Probado por el PO en Expo Go: OK.** Acta:
 **gh-pages** (`camera-verification.html` + `camera-verification-bench.html`) y
 CDN confirmado. **Probado por el PO en Expo Go: OK.** Acta:
 `docs/equipo/actas/2026-10-16_fix_prueba_de_vida.md`.
+
+### 2026-10-16 - Ranking: selector de períodos (UI) + visibilidad de perfil (`showInRanking`); acta 016
+
+**Peticiones del PO (vía chat):**
+
+1. Implementar los rankings de la pestaña Ranking **por partes**; primero la UI.
+2. Que en la lista del ranking aparezca el **nombre de perfil (identidad)**.
+3. Los botones de período (Hoy · Semana · Mes · Año · Histórico) **no deben salirse de pantalla**.
+4. Agrandar el recuadro del Ranking **hasta el borde**, con los 5 botones en **una sola fila**, adaptativos y con **menos separación**.
+
+**Análisis y hallazgos:**
+
+- El **acta 016** (decisión de producto, `docs/equipo/actas/2026-10-16_ranking_rutinas.md`) fija los períodos
+  Hoy · Semana · Mes · Año · Histórico (default **Histórico**) y la visibilidad `show_in_ranking`; la
+  implementación de datos es **Fase 4** (bloqueada por el validador server real).
+- `apps/mobile/src/sync/rankingPeriods.ts` (creado en un arranque previo, **sin commitear**) **no compilaba**:
+  `rankPeriodSince` no cerraba el `switch` ni la función (faltaba `case 'all'`); además tenía BOM y era **huérfano**.
+- Faltaban las claves i18n `progress.period_*` (es/en/pt) → `TranslationKey` inválida.
+- El **nombre/apodo ya se mostraba** en la lista (`entry.nickname`); no requería cambios. Lo nuevo es el opt-out
+  `showInRanking`, que queda **dormido** (sin consumidor) hasta la Fase B.
+- Primer intento de UI con `ScrollView horizontal` → el último chip ("Histórico") **quedaba fuera de pantalla**.
+
+**Cambios aplicados:**
+
+- `apps/mobile/src/sync/rankingPeriods.ts`: cerrado el `switch` con `case 'all': default: return null;`; BOM eliminado.
+- `apps/mobile/src/i18n/translations.ts`: `progress.period_day|week|month|year|all` + `progress.period_empty` en es/en/pt.
+- `apps/mobile/app/(tabs)/ranking.tsx`: fila de 5 chips de período (default **Histórico**), en **una sola fila**
+  (`flex: 1`, gap 4), tarjeta a **borde de pantalla**, y **estado vacío honesto por período** (no muestra datos sin filtrar).
+- `apps/mobile/src/prefs/*`: `showInRanking` (default `true`) con tests (dormido).
+- `apps/mobile/src/sync/__tests__/rankingPeriods.test.ts`: 7 tests nuevos.
+- Acta 016 incluida en el commit.
+
+**Verificación:** `prettier --check` OK · `typecheck` 5/5 OK · `lint` OK · `apps/mobile` **207/207** (17 suites).
+UI probada por el PO en Expo Go: **OK**.
+
+**Pendientes / decisiones:**
+
+- **Fase B**: migración `0019` (hoy crea **sobrecargas** de las funciones y hay que recablear `syncService`
+  para mandar `p_since`) — **NO commiteada**; queda como borrador local.
+- **Fix del handshake de versión** (`validate_workout` acepta `{12,13}` vs cámara `?v=53`) y **validador
+  server-side real** (Fase 4) antes de **encender** el ranking; el free sigue fuera de todo ranking (ADR).
+- `tmp.test` (copia basura de `estado.md`) sigue **sin commitear**.
