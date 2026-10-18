@@ -966,7 +966,11 @@
         livenessPassed = false,
         livenessNextTriggerAt = null,
         livenessConfirmFrames = 0,
-        livenessHoldStartTime = null;
+        livenessHoldStartTime = null,
+        // Umbral de "abajo" congelado al arrancar la vida de aguante: los gates
+        // de postura reinician `dynamicDownThresh`, así que lo copiamos para no
+        // depender de que sigan recalibrando mientras se aguanta.
+        livenessDownThresh = null;
       // Vida garantizada: si la serie termina sin haberla pasado, se pide recién
       // al final y el resultado se envía al confirmarla (ver `onLivenessPassed`).
       let pendingCompletionDetail = null;
@@ -1133,6 +1137,9 @@
         if (livenessPassed || livenessNextTriggerAt || !livenessEnabled || livenessEndOnly) return;
         // Aleatoria, pero recién a partir de la repe LIVENESS_MIN_REP.
         if (targetUnit === 'reps' && repCount < LIVENESS_MIN_REP) return;
+        // Acá la postura acaba de ser válida: congelamos el umbral de "abajo"
+        // para la vida de aguante antes de que los gates lo puedan reiniciar.
+        if (dynamicDownThresh != null) livenessDownThresh = dynamicDownThresh;
         livenessNextTriggerAt =
           performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
       }
@@ -1187,14 +1194,18 @@
         if (livenessPassed || !livenessEnabled) return false;
         if (!livenessChallengeActive) {
           if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
+          const startThresh = down != null ? down : livenessDownThresh;
+          if (startThresh == null) return false;
           livenessChallengeActive = true;
           livenessHoldStartTime = null;
+          livenessDownThresh = startThresh;
           const now = performance.now();
           extendCadenceForLiveness(now);
           showLiveness('Bajá y aguantá abajo unos segundos');
           speak('Señal de vida. Bajá y aguantá abajo unos segundos');
         }
-        const inDown = smoothed < down;
+        const thresh = livenessDownThresh != null ? livenessDownThresh : down;
+        const inDown = thresh != null && smoothed < thresh;
         if (inDown) {
           if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
           const rem = Math.max(0, LIVENESS_HOLD_MS - (performance.now() - livenessHoldStartTime));
@@ -1205,6 +1216,22 @@
           livenessHoldStartTime = null;
         }
         return true;
+      }
+      // Vida de aguante (flexiones, plancha): se evalúa al inicio de
+      // `processPose`, ANTES de los gates de postura —igual que la vida de
+      // mano—. Si viviera dentro de `processLateral`, un desvío de postura al
+      // bajar a aguantar (muñeca ocluida, cadera hundida, tobillo fuera de
+      // cuadro) haría que el gate devuelva temprano y la señal quede ignorada
+      // para siempre. Mide el ángulo del lado confirmado y compara con el
+      // umbral de "abajo" (congelado al arrancar el desafío).
+      function checkHoldLivenessPose(lm) {
+        if (livenessPassed || !livenessEnabled) return false;
+        const side = confirmedSide;
+        const sc = side && cfg.sides[side];
+        if (!sc || !sc.angle) return false;
+        const ang = angleBetween(lm[LID[sc.angle.a]], lm[LID[sc.angle.b]], lm[LID[sc.angle.c]]);
+        if (ang == null) return false;
+        return checkHoldLiveness(ang, dynamicDownThresh);
       }
       function onLivenessPassed() {
         livenessPassed = true;
@@ -1323,6 +1350,7 @@
         livenessNextTriggerAt = null;
         livenessConfirmFrames = 0;
         livenessHoldStartTime = null;
+        livenessDownThresh = null;
         pendingCompletionDetail = null;
         repCountEl.textContent = '0';
         refreshHud();
@@ -1568,6 +1596,7 @@
         if (livenessEnabled && !livenessPassed && currentValue() >= targetVal) {
           pendingCompletionDetail = detail;
           livenessChallengeActive = false;
+          if (dynamicDownThresh != null) livenessDownThresh = dynamicDownThresh;
           livenessNextTriggerAt = performance.now();
           log('Prueba de vida pendiente: se pide antes de enviar el resultado');
           return;
@@ -2041,6 +2070,7 @@
         // dentro de processFrontal/processLateral, después de esos gates, así
         // que cualquier desvío de postura dejaba la mano ignorada para siempre.
         if (cfg.liveness === 'hand' && checkHandLiveness(lm)) return;
+        if (cfg.liveness === 'hold' && checkHoldLivenessPose(lm)) return;
         if (cfg.type === 'frontal') return processFrontal(lm);
         return processLateral(lm);
       }
@@ -2346,8 +2376,6 @@
           }
           return;
         }
-
-        if (cfg.liveness === 'hold' && checkHoldLiveness(smoothed, dynamicDownThresh)) return;
 
         if (targetUnit === 'seconds') {
           // hold: cuenta tiempo en posición válida (p. ej. plancha = brazos extendidos)
