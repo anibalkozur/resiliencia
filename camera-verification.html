@@ -567,6 +567,10 @@
       const LIVENESS_REQUIRED = MODE_RANKED || qs.get('liveness') === '1';
       const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
+      // El reto diario usa `strict=1`: si la pausa entre repes supera la cadencia,
+      // la serie se corta y se ofrece REPETIR, igual que en ranking, pero SIN
+      // participar del ranking (seriesOk no califica la sesión para el ranking).
+      const STRICT_CADENCE = MODE_RANKED || qs.get('strict') === '1';
       const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
         ? Math.max(1, parseInt(qs.get('v') || '1', 10))
         : 1;
@@ -896,7 +900,8 @@
           kneeExtendMsg: 'Estirá las piernas: no te agachés para ayudarte con las piernas',
           liveness: 'hand',
           postureMsg: 'Ponete de perfil con las manos apoyadas atrás en la silla',
-          startMsg: 'Sentate al borde de la silla, manos atrás, piernas extendidas, quieto un segundo',
+          startMsg:
+            'Sentate al borde de la silla, manos atrás, piernas extendidas, quieto un segundo',
         },
       };
       let cfg = CFG[EX_ID] || CFG.sentadillas;
@@ -967,8 +972,8 @@
       let pendingCompletionDetail = null;
       const LIVENESS_MIN_MS = 4000,
         LIVENESS_MAX_MS = 13000,
-          LIVENESS_FRAMES = 3,
-          LIVENESS_HOLD_MS = 2000,
+        LIVENESS_FRAMES = 3,
+        LIVENESS_HOLD_MS = 2000,
         // Con meta de repes > 10 la vida sale aleatoria pero nunca antes de
         // terminar esta repetición.
         LIVENESS_MIN_REP = 5;
@@ -1151,7 +1156,7 @@
       // Al pedir la vida en medio de la serie, esa repetición pasa a tener los
       // 6 s de cadencia + 6 s extra = 12 s, para dar la señal y completar la repe.
       function extendCadenceForLiveness(now) {
-        if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
+        if (STRICT_CADENCE && targetUnit === 'reps' && cadenceDeadline > 0)
           cadenceDeadline = Math.max(cadenceDeadline, now + CADENCE_MS + 6000);
       }
       function checkHandLiveness(lm) {
@@ -1481,7 +1486,7 @@
         const now = performance.now();
         if (targetUnit === 'reps') {
           if (!gestureStarted) return;
-          if (MODE_RANKED && now > cadenceDeadline) {
+          if (STRICT_CADENCE && now > cadenceDeadline) {
             failSeries('Descanso muy largo — fuera de ranking');
             return;
           }
@@ -1913,10 +1918,10 @@
       }
       function cadenceTick(now) {
         if (targetUnit !== 'reps' || !seriesOk) return;
-        if (MODE_RANKED && !gestureStarted) return;
+        if (STRICT_CADENCE && !gestureStarted) return;
         if (!cadenceDeadline) return;
         if (now > cadenceDeadline) {
-          if (MODE_RANKED) {
+          if (STRICT_CADENCE) {
             failSeries('Descanso muy largo — fuera de ranking');
             return;
           }
@@ -1933,7 +1938,11 @@
         seriesOk = false;
         cadenceHud.style.display = 'none';
         log('SERIE ROTA: ' + msg);
-        speak('Descanso muy largo. La serie quedó fuera del ranking');
+        speak(
+          MODE_RANKED
+            ? 'Descanso muy largo. La serie quedó fuera del ranking'
+            : 'Descanso muy largo. La serie se cortó, reiniciá cuando quieras',
+        );
         stopCamera();
       }
 
@@ -2649,7 +2658,7 @@
         // No apagamos la cámara: entramos al estado de espera igual que al
         // completar, para ofrecer REPETIR / SALIR con el gesto.
         completed = true;
-        statusText.textContent = 'Serie completa';
+        statusText.textContent = seriesOk ? 'Serie completa' : 'Serie cortada';
         stopBtn.style.display = 'none';
         startBtn.style.display = 'none';
         showActionButton('REPETIR', 'repeat');
@@ -2674,6 +2683,9 @@
             ? 'Sesión enviada para validación — pendiente de ranking'
             : 'No califica para ranking';
           tagEl.classList.toggle('broken', !qualified);
+        } else if (!seriesOk) {
+          verifyText.textContent = 'Serie cortada por pausa larga — tocá REPETIR';
+          tagEl.classList.add('broken');
         } else {
           verifyText.textContent = 'Verificado por pose';
           tagEl.classList.remove('broken');
