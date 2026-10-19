@@ -1508,3 +1508,199 @@ UI probada por el PO en Expo Go: **OK**.
 - **Fix del handshake de versión** (`validate_workout` acepta `{12,13}` vs cámara `?v=53`) y **validador
   server-side real** (Fase 4) antes de **encender** el ranking; el free sigue fuera de todo ranking (ADR).
 - `tmp.test` (copia basura de `estado.md`) sigue **sin commitear**.
+
+### 2026-10-16 - Ranking Fase B: cableado de datos por período + visibilidad (migración 0019 aplicada en producción)
+
+**Peticiones del PO (vía chat):**
+
+1. "Vamos con Fase B" (cablear el selector de período a datos reales del servidor).
+2. Aplicar la migración en Supabase productivo ("puedes hacer todo tú").
+
+**Análisis y hallazgos:**
+
+- El borrador `0019` **creaba sobrecargas** en vez de reemplazar firmas: `get_ranking(p_max_rows, p_since)`
+  convivía con `get_ranking(max_rows)`, y las variantes de 3/2 args con `p_since` default quedaban
+  **ambiguas** ante PostgREST (`{p_exercise_code, p_max_rows}` matcheaba 1 y 2) → riesgo `PGRST203`.
+- El cliente (`syncService.ts`) llamaba `get_ranking { max_rows }` (param viejo) y no mandaba `p_since`.
+- El rank de racha **no debe filtrar las rachas por período** (acta 016 §7): la "racha actual" es un valor de
+  HOY; el período solo acota `completed_challenges`. El primer `create` filtraba todo por `p_since` → la racha
+  actual caía a 1 al elegir "Hoy". **Corregido**.
+- No hay `supabase` CLI, `config.toml`, `project-ref` ni service-role en la máquina; solo la `anon key`
+  (no puede DDL). Se aplicó por **Management API** (`POST /v1/projects/{ref}/database/query`) con un PAT
+  provisto por el PO (project_ref `cgaxpmmbpwaefaigsisu`). Ojo: hay que mandar el body como **bytes UTF-8**
+  (los acentos en comentarios rompían el JSON con `Invoke-WebRequest`).
+
+**Cambios aplicados:**
+
+- `supabase/migrations/0019_ranking_periods_visibility.sql` (reescrita): `drop function` de las firmas viejas
+  `get_ranking(int)`, `get_reps_ranking(text,int)`, `get_total_reps_ranking(int)` → `create or replace` con
+  `p_since timestamptz default null` (sin sobrecargas); `profiles.show_in_ranking boolean not null default true`
+  - índice de visibilidad + índice de corte por `created_at`; filtro `coalesce(show_in_ranking,true)` y
+    `revoke`/`grant` a `authenticated`. En racha: `completed_all` (histórico para rachas) vs `completed_period`
+    (`p_since` para `completed_challenges`).
+- `apps/mobile/src/sync/syncService.ts`: `fetchRanking(client, maxRows, since?)`, `fetchRepsRanking(client,
+exerciseCode, maxRows, since?)`, `fetchTotalRepsRanking(client, maxRows, since?)` → mandan `p_max_rows` + `p_since`.
+- `apps/mobile/app/(tabs)/ranking.tsx`: el período dispara el **fetch real** (`rankPeriodSince(period)`); se
+  quitó el estado vacío simulado y ahora se usa `progress.period_empty` (período ≠ Histórico) o `ranking_empty`;
+  `period` agregado a las deps de los efectos.
+- `apps/mobile/src/sync/__tests__/syncService.test.ts`: asserts con `p_max_rows`/`p_since` + 3 tests nuevos de `since`.
+
+**Verificación:**
+
+- `typecheck` OK · `lint` OK · `prettier --check` OK · `apps/mobile` **210/210** (17 suites).
+- **Migración aplicada** en producción vía Management API (201). Verificado: una sola firma por función con
+  `p_since`; columna `show_in_ranking` (bool, default true); ACL `authenticated`/`service_role` sí, `anon`/`public` no.
+- Smoke test: `get_ranking(5,null)` corre (hoy solo hay 2 perfiles "atleta" y **0 retos completados** → ranking vacío,
+  consistente con "ranking latente"). Simulación SQL de la racha: con `p_since=hoy` → `completed_challenges=1`
+  pero `current_streak=3` (histórico). ✅
+
+**Pendientes / decisiones:**
+
+- **NO commiteado** por pedido del PO ("no commitear todavía"); cambios en working tree + migración sin trackear.
+- **Fix del handshake de versión** (`validate_workout` `{12,13}` vs cámara `?v=53`) y **validador server-side real**
+  (Fase 4) antes de **encender** el ranking; el free sigue fuera de todo ranking (ADR).
+- El PAT usado (acceso full, 90 días) conviene **revocarlo**; no quedó guardado en el repo.
+- `tmp.test` (copia basura de `estado.md`) sigue **sin commitear**.
+
+### 2026-10-16 - Ranking Fase 4: validador server-side real desplegado (el ranking ENCIENDE)
+
+**Petición del PO (vía chat):** "quiero que empiece a funcionar el rankeo ya, haz lo que falta, reúne a los
+especialistas y que funcione con base de datos y todo. Que aparezca la lista si empiezo a hacer ejercicios."
+
+**Análisis y hallazgos (reconocimiento server-side):**
+
+- El validador real **no existía**: por diseño `validate_workout` dejaba **todo `pending`** y **nunca** escribía
+  `verified`, ni `workout_sessions` (ranking de reps/total), ni `daily_challenges` (racha). El ranking estaba
+  "latente" aunque las funciones ya estuvieran listas (0019).
+- **Handshake de versión roto** (acta 016 §5): `ALLOWED_EVIDENCE_VERSIONS = {12,13}` vs cámara `?v=53` → con
+  `ranked=1`, `evidenceIssue` devolvía `unsupported_evidence_version` → sesión **rechazada**.
+- **Cuentas prod:** `kozuranibal@gmail.com` (=`70d9264f-...`, nickname "atleta") es **premium activo
+  (`expires_at=null`)**; `admin-test@ejemplo.com` premium **expirado**. El PO es el premium → verá la lista.
+
+**Cambios aplicados (solo Edge Function; sin migración):**
+
+- `supabase/functions/validate_workout/index.ts`:
+  - `ALLOWED_EVIDENCE_VERSIONS = {12, 13, 53}` (acepta la evidencia actual).
+  - **Sesiones libres:** una sesión `ranked` se promueve a `verified` y **escribe `workout_sessions`**
+    (`value/target`, `server_value/server_target`, `source='libre'`, `ranked=series_ok`,
+    `status='verified'`, `verification_source='server'`, `evidence_hash`, `verification_version`) **solo si pasan
+    TODOS los gates:** tier, límites, **entitlement premium (ADR 2026-09-29: el free no compite)**, prueba de
+    vida (`livenessOk`) y plausibilidad (`evidenceIssue`). Fallo → `pending`/`rejected` con motivo.
+  - **Retos diarios:** un reto con evidencia válida se promueve a `verified` y **hace upsert en `daily_challenges`**
+    (`status='completed'`, `completion_source='server'`, `verified_at`, `verification_version`). Alimenta la
+    **racha, para todos** (las rachas no son premium).
+  - **Fix de idempotencia (bug preexistente):** el camino `already_verified` de completions buscaba el resultado
+    con `daily:${date}` fijo; ahora matchea por `client_op_id` real. Además, no se re-escriben filas ya decididas
+    (se filtran por `existingDecided`/`decidedDates`) para no degradar un `verified` (invariante 0015).
+  - Respuesta: `verified` ahora son propuestas **realmente verificadas** (el cliente recibe `accepted` y limpia su
+    cola); mensaje actualizado.
+
+**Despliegue:**
+
+- `npx supabase@latest functions deploy validate_workout --project-ref cgaxpmmbpwaefaigsisu` con
+  `SUPABASE_ACCESS_TOKEN` (PAT del PO). Resultado: **versión 3, ACTIVE, verify_jwt=true**. `deno check` OK.
+
+**Verificación end-to-end (usuarios de prueba desechables, borrados al final):**
+
+| Caso                                                        | Resultado                                                                                                                                           |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Premium + sesión `ranked` sentadillas 25/20 + evidencia v53 | `accepted`/`verified`; fila en `workout_sessions` (`server_value=25`, `ranked=true`); aparece en `get_reps_ranking` y `get_total_reps_ranking`      |
+| Reenvío (idempotencia)                                      | `already_verified`; **1 sola** fila en `workout_sessions`                                                                                           |
+| Free + sesión `ranked`                                      | `rejected` / `ranking_premium_required`; **0** filas (gate ADR OK)                                                                                  |
+| Premium + sesión `ranked` sin evidencia                     | `pending` / `missing_evidence` (no se descarta)                                                                                                     |
+| Reto diario con evidencia válida (goal `mantener`, hoy)     | `verified`; `daily_challenges` `completed`/`completion_source='server'`/`verified_at`; `get_ranking` → `current_streak=1`, `completed_challenges=1` |
+
+- Datos de prueba **eliminados** (cascade): 0 usuarios/perfiles/sesiones `qa-*` al cierre. Las filas del PO
+  quedaron **intactas**.
+
+**Estado / decisiones:**
+
+- **El ranking está encendido** para **libre con 1 ejercicio + "participar del ranking"** (premium) y la **racha**
+  para todos. **NO commiteado** (working tree; el PO no lo pidió).
+- **Pendiente Fase 4 (acta 016 §3):** habilitar `ranked` en el flujo de **rutina (`seq`, 2+ ejercicios)** — requiere
+  decisión UX (mostrar el toggle en multi / comportamiento de gesto y vida por tramo) y prueba en device. Se dejó
+  fuera a propósito para no cambiar el flujo de rutina sin validación.
+- **Revocar el PAT** usado (quedó expuesto en el chat; no está en el repo).
+
+### 2026-10-16 - Ranking en rutina (seq) + ocultar el ranking a free
+
+**Peticiones del PO (vía chat):** (1) "tener dos ejercicios en rutina no debería ser un impedimento para rankear,
+cada ejercicio se rankea por separado"; (2) "ocultar a usuarios free el ranking"; (3) el PAT se deja como está.
+
+**Cambios aplicados (solo cliente móvil; sin migración ni re-deploy del validador):**
+
+- `apps/mobile/app/(tabs)/camretos.tsx`:
+  - `ranking = premiumActive && libreRanked`; `buildVerifyUri` recibe `ranked` y `cadenceSec` **también en la rama
+    `seq`** (antes se omitían). `buildVerifyUri` ya ponía `ranked=1`/`cadence` fuera del `if/else`, así que el
+    problema era la llamada, no la función.
+  - El toggle "participar del ranking" se muestra a **premium** tanto en **1** como en **N** ejercicios; se retiró la
+    nota `cam.free_setup_routine_note` (y su estilo `routineNote`). Para **free** no se muestra (evita `rejected`).
+  - La cámara ya soporta `MODE_RANKED` + `SEQ` (gesto, cadencia y prueba de vida **por tramo**) y `handleMessage` ya
+    encolaba cada tramo con su `seqIndex`/`exerciseId`/`ranked`/`evidence`. El server valida las **N sesiones del
+    mismo `body`** en un solo loop → **una fila `workout_sessions` por ejercicio** (rank por ejercicio + suma al total).
+- `apps/mobile/app/(tabs)/_layout.tsx`: la pestaña Ranking se oculta del tab bar para **no-premium**
+  (`href: premium ? undefined : null`).
+- `apps/mobile/app/(tabs)/index.tsx`: el botón "VER RANKING" del inicio se oculta para **no-premium**.
+
+**Verificación:**
+
+- `pnpm --filter mobile typecheck` OK · `lint` OK · `test` **210/210 (17 suites)** OK.
+- **Falta prueba en dispositivo** ([QA], acta 016 §8 acción 4): matriz 1 vs N ejercicios, mezcla reps/segundos,
+  REPETIR, rutina parcial, cola offline, motivos de rechazo, i18n.
+
+**Estado / decisiones:**
+
+- **NO commiteado** (working tree; el PO no lo pidió).
+- **Observación ([UX] pendiente):** el texto `progress.ranking_note` ("Clasificación verificada en el dispositivo —
+  todavía no se revalida en el servidor") quedó **desactualizado**: el validador server-side ya está activo. Requiere
+  actualización de copy es/en/pt (fuera del alcance de esta sesión).
+
+### 2026-10-18 - Reto diario: corte por cadencia con REPETIR + fix de la vida de aguante + cadencia 6 s
+
+**Peticiones del PO (vía chat):** (1) al fallar una repe en el **reto del día** no podía reiniciar (en libre sí
+aparece REPETIR); (2) en el reto de **flexiones** la **señal de vida** pidió "bajar y aguantar", el PO bajó y se
+quedó en el piso pero la cámara **no la tomó** ("creo que la señal de vida está mal configurada"); (3) **todas** las
+cadencias por repeticiones deben ser **6 s** (12 s con la vida).
+
+**Análisis y hallazgos:**
+
+- **Vida de aguante bloqueada por los gates de postura (causa raíz):** la vida `'hold'` (flexiones, plancha) vivía
+  **dentro** de `processLateral`, **después** de los gates anti-trampa (`checkComplete`, `grounded`, `line`,
+  calibración). Es **el mismo defecto que el acta 015** ya había corregido para la vida `'hand'`, pero **nunca se
+  aplicó a `'hold'`** → cualquier desvío de postura al bajar a aguantar (muñeca ocluida, cadera hundida, tobillo
+  fuera de cuadro) hacía que un gate devolviera temprano y la vida quedara **ignorada**.
+- **El reto no cortaba la serie:** `MODE_RANKED` era la única condición de corte por cadencia. El reto abre la cámara
+  **sin** `ranked`, así que la cadencia solo se mostraba y nunca cortaba → sin `failSeries` no había REPETIR.
+- **Cadencia:** flexiones tenía 5 s (y otras menos); se unificó a **6 s**.
+
+**Cambios aplicados:**
+
+- `camera-verification.html`:
+  - `STRICT_CADENCE = MODE_RANKED || qs.get('strict') === '1'`: la cadencia de corte aplica en ranking **y** cuando el
+    reto pide `strict=1`, sin rankear la sesión (`seriesOk` sigue calificando solo a ranking). Usada en `registerRep`,
+    `cadenceTick` y `extendCadenceForLiveness`.
+  - **Vida de aguante fuera de los gates** (espejo del fix del acta 015): nueva `checkHoldLivenessPose(lm)` evaluada
+    **al inicio de `processPose`, antes de cualquier gate**, junto a la vida `'hand'`; se **elimina** el call site
+    duplicado dentro de `processLateral`.
+  - **Umbral de "abajo" congelado** (`livenessDownThresh`): la vida captura el umbral al **armarse** el desafío y al
+    **arrancar**, así no depende de que los gates sigan recalibrando mientras se aguanta.
+  - Mensajes de serie cortada (`failSeries`, `stopCamera`: "Serie cortada por pausa larga — tocá REPETIR").
+- `apps/mobile/src/retos/verify.ts`: nueva opción `strict?: boolean` → `strict=1`.
+- `apps/mobile/app/(tabs)/retos.tsx`: el reto pasa `strict: true` + `cadenceSec: REP_CADENCE[id] ?? DEFAULT_CADENCE_SEC`.
+- `apps/mobile/src/retos/catalog.ts`: `REP_CADENCE` **todo en 6 s**; la repe con vida suma 6 s → **12 s**.
+
+**Verificación:**
+
+- `node --check` del `<script>` de la cámara: OK · `pnpm --filter mobile typecheck` OK · `lint` OK · `test`
+  **214/214 (18 suites)** OK (nuevo `src/retos/__tests__/verify.test.ts`).
+- Publicado en **gh-pages**: `6bab0f2` (reto con cadencia estricta + REPETIR) y `f1aa0ca` (vida de aguante + cadencia
+  6). CDN confirmado sirviendo ambos cambios (ETag actualizado).
+- **Falta prueba del PO en dispositivo** (vida de aguante en flexiones + REPETIR en el reto).
+
+**Estado / decisiones:**
+
+- Sin bump de `VERIFY_VERSION` ni cambio de servidor (`ALLOWED_EVIDENCE_VERSIONS = {12,13,53}` intacto). Acta 018.
+- **NO commiteado** en `main` (working tree; el PO pidió solo acta + bitácora, sin commit).
+- La vida sigue siendo **reportada por el cliente** (no criptográfica); el fix solo evita que la señal deliberada
+  quede bloqueada por los anti-trampa.
+- `progress.ranking_note` sigue desactualizado (fuera de alcance).

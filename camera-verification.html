@@ -567,6 +567,10 @@
       const LIVENESS_REQUIRED = MODE_RANKED || qs.get('liveness') === '1';
       const CADENCE_SEC = Math.min(15, Math.max(2, parseInt(qs.get('cadence') || '6', 10)));
       const CADENCE_MS = CADENCE_SEC * 1000;
+      // El reto diario usa `strict=1`: si la pausa entre repes supera la cadencia,
+      // la serie se corta y se ofrece REPETIR, igual que en ranking, pero SIN
+      // participar del ranking (seriesOk no califica la sesión para el ranking).
+      const STRICT_CADENCE = MODE_RANKED || qs.get('strict') === '1';
       const VERIFY_VERSION = Number.isFinite(parseInt(qs.get('v') || '1', 10))
         ? Math.max(1, parseInt(qs.get('v') || '1', 10))
         : 1;
@@ -962,7 +966,11 @@
         livenessPassed = false,
         livenessNextTriggerAt = null,
         livenessConfirmFrames = 0,
-        livenessHoldStartTime = null;
+        livenessHoldStartTime = null,
+        // Umbral de "abajo" congelado al arrancar la vida de aguante: los gates
+        // de postura reinician `dynamicDownThresh`, así que lo copiamos para no
+        // depender de que sigan recalibrando mientras se aguanta.
+        livenessDownThresh = null;
       // Vida garantizada: si la serie termina sin haberla pasado, se pide recién
       // al final y el resultado se envía al confirmarla (ver `onLivenessPassed`).
       let pendingCompletionDetail = null;
@@ -1129,6 +1137,9 @@
         if (livenessPassed || livenessNextTriggerAt || !livenessEnabled || livenessEndOnly) return;
         // Aleatoria, pero recién a partir de la repe LIVENESS_MIN_REP.
         if (targetUnit === 'reps' && repCount < LIVENESS_MIN_REP) return;
+        // Acá la postura acaba de ser válida: congelamos el umbral de "abajo"
+        // para la vida de aguante antes de que los gates lo puedan reiniciar.
+        if (dynamicDownThresh != null) livenessDownThresh = dynamicDownThresh;
         livenessNextTriggerAt =
           performance.now() + LIVENESS_MIN_MS + Math.random() * (LIVENESS_MAX_MS - LIVENESS_MIN_MS);
       }
@@ -1152,7 +1163,7 @@
       // Al pedir la vida en medio de la serie, esa repetición pasa a tener los
       // 6 s de cadencia + 6 s extra = 12 s, para dar la señal y completar la repe.
       function extendCadenceForLiveness(now) {
-        if (MODE_RANKED && targetUnit === 'reps' && cadenceDeadline > 0)
+        if (STRICT_CADENCE && targetUnit === 'reps' && cadenceDeadline > 0)
           cadenceDeadline = Math.max(cadenceDeadline, now + CADENCE_MS + 6000);
       }
       function checkHandLiveness(lm) {
@@ -1183,14 +1194,18 @@
         if (livenessPassed || !livenessEnabled) return false;
         if (!livenessChallengeActive) {
           if (!livenessNextTriggerAt || performance.now() < livenessNextTriggerAt) return false;
+          const startThresh = down != null ? down : livenessDownThresh;
+          if (startThresh == null) return false;
           livenessChallengeActive = true;
           livenessHoldStartTime = null;
+          livenessDownThresh = startThresh;
           const now = performance.now();
           extendCadenceForLiveness(now);
           showLiveness('Bajá y aguantá abajo unos segundos');
           speak('Señal de vida. Bajá y aguantá abajo unos segundos');
         }
-        const inDown = smoothed < down;
+        const thresh = livenessDownThresh != null ? livenessDownThresh : down;
+        const inDown = thresh != null && smoothed < thresh;
         if (inDown) {
           if (livenessHoldStartTime == null) livenessHoldStartTime = performance.now();
           const rem = Math.max(0, LIVENESS_HOLD_MS - (performance.now() - livenessHoldStartTime));
@@ -1201,6 +1216,22 @@
           livenessHoldStartTime = null;
         }
         return true;
+      }
+      // Vida de aguante (flexiones, plancha): se evalúa al inicio de
+      // `processPose`, ANTES de los gates de postura —igual que la vida de
+      // mano—. Si viviera dentro de `processLateral`, un desvío de postura al
+      // bajar a aguantar (muñeca ocluida, cadera hundida, tobillo fuera de
+      // cuadro) haría que el gate devuelva temprano y la señal quede ignorada
+      // para siempre. Mide el ángulo del lado confirmado y compara con el
+      // umbral de "abajo" (congelado al arrancar el desafío).
+      function checkHoldLivenessPose(lm) {
+        if (livenessPassed || !livenessEnabled) return false;
+        const side = confirmedSide;
+        const sc = side && cfg.sides[side];
+        if (!sc || !sc.angle) return false;
+        const ang = angleBetween(lm[LID[sc.angle.a]], lm[LID[sc.angle.b]], lm[LID[sc.angle.c]]);
+        if (ang == null) return false;
+        return checkHoldLiveness(ang, dynamicDownThresh);
       }
       function onLivenessPassed() {
         livenessPassed = true;
@@ -1319,6 +1350,7 @@
         livenessNextTriggerAt = null;
         livenessConfirmFrames = 0;
         livenessHoldStartTime = null;
+        livenessDownThresh = null;
         pendingCompletionDetail = null;
         repCountEl.textContent = '0';
         refreshHud();
@@ -1482,7 +1514,7 @@
         const now = performance.now();
         if (targetUnit === 'reps') {
           if (!gestureStarted) return;
-          if (MODE_RANKED && now > cadenceDeadline) {
+          if (STRICT_CADENCE && now > cadenceDeadline) {
             failSeries('Descanso muy largo — fuera de ranking');
             return;
           }
@@ -1564,6 +1596,7 @@
         if (livenessEnabled && !livenessPassed && currentValue() >= targetVal) {
           pendingCompletionDetail = detail;
           livenessChallengeActive = false;
+          if (dynamicDownThresh != null) livenessDownThresh = dynamicDownThresh;
           livenessNextTriggerAt = performance.now();
           log('Prueba de vida pendiente: se pide antes de enviar el resultado');
           return;
@@ -1914,10 +1947,10 @@
       }
       function cadenceTick(now) {
         if (targetUnit !== 'reps' || !seriesOk) return;
-        if (MODE_RANKED && !gestureStarted) return;
+        if (STRICT_CADENCE && !gestureStarted) return;
         if (!cadenceDeadline) return;
         if (now > cadenceDeadline) {
-          if (MODE_RANKED) {
+          if (STRICT_CADENCE) {
             failSeries('Descanso muy largo — fuera de ranking');
             return;
           }
@@ -1934,7 +1967,11 @@
         seriesOk = false;
         cadenceHud.style.display = 'none';
         log('SERIE ROTA: ' + msg);
-        speak('Descanso muy largo. La serie quedó fuera del ranking');
+        speak(
+          MODE_RANKED
+            ? 'Descanso muy largo. La serie quedó fuera del ranking'
+            : 'Descanso muy largo. La serie se cortó, reiniciá cuando quieras',
+        );
         stopCamera();
       }
 
@@ -2033,6 +2070,7 @@
         // dentro de processFrontal/processLateral, después de esos gates, así
         // que cualquier desvío de postura dejaba la mano ignorada para siempre.
         if (cfg.liveness === 'hand' && checkHandLiveness(lm)) return;
+        if (cfg.liveness === 'hold' && checkHoldLivenessPose(lm)) return;
         if (cfg.type === 'frontal') return processFrontal(lm);
         return processLateral(lm);
       }
@@ -2338,8 +2376,6 @@
           }
           return;
         }
-
-        if (cfg.liveness === 'hold' && checkHoldLiveness(smoothed, dynamicDownThresh)) return;
 
         if (targetUnit === 'seconds') {
           // hold: cuenta tiempo en posición válida (p. ej. plancha = brazos extendidos)
@@ -2650,7 +2686,7 @@
         // No apagamos la cámara: entramos al estado de espera igual que al
         // completar, para ofrecer REPETIR / SALIR con el gesto.
         completed = true;
-        statusText.textContent = 'Serie completa';
+        statusText.textContent = seriesOk ? 'Serie completa' : 'Serie cortada';
         stopBtn.style.display = 'none';
         startBtn.style.display = 'none';
         showActionButton('REPETIR', 'repeat');
@@ -2675,6 +2711,9 @@
             ? 'Sesión enviada para validación — pendiente de ranking'
             : 'No califica para ranking';
           tagEl.classList.toggle('broken', !qualified);
+        } else if (!seriesOk) {
+          verifyText.textContent = 'Serie cortada por pausa larga — tocá REPETIR';
+          tagEl.classList.add('broken');
         } else {
           verifyText.textContent = 'Verificado por pose';
           tagEl.classList.remove('broken');

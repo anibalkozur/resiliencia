@@ -8,7 +8,12 @@ import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { DEFAULT_TRAINING_DAYS } from '../../src/prefs/service';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { getRepo } from '../../src/repo';
-import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
+import {
+  DEFAULT_CADENCE_SEC,
+  EXERCISES,
+  REP_CADENCE,
+  exerciseNameKey,
+} from '../../src/retos/catalog';
 import { isCompleted, markCompleted, getCompletionSyncState } from '../../src/retos/completions';
 import type { CompletionSyncState } from '../../src/retos/completions';
 import { buildWeek } from '../../src/retos/week';
@@ -274,7 +279,13 @@ export default function RetosScreen() {
                     challenge.exerciseId,
                     challenge.target,
                     challengeExercise.unit,
-                    { requireLiveness: true },
+                    {
+                      requireLiveness: true,
+                      // Igual que el modo libre: si la pausa entre repes supera
+                      // la cadencia, la serie se corta y aparece REPETIR.
+                      strict: true,
+                      cadenceSec: REP_CADENCE[challenge.exerciseId] ?? DEFAULT_CADENCE_SEC,
+                    },
                   ),
                 }}
                 javaScriptEnabled={true}

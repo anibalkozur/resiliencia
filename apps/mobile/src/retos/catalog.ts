@@ -37,13 +37,15 @@ export const DEFAULT_TARGETS: Record<string, number> = {
 // Cadencia (segundos máximos entre repes) para ejercicios por repeticiones.
 // Los ejercicios por tiempo/cuenta (plancha, mountain_climbers,
 // sentadilla_isometrica) no la usan: la cámara solo la aplica en modo reps.
+// Todos son 6 s; la repe en la que sale la prueba de vida amplía la cadencia a
+// 12 s (6 + 6 extra) para dar la señal y completar la repetición.
 export const REP_CADENCE: Record<string, number> = {
-  sentadillas: 5,
-  flexiones: 5,
-  abdominales: 3,
-  zancadas: 4,
-  puente_gluteo: 4,
-  fondos_silla: 5,
+  sentadillas: 6,
+  flexiones: 6,
+  abdominales: 6,
+  zancadas: 6,
+  puente_gluteo: 6,
+  fondos_silla: 6,
 };
 
 // Fallback cuando un ejercicio por repes no está en REP_CADENCE. Alineado con
