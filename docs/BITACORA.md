@@ -1821,3 +1821,33 @@ pantalla del ejercicio **sin** "TU SEMANA", sin los días, sin "RETO DE HOY" y s
 **Estado / decisiones:** aprobado por el PO ("buena decisión… quedó muy bien, aprobado"). Código en **`87e308b`**;
 acta 020 en `docs/equipo/actas/2026-10-19_reto_pantalla_inicio_camara_completa.md`; backup local
 `backup-resiliencia-20261019-103354` (Punto 25).
+
+### 2026-10-19 - Inicio: rediseño compacto y responsive (Fase 1)
+
+**Pedido del PO:** acomodar la pestaña Inicio — que el diseñador vea vicios, un diseño más compacto, evaluar qué
+más colocar, y usarlo bien **en cualquier pantalla**.
+
+**Auditoría de vicios (`app/(tabs)/index.tsx`):** aire muerto arriba (estilo `title` sin uso), sin scroll ni
+`insets.bottom` (FAB IA se recortaba), jerarquía invertida (dos "40"), estilos y `letterSpacing` repetidos,
+bloques sin relación visual, sin estado vacío (renderizaba `null`), CTA muerto, hardcode `#1d5c3a` y el bug del
+chip "Día N" (`completedCount + 1`).
+
+**Cambios:**
+
+- Tarjeta a **todo el ancho** (ejercicio a la izquierda, meta grande a la derecha).
+- **Franja de 3 métricas** en una fila (Racha · Completados · Días `N/M`) con divisores finos, en lugar de los
+  chips y la caja de racha flotante.
+- Tira de una línea con "Mañana: X" y "Último: ejercicio V"; mejor racha y VER RANKING como texto discreto.
+- **Responsive**: `ScrollView` + `insets.bottom`, FAB con safe-area, `numberOfLines`/`flexShrink`, sin anchos
+  fijos, `paddingHorizontal: spacing.sm` para llegar casi al borde.
+- **Skeleton** si falta el reto; estado de sync integrado al CTA; limpieza de hardcode e imports.
+- Soporte: `spacing.xxl` en `design-tokens`; `home.days_short`, `home.last`, `home.best` en i18n (es/en/pt).
+
+**Fuera de alcance (acordado):** peso/IMC/WHtR (salud, [MED]), notificaciones (expo-notifications), accesos
+rápidos y consejo del día.
+
+**Verificación:** `typecheck` raíz ✓ · `lint` raíz ✓ (0 warnings) · **214/214 tests** ✓. Aprobado por el PO en
+dispositivo. Sin cambios de cámara (v53), sin migración ni edge.
+
+**Estado:** código en **`f3e6df8`**; acta 021 en `docs/equipo/actas/2026-10-19_inicio_compacto_responsive.md`;
+backup local `backup-resiliencia-20261019-150015` (Punto 26).
