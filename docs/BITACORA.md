@@ -1762,3 +1762,35 @@ Commit `aee932e`, pusheado.
 - Alcance: ranking Fase 4 + cámara v53 (vida de aguante, cadencia 6, REPETIR del reto) + botón SALIR de Retos +
   pantalla intermedia de Libre. Todo commiteado y pusheado.
 - Siguen abiertos: `tmp.test` sin trackear (basura) y el **PAT del Management API sin revocar**.
+
+### 2026-10-18 - El reto diario alimenta el ranking de reps (source `reto_diario`)
+
+**Reporte del PO:** completó el reto del día (11 flexiones), aparecía completado, pero **Ranking → Hoy → Reps →
+Flexiones** decía "Todavía no hay resultados en este periodo".
+
+**Diagnóstico (prod):** `daily_challenges` 2026-10-18 `completed/server/v53` ✓, pero `workout_sessions` con
+`exercise_code='flexiones'` = **0 filas** y `get_reps_ranking('flexiones')` vacío; `get_ranking` (Hoy) sí devolvía
+`completed_challenges=1`. Causa: `retos.tsx:142-160` sólo llama `markCompleted` (completación), `pushFreeSession`
+sólo existe en `camretos.tsx:127` (Libre), y `get_reps_ranking`/`get_total_reps_ranking` filtraban
+`source='libre'` (`0019:131`/`:171`).
+
+**Cambios:**
+
+- `supabase/migrations/0020_challenge_sessions_in_reps_ranking.sql` (**nuevo**): funciones con
+  `source in ('libre','reto_diario')`, índice parcial recreado para las dos fuentes y backfill idempotente
+  (`client_op_id = 'reto:' || challenge_date`, `ranked = has_active_entitlement(...)`,
+  **`created_at = verified_at`** para no machacar todo en el día de la migración).
+- `supabase/functions/validate_workout/index.ts`: la completación verified escribe su `workout_sessions`
+  (`source='reto_diario'`, `ranked` lo decide **solo** el servidor, `series_ok=true`, `challenge_id`);
+  `verifiedSessions` ya no hardcodea `source:'libre'`. **Sin tocar la app.**
+
+**Verificación:** dry run con `rollback` en prod (detectó `CREATE INDEX` con esquema, no admitido) · typecheck/lint
+repo OK · **214 + 39 tests** OK · migración **aplicada** · edge **redesplegada** ·
+`get_reps_ranking('flexiones', Hoy)` → `atleta best_value 11` · `get_total_reps_ranking` → 16.
+
+**Estado / decisiones:**
+
+- Decisión del PO: **"que el reto cuente en Reps"**. Revisión cruzada `[BE] + [SEC] + [QA]`.
+- Código en **`b386170`**; acta 019 en `docs/equipo/actas/2026-10-18_reto_diario_en_ranking_reps.md`.
+- Límites: los períodos filtran `created_at` y no `session_date` (deuda preexistente, acta 017); ventana de fallo
+  si el upsert de sesión falla tras escribir `daily_challenges` (reparable re-ejecutando 0020).
