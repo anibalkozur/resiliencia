@@ -53,8 +53,9 @@ export default function RetosScreen() {
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [syncState, setSyncState] = useState<Record<string, CompletionSyncState>>({});
   const [retrying, setRetrying] = useState(false);
-  const [camaraAbierta, setCamaraAbierta] = useState(false);
-  const [retoSalido, setRetoSalido] = useState(false);
+  // Dos pantallas dentro de la pestaña: 'inicio' muestra el reto del día con su
+  // explicación y el botón INICIAR; 'camara' es el ejercicio a pantalla completa.
+  const [fase, setFase] = useState<'inicio' | 'camara'>('inicio');
   const restartKey = useCameraRestart();
   const focused = useScreenFocused();
   const { setRetosActive, setRetosSalirHandler } = useLibreExercise();
@@ -82,7 +83,6 @@ export default function RetosScreen() {
         setDone(result);
         setSyncState(states);
         setChallenge(todayChallenge);
-        setRetoSalido(false);
       })();
       return () => {
         active = false;
@@ -109,8 +109,7 @@ export default function RetosScreen() {
   // Cierra la cámara del reto: mismo resultado que apretar SALIR dentro del
   // WebView (que además se traba si el cuerpo no está 100% visible).
   const exitChallenge = useCallback(() => {
-    setCamaraAbierta(false);
-    setRetoSalido(true);
+    setFase('inicio');
     setRetrying(false);
   }, []);
 
@@ -135,7 +134,6 @@ export default function RetosScreen() {
       if (data.type !== 'complete') return;
       // Dejamos la cámara montada tras completar para ofrecer REPETIR / SALIR
       // (el primer intento ya marca el reto como completado).
-      setCamaraAbierta(true);
       const reps = Number(data.reps) || 0;
       const target = challenge?.target ?? 0;
       const already = done[date] === true;
@@ -178,11 +176,9 @@ export default function RetosScreen() {
 
   const challengeBlock = challenge && challengeExercise && trainingToday;
 
-  // Espejo de la rama del JSX: el botón nativo de SALIR se muestra solo
-  // mientras la cámara del reto está montada.
-  const showDoneBox = challengeDone && !camaraAbierta;
-  const showStartBox = retoSalido && !challengeDone;
-  const cameraVisible = Boolean(challengeBlock) && !showDoneBox && !showStartBox && focused;
+  // El botón nativo de SALIR del header se muestra solo mientras la cámara del
+  // reto está montada (fase 'camara' y pestaña enfocada).
+  const cameraVisible = Boolean(challengeBlock) && fase === 'camara' && focused;
 
   useEffect(() => {
     setRetosActive(cameraVisible);
@@ -195,7 +191,7 @@ export default function RetosScreen() {
   }, [setRetosSalirHandler, exitChallenge]);
 
   useEffect(() => {
-    if (!challengeBlock) return;
+    if (!cameraVisible) return;
     let sensorSubscription: { remove: () => void } | null = null;
     let active = true;
     DeviceMotion.isAvailableAsync().then((available) => {
@@ -215,85 +211,54 @@ export default function RetosScreen() {
       active = false;
       sensorSubscription?.remove();
     };
-  }, [challengeBlock]);
+  }, [cameraVisible]);
 
   return (
     <View style={styles.screen}>
-      <View style={styles.topSection}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
-          <Text style={styles.planSmall}>
-            {translate(lang, 'retos.plan_small', { n: trainingDays.length })}
-          </Text>
-        </View>
-        <View style={styles.weekRow}>
-          {week.map((day) => (
-            <View
-              key={day.date}
-              style={[
-                styles.weekCell,
-                day.isTraining ? styles.weekCellTraining : styles.weekCellRest,
-                day.isToday && styles.weekCellToday,
-                done[day.date] && styles.weekCellDone,
-              ]}
-            >
-              <Text
+      {fase === 'inicio' ? (
+        <View style={styles.topSection}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{translate(lang, 'retos.title')}</Text>
+            <Text style={styles.planSmall}>
+              {translate(lang, 'retos.plan_small', { n: trainingDays.length })}
+            </Text>
+          </View>
+          <View style={styles.weekRow}>
+            {week.map((day) => (
+              <View
+                key={day.date}
                 style={[
-                  styles.weekLabel,
-                  done[day.date]
-                    ? styles.weekLabelDone
-                    : day.isToday
-                      ? styles.weekLabelToday
-                      : null,
+                  styles.weekCell,
+                  day.isTraining ? styles.weekCellTraining : styles.weekCellRest,
+                  day.isToday && styles.weekCellToday,
+                  done[day.date] && styles.weekCellDone,
                 ]}
               >
-                {translate(lang, WEEKDAYS[day.dayOfWeek])}
-              </Text>
-              {done[day.date] ? <View style={styles.dotDone} /> : null}
-            </View>
-          ))}
+                <Text
+                  style={[
+                    styles.weekLabel,
+                    done[day.date]
+                      ? styles.weekLabelDone
+                      : day.isToday
+                        ? styles.weekLabelToday
+                        : null,
+                  ]}
+                >
+                  {translate(lang, WEEKDAYS[day.dayOfWeek])}
+                </Text>
+                {done[day.date] ? <View style={styles.dotDone} /> : null}
+              </View>
+            ))}
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {challengeBlock ? (
-        <View style={styles.cameraContainer}>
-          {showDoneBox ? (
-            <View style={styles.doneBox}>
-              <Text style={styles.cameraDoneText}>{doneLabel}</Text>
-              {isRejected ? (
-                <Pressable style={styles.cameraCta} onPress={() => setRetrying(true)}>
-                  <Text style={styles.cameraCtaText}>{translate(lang, 'home.retry')}</Text>
-                </Pressable>
-              ) : (
-                <Pressable style={styles.cameraCta} onPress={() => router.push('/(tabs)/camretos')}>
-                  <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
-                </Pressable>
-              )}
-            </View>
-          ) : showStartBox ? (
-            <View style={styles.doneBox}>
-              <Text style={styles.cameraDoneText}>
-                {translate(lang, 'cam.challenge')} ·{' '}
-                {translate(lang, exerciseNameKey(challengeExercise.id))}
-              </Text>
-              <Pressable style={styles.cameraCta} onPress={() => setRetoSalido(false)}>
-                <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_setup_start')}</Text>
-              </Pressable>
-            </View>
-          ) : focused ? (
-            <>
-              <View style={styles.challengeBar}>
-                <View style={styles.challengeTop}>
-                  <Text style={styles.cameraTitle}>
-                    {translate(lang, 'cam.challenge')} ·{' '}
-                    {translate(lang, exerciseNameKey(challengeExercise.id))}
-                  </Text>
-                  <Text style={styles.cameraMeta}>
-                    {challenge.target} {challengeExercise.unit === 'reps' ? 'reps' : 'seg'}
-                  </Text>
-                </View>
-                {tecnicaGuia ? <Text style={styles.cameraGuide}>{tecnicaGuia}</Text> : null}
-              </View>
+        // Pantalla del ejercicio: sin encabezado, sin barra del reto y sin la
+        // guía técnica, para que la cámara ocupe toda la pantalla.
+        fase === 'camara' ? (
+          focused ? (
+            <View style={styles.cameraContainer}>
               <WebView
                 ref={webviewRef}
                 key={`stream-${dayKey}-${challenge.exerciseId}-${challenge.target}-${restartKey}`}
@@ -320,9 +285,56 @@ export default function RetosScreen() {
                 onMessage={handleMessage}
                 style={styles.webView}
               />
-            </>
-          ) : null}
-        </View>
+            </View>
+          ) : null
+        ) : challengeDone ? (
+          <View style={styles.cameraContainer}>
+            <View style={styles.doneBox}>
+              <Text style={styles.cameraDoneText}>{doneLabel}</Text>
+              {isRejected ? (
+                <Pressable
+                  style={styles.cameraCta}
+                  onPress={() => {
+                    setRetrying(true);
+                    setFase('camara');
+                  }}
+                >
+                  <Text style={styles.cameraCtaText}>{translate(lang, 'home.retry')}</Text>
+                </Pressable>
+              ) : (
+                <Pressable style={styles.cameraCta} onPress={() => router.push('/(tabs)/camretos')}>
+                  <Text style={styles.cameraCtaText}>{translate(lang, 'cam.free_after_done')}</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        ) : (
+          <View style={styles.startWrap}>
+            <View style={styles.startCard}>
+              <Text style={styles.startKicker}>{translate(lang, 'cam.challenge')}</Text>
+              <View style={styles.startHead}>
+                <Text style={styles.startName}>
+                  {translate(lang, exerciseNameKey(challengeExercise.id))}
+                </Text>
+                <Text style={styles.startTarget}>
+                  {challenge.target}{' '}
+                  {translate(
+                    lang,
+                    challengeExercise.unit === 'reps' ? 'unit.reps' : 'unit.seconds',
+                  )}
+                </Text>
+              </View>
+              {tecnicaGuia ? <Text style={styles.startGuide}>{tecnicaGuia}</Text> : null}
+            </View>
+            <Pressable
+              style={styles.startBtn}
+              onPress={() => setFase('camara')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.startBtnText}>{translate(lang, 'cam.free_setup_start')}</Text>
+            </Pressable>
+          </View>
+        )
       ) : today && !trainingToday ? (
         <View style={styles.cameraContainer}>
           <View style={styles.restBox}>
@@ -411,32 +423,65 @@ const styles = StyleSheet.create({
   cameraContainer: {
     flex: 1,
   },
-  challengeBar: {
-    marginBottom: spacing.xs,
-    marginHorizontal: spacing.md,
-  },
-  challengeTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+  startWrap: {
+    flex: 1,
     justifyContent: 'space-between',
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
   },
-  cameraGuide: {
-    color: colors.silverDim,
-    fontSize: 13,
-    fontWeight: '600',
+  startCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
+  },
+  startKicker: {
+    color: colors.teal,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  startHead: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
     marginTop: spacing.xs,
   },
-  cameraTitle: {
+  startName: {
     color: colors.silver,
-    fontSize: 16,
-    fontWeight: '800',
     flexShrink: 1,
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
-  cameraMeta: {
+  startTarget: {
     color: colors.teal,
     fontSize: 20,
     fontWeight: '800',
-    marginLeft: spacing.sm,
+  },
+  startGuide: {
+    color: colors.silverDim,
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 21,
+    marginTop: spacing.md,
+  },
+  startBtn: {
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+  },
+  startBtnText: {
+    color: colors.bg,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   webView: {
     flex: 1,
