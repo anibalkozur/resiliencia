@@ -1,7 +1,8 @@
 # Acta 018 — Reto diario: corte por cadencia con REPETIR + fix de la vida de aguante + cadencia 6 s
 
 - **Fecha**: 2026-10-18 · **Tipo**: bug (cámara/UX) + decisión de producto · **Fase**: 1 (producto, cámara).
-- **Estado**: **implementado y publicado en gh-pages (v53)**; **pendiente prueba del PO en dispositivo**.
+- **Estado**: **implementado, publicado en gh-pages (v53) y probado por el PO en dispositivo (OK)**. Commiteado y
+  pusheado (`7aea329`).
 - **Participan**: [PO] (reporta y decide), [CV]/[MOB] (fix), [QA] (verificación).
 - **Relacionada**: acta 015 (fix de la vida de _mano_ en ejercicios con anti-trampa), acta 012 (política
   "solo se rankea con vida"), acta 016 (ranking de rutina).
@@ -71,7 +72,8 @@ WebView, así que la caché del navegador no sirve el cuerpo viejo. `ALLOWED_EVI
 - Publicado en **gh-pages**: `6bab0f2` (reto con cadencia estricta + REPETIR) y `f1aa0ca` (vida de aguante +
   cadencia 6). CDN confirmado sirviendo ambos cambios (ETag actualizado, `checkHoldLivenessPose`/`livenessDownThresh`
   presentes).
-- **Pendiente**: prueba del PO en dispositivo (vida de aguante en flexiones + REPETIR en el reto).
+- **Pendiente**: ~~prueba del PO en dispositivo~~ — **probado y OK (2026-10-18)**: vida de aguante en flexiones y
+  REPETIR al fallar una repe.
 
 ## 5. Límites y notas
 
@@ -86,5 +88,6 @@ WebView, así que la caché del navegador no sirve el cuerpo viejo. `ALLOWED_EVI
 
 1. **[CV]/[MOB]**: fix de la vida de aguante fuera de los gates + cadencia estricta del reto + cadencia 6 s. — **Hecho**.
 2. **[QA]**: `node --check`, typecheck/lint/tests y verificación CDN. — **Hecho**.
-3. **[PO]**: probar en dispositivo (flexiones: vida de aguante; fallar una repe: REPETIR). — **Pendiente**.
-4. **[MOB]/[PM]**: commit en `main` (cámara + `verify.ts` + `retos.tsx` + `catalog.ts` + test) cuando el PO lo autorice. — **Pendiente**.
+3. **[PO]**: probar en dispositivo (flexiones: vida de aguante; fallar una repe: REPETIR). — **Hecho (OK)**.
+4. **[MOB]/[PM]**: commit en `main` (cámara + `verify.ts` + `retos.tsx` + `catalog.ts` + test) cuando el PO lo
+   autorice. — **Hecho**: `7aea329` (y `8a6965c` para la Fase 4); pusheado.

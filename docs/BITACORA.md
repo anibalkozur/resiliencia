@@ -1695,12 +1695,70 @@ cadencias por repeticiones deben ser **6 s** (12 s con la vida).
   **214/214 (18 suites)** OK (nuevo `src/retos/__tests__/verify.test.ts`).
 - Publicado en **gh-pages**: `6bab0f2` (reto con cadencia estricta + REPETIR) y `f1aa0ca` (vida de aguante + cadencia
   6). CDN confirmado sirviendo ambos cambios (ETag actualizado).
-- **Falta prueba del PO en dispositivo** (vida de aguante en flexiones + REPETIR en el reto).
+- **Probado por el PO en dispositivo (2026-10-18): OK** (vida de aguante en flexiones + REPETIR en el reto).
 
 **Estado / decisiones:**
 
 - Sin bump de `VERIFY_VERSION` ni cambio de servidor (`ALLOWED_EVIDENCE_VERSIONS = {12,13,53}` intacto). Acta 018.
-- **NO commiteado** en `main` (working tree; el PO pidió solo acta + bitácora, sin commit).
+- **Commiteado y pusheado** en `main`: `8a6965c` (Fase 4), `7aea329` (cámara), `034b61b` (botón SALIR),
+  `aee932e` (pantalla intermedia).
 - La vida sigue siendo **reportada por el cliente** (no criptográfica); el fix solo evita que la señal deliberada
   quede bloqueada por los anti-trampa.
 - `progress.ranking_note` sigue desactualizado (fuera de alcance).
+
+### 2026-10-18 - Botón SALIR nativo en el header del Retos
+
+**Petición del PO:** "quiero en la pestaña retos un boton salir touch como lo tiene en libre, arriba a la derecha de
+la pantalla".
+
+**Análisis y hallazgos:**
+
+- El SALIR del reto vive **dentro** del WebView y pasa por `dwellStep('exit', ...)`, que solo responde si
+  `bodyComplete === true`. Con el cuerpo no 100% visible, el botón de la propia cámara no contestaba (mismo bloqueo
+  que había que salvar con el fix del acta 018).
+- `BrandHeader` ya tenía el patrón en Libre (`libreActive` + `setSalirHandler`), pero **no había estado ni canal**
+  para Retos, y los dos efectos comparten un solo slot de handler: reusarlo pisaría la salida de Libre.
+
+**Cambios aplicados:**
+
+- `src/header/LibreExerciseProvider.tsx`: `retosActive` / `setRetosActive` / `setRetosSalirHandler` / `salirRetos`
+  (canal propio, no pisar `salir` de Libre).
+- `components/BrandHeader.tsx`: mismo `Pressable` de SALIR en el branch `section === 'retos'`, visible solo con
+  `retosActive` (`marginLeft: 'auto'` → arriba a la derecha, igual que en Libre).
+- `app/(tabs)/retos.tsx`: `exitChallenge()` único, compartido entre el mensaje `exit` del WebView y el botón
+  (`setCamaraAbierta(false)`, `setRetoSalido(true)`, `setRetrying(false)`); banderas `showDoneBox` / `showStartBox`
+  / `cameraVisible` para no duplicar condiciones del JSX.
+
+**Verificación:** typecheck OK · lint OK · test **214/214 (18 suites)** · probado por el PO en dispositivo: OK.
+Commit `034b61b`, pusheado.
+
+### 2026-10-18 - Pantalla intermedia antes de empezar en modo libre
+
+**Petición del PO:** "cuando elijo varios ejercicios para la rutina, arriba aparece la ayuda solamente para el primer
+ejercicio... quiero una pantalla mas despues de presionar iniciar... que explique cada ejercicio... y abajo un boton
+de continuar. con eso podemos borrar la ayuda que aparece arriba y desplazar todo lo de inicio para arriba".
+
+**Cambios aplicados:**
+
+- `app/(tabs)/camretos.tsx`: nuevo `introOpen` y stage **`setup → intro → cámara`**. La pantalla intermedia lista
+  **todos** los ejercicios de la rutina (número, nombre, meta y `TECNICA[id].guia`) y abajo **VOLVER** (al armado) y
+  **CONTINUAR** (abre la cámara). Se quitó `resultBar` (la guía que solo mostraba el primer ejercicio): el armado
+  ocupa toda la pantalla.
+- `src/i18n/translations.ts`: claves nuevas en es/en/pt `cam.intro_title` ("ANTES DE EMPEZAR" / "BEFORE YOU START" /
+  "ANTES DE COMEÇAR"), `cam.intro_continue`, `cam.intro_back`.
+
+**Notas [UX]:** sin **VOLVER** no había salida de la pantalla intermedia (se agregó); el botón nativo SALIR del
+header **no** aparece en la intermedia, solo con la cámara abierta (consistente con Libre); las guías de `tecnica.ts`
+siguen **solo en español** (preexistente, fuera de alcance).
+
+**Verificación:** typecheck OK · lint OK · test **214/214 (18 suites)** · probado por el PO: OK.
+Commit `aee932e`, pusheado.
+
+### 2026-10-18 - Backup local punto 24
+
+- Tag **`backup-resiliencia-20261018-223024`** (apunta a `aee932e`); copia local en
+  `backups\resiliencia-20261018-223024` (295 archivos, sin `.git` ni `node_modules`).
+- Entrada "Punto 24" al inicio de `apps/mobile/backup app resiliencia.txt` (ventana de los últimos 4 bloques).
+- Alcance: ranking Fase 4 + cámara v53 (vida de aguante, cadencia 6, REPETIR del reto) + botón SALIR de Retos +
+  pantalla intermedia de Libre. Todo commiteado y pusheado.
+- Siguen abiertos: `tmp.test` sin trackear (basura) y el **PAT del Management API sin revocar**.
