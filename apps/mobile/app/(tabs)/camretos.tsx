@@ -47,6 +47,7 @@ export default function LibreScreen() {
   } = useLibreExercise();
   const premiumActive = usePremium();
   const [sessionOpen, setSessionOpen] = useState(false);
+  const [introOpen, setIntroOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const restartKey = useCameraRestart();
   const focused = useScreenFocused();
@@ -54,9 +55,14 @@ export default function LibreScreen() {
   const isMulti = routine.length > 1;
   const first = routine[0];
   const cadence = REP_CADENCE[first?.id ?? ''] ?? DEFAULT_CADENCE_SEC;
-  const tecnicaGuia = TECNICA[first?.id ?? '']?.guia ?? '';
   const routineKey = routine.map((it) => `${it.id}:${it.target}`).join(',');
   const canStart = routine.length > 0;
+  // setup (armar rutina) → intro (qué hace cada ejercicio) → cámara.
+  const stage: 'setup' | 'intro' | 'camera' = sessionOpen
+    ? 'camera'
+    : introOpen
+      ? 'intro'
+      : 'setup';
 
   const instance = (unit: 'reps' | 'seconds') => {
     return {
@@ -80,7 +86,7 @@ export default function LibreScreen() {
       Alert.alert(translate(lang, 'header.premium_exercise'));
       return;
     }
-    setSessionOpen(true);
+    setIntroOpen(true);
   };
 
   const handleMessage = useCallback(
@@ -195,11 +201,7 @@ export default function LibreScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.resultBar}>
-        <Text style={styles.freeResult}>{tecnicaGuia}</Text>
-      </View>
-
-      {!sessionOpen ? (
+      {stage === 'setup' ? (
         <View style={styles.setup}>
           <Text style={styles.routineTitle}>
             {translate(lang, 'cam.free_routine', { n: String(routine.length) })}
@@ -330,7 +332,7 @@ export default function LibreScreen() {
             routine={routine}
           />
         </View>
-      ) : focused ? (
+      ) : stage === 'camera' && focused ? (
         <View style={styles.cameraContainer}>
           {uri ? (
             <WebView
@@ -347,6 +349,50 @@ export default function LibreScreen() {
               style={styles.webView}
             />
           ) : null}
+        </View>
+      ) : stage === 'intro' ? (
+        <View style={styles.intro}>
+          <ScrollView contentContainerStyle={styles.introList} showsVerticalScrollIndicator={false}>
+            <Text style={styles.introTitle}>{translate(lang, 'cam.intro_title')}</Text>
+            {routine.map((item, index) => {
+              const unit = unitOf(item.id);
+              const unitLabel = translate(lang, unit === 'reps' ? 'unit.reps' : 'unit.seconds');
+              const guia = TECNICA[item.id]?.guia ?? '';
+              return (
+                <View key={`${item.id}-${index}`} style={styles.introItem}>
+                  <View style={styles.introHead}>
+                    <Text style={styles.introIndex}>{index + 1}</Text>
+                    <Text style={styles.introName}>
+                      {translate(lang, exerciseNameKey(item.id))}
+                    </Text>
+                    <Text style={styles.introTarget}>
+                      {item.target} {unitLabel}
+                    </Text>
+                  </View>
+                  {guia ? <Text style={styles.introGuide}>{guia}</Text> : null}
+                </View>
+              );
+            })}
+          </ScrollView>
+          <View style={styles.introActions}>
+            <Pressable
+              style={styles.introBack}
+              onPress={() => setIntroOpen(false)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.introBackText}>{translate(lang, 'cam.intro_back')}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.introContinue}
+              onPress={() => {
+                setIntroOpen(false);
+                setSessionOpen(true);
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.introContinueText}>{translate(lang, 'cam.intro_continue')}</Text>
+            </Pressable>
+          </View>
         </View>
       ) : null}
     </View>
@@ -420,17 +466,100 @@ function AddExerciseModal({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  resultBar: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.line,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  intro: {
+    flex: 1,
   },
-  freeResult: {
+  introList: {
+    flexGrow: 1,
+    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  introTitle: {
+    color: colors.silver,
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: spacing.md,
+  },
+  introItem: {
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+  },
+  introHead: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  introIndex: {
+    backgroundColor: colors.teal,
+    borderRadius: radius.sm,
+    color: colors.bg,
+    fontSize: 13,
+    fontWeight: '800',
+    overflow: 'hidden',
+    textAlign: 'center',
+    width: 22,
+  },
+  introName: {
+    color: colors.silver,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  introTarget: {
+    color: colors.teal,
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 'auto',
+  },
+  introGuide: {
     color: colors.silverDim,
     fontSize: 13,
     fontWeight: '600',
+    lineHeight: 19,
+    marginTop: spacing.sm,
+  },
+  introActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+  },
+  introBack: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  introBackText: {
+    color: colors.silver,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  introContinue: {
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
+  introContinueText: {
+    color: colors.bg,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   setup: {
     flex: 1,
