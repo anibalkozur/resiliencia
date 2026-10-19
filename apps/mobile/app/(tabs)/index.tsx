@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
@@ -8,13 +8,24 @@ import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { DEFAULT_TRAINING_DAYS } from '../../src/prefs/service';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
-import { buildChallenge, getTodayChallenge, tomorrowKey } from '../../src/retos/service';
+import {
+  buildChallenge,
+  getStoredChallenge,
+  getTodayChallenge,
+  tomorrowKey,
+} from '../../src/retos/service';
 import { buildNextTraining, buildWeek } from '../../src/retos/week';
-import { isCompleted } from '../../src/retos/completions';
-import { getCompletedCount, getStreak } from '../../src/retos/streak';
+import {
+  getCompletionSyncState,
+  isCompleted,
+  type CompletionSyncState,
+} from '../../src/retos/completions';
+import { getBestStreak, getCompletedCount, getStreak } from '../../src/retos/streak';
+import { getFreeSessions } from '../../src/retos/freeSessions';
+import { buildHistory, type DailyHistoryInput, type HistoryEntry } from '../../src/retos/history';
 import { useDayKey } from '../../src/retos/DayProvider';
 import { usePremium } from '../../src/premium/usePremium';
-import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
+import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 import type { Goal } from '../../src/prefs/types';
@@ -33,6 +44,13 @@ function daysBetween(from: string, to: string): number {
   const a = new Date(`${from}T00:00:00`);
   const b = new Date(`${to}T00:00:00`);
   return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
+function localDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export default function InicioScreen() {
@@ -55,29 +73,83 @@ export default function InicioScreen() {
   );
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [streak, setStreak] = useState(0);
+  const [best, setBest] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
+  const [syncState, setSyncState] = useState<CompletionSyncState | undefined>(undefined);
+  const [lastEntry, setLastEntry] = useState<HistoryEntry | undefined>(undefined);
+  const [weekCells, setWeekCells] = useState<boolean[]>([]);
   const [chatAbierto, setChatAbierto] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([
-        getTodayChallenge(repo),
-        getStreak(repo),
-        getCompletedCount(repo),
-        isCompleted(repo, dayKey),
-      ]).then(([nextChallenge, nextStreak, nextCount, done]) => {
+      (async () => {
+        const [nextChallenge, nextStreak, nextBest, nextCount, done, state, free] =
+          await Promise.all([
+            getTodayChallenge(repo),
+            getStreak(repo),
+            getBestStreak(repo),
+            getCompletedCount(repo),
+            isCompleted(repo, dayKey),
+            getCompletionSyncState(repo, dayKey),
+            getFreeSessions(repo),
+          ]);
+
+        // Últimos 7 días completados (para la barra semanal compacta).
+        const cells: boolean[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(`${dayKey}T00:00:00`);
+          d.setDate(d.getDate() - i);
+          cells.push((await repo.getSetting(`completed:${localDate(d)}`)) === '1');
+        }
+
+        // Último entrenamiento (offline-first): el reto del día anterior con
+        // meta registrada, o la sesión libre más reciente.
+        const prev = new Date(`${dayKey}T00:00:00`);
+        prev.setDate(prev.getDate() - 1);
+        const prevKey = localDate(prev);
+        const [prevStored, prevMeta] = await Promise.all([
+          getStoredChallenge(repo, prevKey),
+          repo.getSetting(`completed:meta:${prevKey}`),
+        ]);
+        const daily: DailyHistoryInput[] = [];
+        if (prevMeta) {
+          let meta: { value?: number; target?: number; unit?: 'reps' | 'seconds' } | null = null;
+          try {
+            meta = JSON.parse(prevMeta) as {
+              value?: number;
+              target?: number;
+              unit?: 'reps' | 'seconds';
+            };
+          } catch {
+            meta = null;
+          }
+          const prevChallenge = prevStored ?? buildChallenge(prevKey, goal);
+          daily.push({
+            date: prevKey,
+            exerciseId: prevChallenge.exerciseId,
+            value: meta?.value ?? prevChallenge.target,
+            target: meta?.target ?? prevChallenge.target,
+            unit: meta?.unit ?? 'reps',
+          });
+        }
+        const history = buildHistory(free, daily);
+
         if (!active) return;
         setChallenge(nextChallenge);
         setStreak(nextStreak);
+        setBest(nextBest);
         setCompletedCount(nextCount);
         setCompletedToday(done);
-      });
+        setSyncState(state ?? undefined);
+        setWeekCells(cells);
+        setLastEntry(history[0]);
+      })();
       return () => {
         active = false;
       };
-    }, [repo, dayKey]),
+    }, [repo, dayKey, goal]),
   );
 
   function handleGoToReto() {
@@ -99,78 +171,137 @@ export default function InicioScreen() {
   }
 
   const exercise = challenge ? EXERCISES.find((e) => e.id === challenge.exerciseId) : undefined;
-  const unit = exercise?.unit === 'reps' ? 'unit.reps' : 'unit.seconds';
+  const unit: TranslationKey =
+    exercise?.unit === 'seconds'
+      ? 'unit.seconds'
+      : exercise?.unit === 'reps'
+        ? 'unit.reps'
+        : 'unit.reps';
   const tomorrowExercise = EXERCISES.find(
     (e) => e.id === buildChallenge(tomorrowKey(), goal).exerciseId,
   );
 
+  const isRejected = syncState?.status === 'rejected';
+  const isPending = syncState?.status === 'pending';
+  const ctaLabel = isRejected
+    ? 'home.completed_rejected'
+    : isPending
+      ? 'home.completed_pending'
+      : 'home.completed';
+
+  // Semana compacta: días completados de los últimos 7.
+  const weekTraining = useMemo(() => {
+    const trainingSet = new Set(trainingDays);
+    let total = 0;
+    let done = 0;
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(`${dayKey}T00:00:00`);
+      d.setDate(d.getDate() - i);
+      if (trainingSet.has(d.getDay())) {
+        total++;
+        if (weekCells[6 - i]) done++;
+      }
+    }
+    return { done, total };
+  }, [weekCells, trainingDays, dayKey]);
+
   return (
     <View style={styles.container}>
-      {challenge && exercise ? (
-        <View style={styles.card}>
-          <Text style={styles.cardLabel}>{translate(lang, 'home.challenge')}</Text>
-          <Text style={styles.cardTitle}>{translate(lang, exerciseNameKey(exercise.id))}</Text>
-          <Text style={styles.cardTarget}>
-            {translate(lang, 'home.meta', {
-              target: challenge.target,
-              unit: translate(lang, unit),
-            })}
-          </Text>
-
-          <View style={styles.chipRow}>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                {translate(lang, 'home.day_n', { n: completedCount + 1 })}
-              </Text>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xxl + insets.bottom }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {challenge && exercise ? (
+          <View style={styles.card}>
+            <View style={styles.cardHead}>
+              <View style={styles.headLeft}>
+                <Text style={styles.eyebrow}>{translate(lang, 'home.challenge')}</Text>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {translate(lang, exerciseNameKey(exercise.id))}
+                </Text>
+              </View>
+              <View style={styles.metaBox}>
+                <Text style={styles.metaNumber}>{challenge.target}</Text>
+                <Text style={styles.metaUnit}>{translate(lang, unit)}</Text>
+              </View>
             </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                {translate(lang, 'home.by_goal', {
-                  goal: translate(lang, GOAL_TRANSLATION_KEYS[goal]),
-                })}
-              </Text>
+
+            <View style={styles.statStrip}>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{streak}</Text>
+                <Text style={styles.statLabel}>{translate(lang, 'home.streak')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{completedCount}</Text>
+                <Text style={styles.statLabel}>{translate(lang, 'progress.completed')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>
+                  {weekTraining.done}/{weekTraining.total}
+                </Text>
+                <Text style={styles.statLabel}>{translate(lang, 'home.days_short')}</Text>
+              </View>
             </View>
-          </View>
 
-          <Pressable
-            style={[styles.cta, completedToday && styles.ctaDone]}
-            disabled={completedToday}
-            onPress={handleGoToReto}
-          >
-            <Text style={[styles.ctaText, completedToday && styles.ctaTextDone]}>
-              {translate(lang, completedToday ? 'home.completed' : 'home.start')}
-            </Text>
-          </Pressable>
-
-          {premium ? (
-            <Pressable style={styles.secondary} onPress={() => router.push('/(tabs)/ranking')}>
-              <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
+            <Pressable
+              style={[styles.cta, completedToday && styles.ctaDone]}
+              disabled={completedToday}
+              onPress={handleGoToReto}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.ctaText, completedToday && styles.ctaTextDone]}>
+                {translate(lang, completedToday ? ctaLabel : 'home.start')}
+              </Text>
             </Pressable>
+          </View>
+        ) : (
+          <View style={styles.skeleton}>
+            <View style={styles.skeletonBarWide} />
+            <View style={styles.skeletonBarNarrow} />
+            <View style={styles.skeletonBlock} />
+          </View>
+        )}
+
+        {streak === 0 && !completedToday ? (
+          <Text style={styles.hint}>{translate(lang, 'home.first_streak')}</Text>
+        ) : null}
+
+        <View style={styles.strip}>
+          {tomorrowExercise ? (
+            <Text style={styles.stripText} numberOfLines={1}>
+              {translate(lang, 'home.tomorrow', {
+                exercise: translate(lang, exerciseNameKey(tomorrowExercise.id)),
+              })}
+            </Text>
+          ) : null}
+          {lastEntry ? (
+            <Text style={styles.stripText} numberOfLines={1}>
+              {translate(lang, 'home.last', {
+                exercise: translate(lang, exerciseNameKey(lastEntry.exerciseId)),
+                value: lastEntry.value,
+              })}
+            </Text>
           ) : null}
         </View>
-      ) : null}
 
-      <View style={styles.streakBox}>
-        {streak > 0 ? (
-          <>
-            <Text style={styles.streakValue}>{streak}</Text>
-            <Text style={styles.streakLabel}>{translate(lang, 'home.streak')}</Text>
-          </>
-        ) : (
-          <Text style={styles.streakHint}>{translate(lang, 'home.first_streak')}</Text>
-        )}
-      </View>
+        {premium ? (
+          <Pressable
+            style={styles.secondary}
+            onPress={() => router.push('/(tabs)/ranking')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
+          </Pressable>
+        ) : null}
 
-      {tomorrowExercise ? (
-        <Text style={styles.tomorrowText}>
-          {translate(lang, 'home.tomorrow', {
-            exercise: translate(lang, exerciseNameKey(tomorrowExercise.id)),
-          })}
-        </Text>
-      ) : null}
+        <Text style={styles.best}>{translate(lang, 'home.best', { n: best })}</Text>
+      </ScrollView>
 
       <Pressable
-        style={styles.iaBtn}
+        style={[styles.iaBtn, { bottom: spacing.lg + insets.bottom }]}
         onPress={() => setChatAbierto(true)}
         accessibilityRole="button"
         accessibilityLabel={translate(lang, 'home.ia_title')}
@@ -202,63 +333,92 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
   },
-  title: {
-    color: colors.silver,
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: 1,
+  screen: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.md,
   },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    marginTop: spacing.lg,
     padding: spacing.lg,
   },
-  cardLabel: {
+  cardHead: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  headLeft: {
+    flex: 1,
+    flexShrink: 1,
+  },
+  eyebrow: {
     color: colors.silverDim,
     fontSize: 12,
     letterSpacing: 2,
   },
   cardTitle: {
     color: colors.silver,
-    fontSize: 28,
-    fontWeight: '800',
-    marginTop: spacing.sm,
-  },
-  cardTarget: {
-    color: colors.teal,
-    fontSize: 40,
+    fontSize: 26,
     fontWeight: '800',
     marginTop: spacing.xs,
   },
-  chipRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+  metaBox: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
   },
-  chip: {
-    backgroundColor: colors.bg,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+  metaNumber: {
+    color: colors.teal,
+    fontSize: 34,
+    fontWeight: '800',
+    lineHeight: 36,
   },
-  chipText: {
+  metaUnit: {
     color: colors.silverDim,
-    fontSize: 12,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  statStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+  },
+  stat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statDivider: {
+    backgroundColor: colors.line,
+    height: 28,
+    width: 1,
+  },
+  statValue: {
+    color: colors.silver,
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  statLabel: {
+    color: colors.silverDim,
+    fontSize: 10,
+    letterSpacing: 1,
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
   cta: {
     backgroundColor: colors.teal,
     borderRadius: radius.pill,
     alignItems: 'center',
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     paddingVertical: spacing.md,
   },
   ctaText: {
@@ -275,50 +435,79 @@ const styles = StyleSheet.create({
   ctaTextDone: {
     color: colors.teal,
   },
+  skeleton: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
+    minHeight: 150,
+  },
+  skeletonBarWide: {
+    backgroundColor: colors.line,
+    borderRadius: radius.sm,
+    height: 14,
+    width: '40%',
+  },
+  skeletonBarNarrow: {
+    backgroundColor: colors.line,
+    borderRadius: radius.sm,
+    height: 26,
+    marginTop: spacing.sm,
+    width: '65%',
+  },
+  skeletonBlock: {
+    backgroundColor: colors.line,
+    borderRadius: radius.sm,
+    height: 44,
+    marginTop: spacing.lg,
+    width: '100%',
+  },
+  hint: {
+    color: colors.silverDim,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.md,
+  },
+  strip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  stripText: {
+    color: colors.silverDim,
+    fontSize: 13,
+  },
   secondary: {
     alignItems: 'center',
-    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    marginTop: spacing.lg,
     paddingVertical: spacing.sm,
   },
   secondaryText: {
-    color: colors.silverDim,
+    color: colors.silver,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 2,
   },
-  streakBox: {
-    marginTop: spacing.lg,
-  },
-  streakValue: {
-    color: colors.teal,
-    fontSize: 40,
-    fontWeight: '800',
-  },
-  streakLabel: {
-    color: colors.silverDim,
-    fontSize: 12,
-    letterSpacing: 2,
-  },
-  streakHint: {
-    color: colors.silverDim,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  tomorrowText: {
+  best: {
     color: colors.silverDim,
     fontSize: 13,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
+    textAlign: 'center',
   },
   iaBtn: {
     position: 'absolute',
     right: spacing.md,
-    bottom: spacing.lg,
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: colors.teal,
     borderWidth: 2,
-    borderColor: '#1d5c3a',
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
