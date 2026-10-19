@@ -101,5 +101,5 @@ código.) Revisión cruzada `[BE] + [SEC] + [QA]` antes de declarar la entrega.
 
 1. **[BE]/[SEC]**: migración 0020 + rama de completaciones en la edge. — **Hecho** (aplicada y desplegada).
 2. **[QA]**: dry run con rollback, typecheck/lint/tests y verificación de queries en prod. — **Hecho**.
-3. **[PO]**: abrir Ranking → Hoy → Reps → Flexiones y confirmar los 11. — **Pendiente**.
+3. **[PO]**: abrir Ranking → Hoy → Reps → Flexiones y confirmar los 11. — **Hecho (OK)**: lo muestra.
 4. **[PM]/[DER]**: commit del código y registro (acta + BITACORA). — **Hecho**: `b386170` (código).

@@ -1787,6 +1787,7 @@ sólo existe en `camretos.tsx:127` (Libre), y `get_reps_ranking`/`get_total_reps
 **Verificación:** dry run con `rollback` en prod (detectó `CREATE INDEX` con esquema, no admitido) · typecheck/lint
 repo OK · **214 + 39 tests** OK · migración **aplicada** · edge **redesplegada** ·
 `get_reps_ranking('flexiones', Hoy)` → `atleta best_value 11` · `get_total_reps_ranking` → 16.
+**Confirmado por el PO en dispositivo**: "ya lo muestra".
 
 **Estado / decisiones:**
 
