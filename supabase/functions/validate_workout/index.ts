@@ -549,7 +549,7 @@ Deno.serve(async (request) => {
         exercise_code: item.exerciseCode,
         value: item.value,
         target: item.target,
-        source: 'libre',
+        source: item.source ?? 'libre',
         ranked: item.seriesOk === true,
         series_ok: item.seriesOk === true,
         status: 'verified',
@@ -629,6 +629,19 @@ Deno.serve(async (request) => {
   const completionRows: Record<string, unknown>[] = [];
   const completionResults: SubmissionResult[] = [];
   const verifiedCompletions: Record<string, unknown>[] = [];
+  // El reto diario también alimenta el ranking de reps: una completación
+  // verified materializa su fila en workout_sessions con source='reto_diario'
+  // (migración 0020). Se dibuja junto a la completación y sólo se escribe
+  // cuando la completación es NUEVA; client_op_id determinista por fecha
+  // ('reto:' || challenge_date) la hace idempotente ante reintentos.
+  const verifiedChallengeSessions: {
+    challenge_date: string;
+    exercise_code: string;
+    value: number;
+    target: number;
+    evidence_hash: string;
+    verification_version: string;
+  }[] = [];
   const completionDates = [...new Set(validCompletions.map((c) => c.challengeDate))].sort();
 
   // Objetivo vigente por fecha desde goal_history (server-side), como manda
@@ -824,6 +837,17 @@ Deno.serve(async (request) => {
         verified_at: new Date().toISOString(),
         verification_version: verificationVersion,
       });
+      // ...y su sesión rankeable (migración 0020): get_reps_ranking /
+      // get_total_reps_ranking leen workout_sessions, no daily_challenges.
+      // ranked lo decide SOLO el servidor (ADR free-sin-ranking).
+      verifiedChallengeSessions.push({
+        challenge_date: item.challengeDate,
+        exercise_code: item.exerciseCode,
+        value: item.value,
+        target: item.target,
+        evidence_hash: evidenceHash,
+        verification_version: verificationVersion,
+      });
     }
 
     // Materializar la asignación SOLO si no existe (fuente de verdad). Nunca
@@ -899,10 +923,49 @@ Deno.serve(async (request) => {
       (r) => !decidedDates.has(String(r.challenge_date)),
     );
     if (completionsToWrite.length > 0) {
-      const { error: dailyError } = await admin
+      const { data: writtenDaily, error: dailyError } = await admin
         .from('daily_challenges')
-        .upsert(completionsToWrite, { onConflict: 'user_id,challenge_date' });
+        .upsert(completionsToWrite, { onConflict: 'user_id,challenge_date' })
+        .select('id, challenge_date');
       if (dailyError) return response({ error: 'daily_challenge_storage_failed' }, 503);
+
+      // Sesión del reto para el ranking de reps (migración 0020). Sólo para
+      // las completaciones que se acaban de materializar: no re-escribe fechas
+      // ya decididas. Upsert idempotente por (user_id, client_op_id) con
+      // client_op_id determinista 'reto:' || challenge_date.
+      const written = (writtenDaily ?? []) as { id: string; challenge_date: string }[];
+      const challengeIds = new Map<string, string>();
+      for (const row of written) {
+        challengeIds.set(String(row.challenge_date), String(row.id));
+      }
+      const challengeSessions = verifiedChallengeSessions
+        .filter((s) => challengeIds.has(s.challenge_date))
+        .map((s) => ({
+          user_id: userData.user.id,
+          client_op_id: `reto:${s.challenge_date}`,
+          challenge_id: challengeIds.get(s.challenge_date),
+          exercise_code: s.exercise_code,
+          value: s.value,
+          target: s.target,
+          source: 'reto_diario',
+          ranked: hasPremium,
+          series_ok: true,
+          status: 'verified',
+          verification_source: 'server',
+          server_value: s.value,
+          server_target: s.target,
+          session_date: s.challenge_date,
+          evidence_hash: s.evidence_hash,
+          verification_version: s.verification_version,
+        }));
+      if (challengeSessions.length > 0) {
+        const { error: challengeSessionError } = await admin
+          .from('workout_sessions')
+          .upsert(challengeSessions, { onConflict: 'user_id,client_op_id' });
+        if (challengeSessionError) {
+          return response({ error: 'challenge_session_storage_failed' }, 503);
+        }
+      }
     }
   }
 
@@ -933,6 +996,6 @@ Deno.serve(async (request) => {
       ...completionResults,
     ],
     message:
-      'Validador server-side activo: las propuestas con evidencia válida se verifican (verified) y alimentan el ranking (sesiones libres rankeadas, premium) o la racha (retos diarios, todos). Las que fallan un gate quedan pending/rejected con su motivo.',
+      'Validador server-side activo: las propuestas con evidencia válida se verifican (verified) y alimentan el ranking de reps (sesiones del modo Libre y del reto diario, premium) o la racha (retos diarios, todos). Las que fallan un gate quedan pending/rejected con su motivo.',
   });
 });
