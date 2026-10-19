@@ -59,8 +59,7 @@ const es = {
     'Cuando completes tu primer reto verás tu historial y los gráficos de evolución.',
   'progress.ranking': 'RANKING',
   'progress.ranking_empty': 'Todavía no hay datos. Completá retos para entrar al ranking.',
-  'progress.ranking_note':
-    'Clasificación verificada en el dispositivo — todavía no se revalida en el servidor.',
+  'progress.ranking_note': 'Solo cuentan las sesiones verificadas por el servidor.',
   'progress.rank_challenges': 'RETOS',
   'progress.rank_streak': 'RACHA',
   'progress.rank_reps': 'REPS',
@@ -327,7 +326,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
       'Once you complete your first challenge you will see your history and progress charts.',
     'progress.ranking': 'RANKING',
     'progress.ranking_empty': 'No data yet. Complete challenges to join the ranking.',
-    'progress.ranking_note': 'Ranking verified on device — not yet recomputed server-side.',
+    'progress.ranking_note': 'Only sessions verified server-side count.',
     'progress.rank_challenges': 'CHALLENGES',
     'progress.rank_streak': 'STREAK',
     'progress.rank_reps': 'REPS',
@@ -589,8 +588,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
       'Quando você concluir seu primeiro desafio verá seu histórico e os gráficos de evolução.',
     'progress.ranking': 'RANKING',
     'progress.ranking_empty': 'Ainda sem dados. Conclua desafios para entrar no ranking.',
-    'progress.ranking_note':
-      'Classificação verificada no dispositivo — ainda não recalculada no servidor.',
+    'progress.ranking_note': 'Apenas as sessões verificadas no servidor contam.',
     'progress.rank_challenges': 'DESAFIOS',
     'progress.rank_streak': 'SEQUÊNCIA',
     'progress.rank_reps': 'REPS',
