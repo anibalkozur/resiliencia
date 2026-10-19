@@ -1795,3 +1795,29 @@ repo OK · **214 + 39 tests** OK · migración **aplicada** · edge **redesplega
 - Código en **`b386170`**; acta 019 en `docs/equipo/actas/2026-10-18_reto_diario_en_ranking_reps.md`.
 - Límites: los períodos filtran `created_at` y no `session_date` (deuda preexistente, acta 017); ventana de fallo
   si el upsert de sesión falla tras escribir `daily_challenges` (reparable re-ejecutando 0020).
+
+### 2026-10-19 - Pestaña Retos en dos pantallas (presentación + cámara a pantalla completa)
+
+**Pedido del PO:** pantalla con el reto del día y su explicación y **abajo el botón INICIAR**; al iniciar, la
+pantalla del ejercicio **sin** "TU SEMANA", sin los días, sin "RETO DE HOY" y sin la ayuda del ejercicio, para
+**estirar la cámara**.
+
+**Cambio (sólo `apps/mobile/app/(tabs)/retos.tsx`):**
+
+- Nueva variable de fase `fase: 'inicio' | 'camara'` que reemplaza `camaraAbierta`, `retoSalido` y
+  `showStartBox`/`showDoneBox`. SALIR y el cierre tras completar vuelven a `'inicio'`; completar no cambia de
+  fase (la cámara queda montada para REPETIR/SALIR); REINTENTAR entra en `'camara'`.
+- **Inicio**: conserva el encabezado TU SEMANA + fila de días (decisión del PO: no se borra) y suma tarjeta
+  **RETO DE HOY** con ejercicio, objetivo (`unit.reps`/`unit.seconds`) y la guía técnica completa, con
+  **INICIAR** abajo de todo.
+- **Cámara**: sólo la WebView en `cameraContainer`. Del JSX y los estilos se eliminaron `topSection`/
+  `titleRow`/`weekRow`, `challengeBar`, `challengeTop`, `cameraTitle`, `cameraMeta` y `cameraGuide`.
+- `cameraVisible = challengeBlock && fase === 'camara' && focused` gobierna el SALIR nativo **y** la
+  suscripción a `DeviceMotion` (antes también corría en la pantalla de inicio).
+
+**Verificación:** `typecheck` ✓ · `lint` ✓ · **214/214 tests (18 suites)** ✓. Sin cambio de cámara
+(`camera-verification.html` sigue **v53**, `gh-pages f1aa0ca`), sin migración y sin deploy de edge.
+
+**Estado / decisiones:** aprobado por el PO ("buena decisión… quedó muy bien, aprobado"). Código en **`87e308b`**;
+acta 020 en `docs/equipo/actas/2026-10-19_reto_pantalla_inicio_camara_completa.md`; backup local
+`backup-resiliencia-20261019-103354` (Punto 25).

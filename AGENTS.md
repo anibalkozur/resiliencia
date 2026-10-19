@@ -89,6 +89,13 @@ cuando el equipo o el código crezcan.
    la documentación exacta de Expo SDK 57 antes de escribir código Expo.
 9. En revisiones de auth, RLS, pagos, salud, cámara o ranking, hacer revisión
    cruzada con los roles correspondientes antes de declarar una entrega segura.
+10. **Cierre de sesión con entregas aprobadas** (protocolo fijo que el PO pide
+    siempre): commit + push, **acta** en `docs/equipo/actas/` con la numeración
+    siguiente, **entrada en `docs/BITACORA.md`** y **backup local** — tag
+    `backup-resiliencia-<timestamp-local>` sobre el commit de código + copia con
+    `git archive` dentro de `backups/` + bloque nuevo al inicio de
+    `apps/mobile/backup app resiliencia.txt`. Recordá este orden también cuando
+    el PO diga “y además bitácora, registro y backup”.
 
 ## Entregables por rol
 
