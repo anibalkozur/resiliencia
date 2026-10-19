@@ -232,9 +232,22 @@ describe('fetchRanking', () => {
 
     const rows = await fetchRanking(client, 25);
 
-    expect(calls.rpc).toEqual({ name: 'get_ranking', args: { max_rows: 25 } });
+    expect(calls.rpc).toEqual({ name: 'get_ranking', args: { p_max_rows: 25, p_since: null } });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ nickname: 'ana', completed_challenges: 3 });
+  });
+
+  it('passes the period cutoff to get_ranking', async () => {
+    const { client, calls } = fakeClient();
+    calls.rpc = null;
+    const since = '2026-10-01T00:00:00.000Z';
+
+    await fetchRanking(client, 50, since);
+
+    expect(calls.rpc).toEqual({
+      name: 'get_ranking',
+      args: { p_max_rows: 50, p_since: since },
+    });
   });
 
   it('returns an empty list on error', async () => {
@@ -361,7 +374,20 @@ describe('fetchRepsRanking', () => {
 
     expect(calls.rpc).toEqual({
       name: 'get_reps_ranking',
-      args: { p_exercise_code: 'sentadillas', p_max_rows: 20 },
+      args: { p_exercise_code: 'sentadillas', p_max_rows: 20, p_since: null },
+    });
+  });
+
+  it('passes the period cutoff to get_reps_ranking', async () => {
+    const { client, calls } = fakeClient();
+    calls.rpc = null;
+    const since = '2026-10-01T00:00:00.000Z';
+
+    await fetchRepsRanking(client, 'sentadillas', 10, since);
+
+    expect(calls.rpc).toEqual({
+      name: 'get_reps_ranking',
+      args: { p_exercise_code: 'sentadillas', p_max_rows: 10, p_since: since },
     });
   });
 
@@ -395,7 +421,20 @@ describe('fetchTotalRepsRanking', () => {
 
     expect(calls.rpc).toEqual({
       name: 'get_total_reps_ranking',
-      args: { p_max_rows: 15 },
+      args: { p_max_rows: 15, p_since: null },
+    });
+  });
+
+  it('passes the period cutoff to get_total_reps_ranking', async () => {
+    const { client, calls } = fakeClient();
+    calls.rpc = null;
+    const since = '2026-10-01T00:00:00.000Z';
+
+    await fetchTotalRepsRanking(client, 10, since);
+
+    expect(calls.rpc).toEqual({
+      name: 'get_total_reps_ranking',
+      args: { p_max_rows: 10, p_since: since },
     });
   });
 

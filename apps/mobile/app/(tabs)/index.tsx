@@ -13,6 +13,7 @@ import { buildNextTraining, buildWeek } from '../../src/retos/week';
 import { isCompleted } from '../../src/retos/completions';
 import { getCompletedCount, getStreak } from '../../src/retos/streak';
 import { useDayKey } from '../../src/retos/DayProvider';
+import { usePremium } from '../../src/premium/usePremium';
 import { GOAL_TRANSLATION_KEYS, translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
@@ -41,6 +42,7 @@ export default function InicioScreen() {
   const lang = prefs?.language ?? 'es';
   const goal: Goal = prefs?.goal ?? 'mantener';
   const repo = getRepo();
+  const premium = usePremium();
   const dayKey = useDayKey();
   const trainingDays = prefs?.trainingDays ?? DEFAULT_TRAINING_DAYS;
   const trainingToday = useMemo(() => {
@@ -140,9 +142,11 @@ export default function InicioScreen() {
             </Text>
           </Pressable>
 
-          <Pressable style={styles.secondary} onPress={() => router.push('/(tabs)/ranking')}>
-            <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
-          </Pressable>
+          {premium ? (
+            <Pressable style={styles.secondary} onPress={() => router.push('/(tabs)/ranking')}>
+              <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 

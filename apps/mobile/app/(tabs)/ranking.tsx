@@ -15,7 +15,12 @@ import {
   type RepsRankingRow,
   type TotalRepsRankingRow,
 } from '../../src/sync/syncService';
-import { RANK_PERIODS, rankPeriodLabelKey, type RankPeriod } from '../../src/sync/rankingPeriods';
+import {
+  RANK_PERIODS,
+  rankPeriodLabelKey,
+  rankPeriodSince,
+  type RankPeriod,
+} from '../../src/sync/rankingPeriods';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 
@@ -44,6 +49,8 @@ export default function RankingScreen() {
   const [repsExercise, setRepsExercise] = useState('sentadillas');
   const [repsRanking, setRepsRanking] = useState<RepsRankingRow[]>([]);
   const [totalRanking, setTotalRanking] = useState<TotalRepsRankingRow[]>([]);
+  const emptyKey: TranslationKey =
+    period !== 'all' ? 'progress.period_empty' : 'progress.ranking_empty';
 
   useEffect(() => {
     const client = getSupabase();
@@ -51,14 +58,15 @@ export default function RankingScreen() {
       return;
     }
     let active = true;
+    const since = rankPeriodSince(period);
     if (tab === 'reps') {
-      fetchRepsRanking(client, repsExercise).then((rows) => {
+      fetchRepsRanking(client, repsExercise, 10, since).then((rows) => {
         if (active) {
           setRepsRanking(rows);
         }
       });
     } else {
-      fetchTotalRepsRanking(client).then((rows) => {
+      fetchTotalRepsRanking(client, 10, since).then((rows) => {
         if (active) {
           setTotalRanking(rows);
         }
@@ -67,7 +75,7 @@ export default function RankingScreen() {
     return () => {
       active = false;
     };
-  }, [session, tab, repsExercise]);
+  }, [session, tab, repsExercise, period]);
 
   useFocusEffect(
     useCallback(() => {
@@ -76,7 +84,7 @@ export default function RankingScreen() {
         return;
       }
       let active = true;
-      fetchRanking(client).then((rows) => {
+      fetchRanking(client, 50, rankPeriodSince(period)).then((rows) => {
         if (active) {
           setRanking(rows);
         }
@@ -84,7 +92,7 @@ export default function RankingScreen() {
       return () => {
         active = false;
       };
-    }, [session]),
+    }, [session, period]),
   );
 
   return (
@@ -127,11 +135,9 @@ export default function RankingScreen() {
 
         {!session ? (
           <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
-        ) : period !== 'all' ? (
-          <Text style={styles.rankingEmpty}>{translate(lang, 'progress.period_empty')}</Text>
         ) : tab === 'streak' ? (
           ranking.length === 0 ? (
-            <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+            <Text style={styles.rankingEmpty}>{translate(lang, emptyKey)}</Text>
           ) : (
             ranking.map((entry, index) => {
               const isMe = entry.user_id === profile?.id;
@@ -177,7 +183,7 @@ export default function RankingScreen() {
               })}
             </ScrollView>
             {repsRanking.length === 0 ? (
-              <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+              <Text style={styles.rankingEmpty}>{translate(lang, emptyKey)}</Text>
             ) : (
               repsRanking.map((entry, index) => {
                 const isMe = entry.user_id === profile?.id;
@@ -201,7 +207,7 @@ export default function RankingScreen() {
             )}
           </>
         ) : totalRanking.length === 0 ? (
-          <Text style={styles.rankingEmpty}>{translate(lang, 'progress.ranking_empty')}</Text>
+          <Text style={styles.rankingEmpty}>{translate(lang, emptyKey)}</Text>
         ) : (
           totalRanking.map((entry, index) => {
             const isMe = entry.user_id === profile?.id;

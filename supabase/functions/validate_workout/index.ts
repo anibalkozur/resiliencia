@@ -17,7 +17,7 @@ const MAX_CHALLENGE_AGE_DAYS = 365;
 // Versiones de evidencia soportadas. La versión llega en la URL de la cámara
 // (?v=) y en buildVerifyUri; solo se aceptan versiones explícitas para evitar
 // downgrade o versiones inventadas.
-const ALLOWED_EVIDENCE_VERSIONS = new Set([12, 13]);
+const ALLOWED_EVIDENCE_VERSIONS = new Set([12, 13, 53]);
 const GOALS = ['perder_grasa', 'ganar_musculo', 'mantener'] as const;
 type Goal = (typeof GOALS)[number];
 
@@ -221,9 +221,10 @@ function challengeDateInWindow(dateKey: string): boolean {
   return dateKey >= min && dateKey <= max;
 }
 
-// La evidencia sirve como registro y filtro de datos imposibles, no como
-// prueba criptográfica. Hasta que exista un validador real (video/attestation
-// server-side), ninguna propuesta se aprueba: TODO queda pending.
+// Veredicto de la evidencia de cámara. No es una prueba criptográfica: el
+// servidor recalcula plausibilidad (versión soportada, duración vs. reps,
+// cadencia imposible, prueba de vida) y solo promueve a verified si pasa TODO.
+// Si falta la evidencia, la propuesta queda pending (no se descarta).
 function evidenceIssue(
   evidence: Record<string, unknown> | undefined,
   value: number,
@@ -458,43 +459,66 @@ Deno.serve(async (request) => {
   }
 
   // ---------------------------------------------------------------------------
-  // Sesiones libres: SIEMPRE pending. Hasta que exista un validador real,
-  // ninguna propuesta se aprueba ni escribe workout_sessions. Las propuestas
-  // se guardan con su evidencia para auditoría y futura revisión manual.
+  // Sesiones libres: el validador server-side decide. Una sesión rankeada solo
+  // se promueve a 'verified' —y escribe la fila de workout_sessions que leen
+  // los rankings de reps/total— cuando pasan TODOS los gates: tier, límites,
+  // entitlement premium (ADR free-sin-ranking: el free NO compite en ningún
+  // ranking), prueba de vida y plausibilidad de la evidencia. Cualquier fallo
+  // deja la propuesta pending/rejected con su motivo para auditoría.
   // ---------------------------------------------------------------------------
   const sessionRows: Record<string, unknown>[] = [];
   const sessionResults: SubmissionResult[] = [];
+  const verifiedSessions: Record<string, unknown>[] = [];
 
   for (const item of valid) {
     const exercise = exercises.get(item.exerciseCode);
     const unit = exercise?.measurement_type ?? 'reps';
-    let status: SubmissionResult['status'] = 'pending';
+    let verificationStatus: 'pending' | 'verified' | 'rejected' = 'pending';
     let reason = 'awaiting_server_validator';
 
     const tierIssue = exercise ? tierGate(exercise, hasPremium) : 'invalid_exercise';
     if (tierIssue) {
-      status = 'rejected';
+      verificationStatus = 'rejected';
       reason = tierIssue;
     } else if (item.value > unitLimit(unit) || item.target > unitLimit(unit)) {
-      status = 'rejected';
+      verificationStatus = 'rejected';
       reason = 'value_out_of_bounds';
     } else if (item.ranked) {
-      if (item.livenessOk !== true) {
-        status = 'rejected';
+      if (!hasPremium) {
+        // ADR 2026-09-29: el free no participa de ningún ranking. La sesión
+        // libre no se rankea; se rechaza el intento con motivo explícito.
+        verificationStatus = 'rejected';
+        reason = 'ranking_premium_required';
+      } else if (item.livenessOk !== true) {
+        verificationStatus = 'rejected';
         reason = 'liveness_required';
       } else {
         const issue = evidenceIssue(item.evidence, item.value, unit, true);
         if (issue === 'missing_evidence') {
-          status = 'pending';
+          verificationStatus = 'pending';
           reason = 'missing_evidence';
         } else if (issue !== null) {
-          status = 'rejected';
+          verificationStatus = 'rejected';
           reason = issue;
+        } else {
+          verificationStatus = 'verified';
+          reason = 'verified';
         }
       }
     }
 
-    sessionResults.push({ clientOpId: item.clientOpId, status, reason });
+    const evidenceHash = await sha256Hex(JSON.stringify(item.evidence ?? {}));
+    const verificationVersion = String(
+      isRecord(item.evidence) && isInt(item.evidence.verifyVersion)
+        ? item.evidence.verifyVersion
+        : 1,
+    );
+
+    sessionResults.push({
+      clientOpId: item.clientOpId,
+      status: verificationStatus === 'verified' ? 'accepted' : verificationStatus,
+      reason,
+    });
 
     sessionRows.push({
       user_id: userData.user.id,
@@ -507,16 +531,36 @@ Deno.serve(async (request) => {
       series_ok_reported: item.seriesOk === true,
       liveness_ok_reported: item.livenessOk === true,
       session_date: item.sessionDate,
-      verification_status: status,
+      verification_status: verificationStatus,
       verification_reason: reason,
       evidence: item.evidence ?? {},
-      evidence_hash: await sha256Hex(JSON.stringify(item.evidence ?? {})),
-      verification_version: String(
-        isRecord(item.evidence) && isInt(item.evidence.verifyVersion)
-          ? item.evidence.verifyVersion
-          : 1,
-      ),
+      evidence_hash: evidenceHash,
+      verification_version: verificationVersion,
     });
+
+    // Resultado autoritativo: solo las sesiones libres rankeadas verificadas
+    // escriben la fila de workout_sessions que leen los rankings. La serie debe
+    // ser continua (series_ok) para entrar; si no, se verifica igual pero con
+    // ranked=false (no aparece en el ranking).
+    if (verificationStatus === 'verified') {
+      verifiedSessions.push({
+        user_id: userData.user.id,
+        client_op_id: item.clientOpId,
+        exercise_code: item.exerciseCode,
+        value: item.value,
+        target: item.target,
+        source: 'libre',
+        ranked: item.seriesOk === true,
+        series_ok: item.seriesOk === true,
+        status: 'verified',
+        verification_source: 'server',
+        server_value: item.value,
+        server_target: item.target,
+        session_date: item.sessionDate,
+        evidence_hash: evidenceHash,
+        verification_version: verificationVersion,
+      });
+    }
   }
 
   if (sessionRows.length > 0) {
@@ -559,16 +603,32 @@ Deno.serve(async (request) => {
         .upsert(rowsToWrite, { onConflict: 'user_id,client_op_id' });
       if (insertError) return response({ error: 'submission_storage_failed' }, 503);
     }
+
+    // Resultado autoritativo del ranking: solo se crea la sesión verified para
+    // propuestas nuevas (no las ya decididas) para no degradar una fila existente.
+    const sessionsToWrite = verifiedSessions.filter(
+      (r) => !existingDecided.has(String(r.client_op_id)),
+    );
+    if (sessionsToWrite.length > 0) {
+      const { error: sessionError } = await admin
+        .from('workout_sessions')
+        .upsert(sessionsToWrite, { onConflict: 'user_id,client_op_id' });
+      if (sessionError) return response({ error: 'session_storage_failed' }, 503);
+    }
   }
 
   // ---------------------------------------------------------------------------
-  // Retos diarios: SIEMPRE pending. El servidor deriva el reto esperado desde
-  // goal_history (el objetivo vigente para la fecha) y materializa la
-  // asignación en daily_challenge_assignments como fuente de verdad. No
-  // escribe daily_challenges. Los rechazos se reportan por elemento.
+  // Retos diarios: el servidor deriva el reto esperado desde goal_history (el
+  // objetivo vigente para la fecha) y materializa la asignación en
+  // daily_challenge_assignments como fuente de verdad. Cuando la evidencia es
+  // válida, el reto se promueve a 'verified' y se escribe daily_challenges con
+  // completion_source = 'server' (alimenta la racha, para TODOS los usuarios:
+  // las rachas no son premium, ADR free-sin-ranking). Los rechazos se reportan
+  // por elemento.
   // ---------------------------------------------------------------------------
   const completionRows: Record<string, unknown>[] = [];
   const completionResults: SubmissionResult[] = [];
+  const verifiedCompletions: Record<string, unknown>[] = [];
   const completionDates = [...new Set(validCompletions.map((c) => c.challengeDate))].sort();
 
   // Objetivo vigente por fecha desde goal_history (server-side), como manda
@@ -642,18 +702,18 @@ Deno.serve(async (request) => {
   for (const item of validCompletions) {
     const exercise = exercises.get(item.exerciseCode);
     const unit = exercise?.measurement_type ?? 'reps';
-    let status: SubmissionResult['status'] = 'pending';
+    let verificationStatus: 'pending' | 'verified' | 'rejected' = 'pending';
     let reason = 'awaiting_server_validator';
 
     const tierIssue = exercise ? tierGate(exercise, hasPremium) : 'invalid_exercise';
     if (tierIssue) {
-      status = 'rejected';
+      verificationStatus = 'rejected';
       reason = tierIssue;
     } else if (!challengeDateInWindow(item.challengeDate)) {
-      status = 'rejected';
+      verificationStatus = 'rejected';
       reason = 'challenge_date_out_of_window';
     } else if (item.value > unitLimit(unit) || item.target > unitLimit(unit)) {
-      status = 'rejected';
+      verificationStatus = 'rejected';
       reason = 'value_out_of_bounds';
     } else {
       const hasAssignment = assignmentByDate.has(item.challengeDate);
@@ -702,24 +762,38 @@ Deno.serve(async (request) => {
         (goalForMatch !== null && item.goal !== goalForMatch) ||
         (item.unit !== undefined && item.unit !== unit)
       ) {
-        status = 'rejected';
+        verificationStatus = 'rejected';
         reason = 'challenge_mismatch';
       } else if (item.value < item.target) {
-        status = 'pending';
+        verificationStatus = 'pending';
         reason = 'target_not_met';
       } else {
         const issue = evidenceIssue(item.evidence, item.value, unit, true);
         if (issue === 'missing_evidence') {
-          status = 'pending';
+          verificationStatus = 'pending';
           reason = issue;
         } else if (issue !== null) {
-          status = 'rejected';
+          verificationStatus = 'rejected';
           reason = issue;
+        } else {
+          verificationStatus = 'verified';
+          reason = 'verified';
         }
       }
     }
 
-    completionResults.push({ clientOpId: item.clientOpId, status, reason });
+    const evidenceHash = await sha256Hex(JSON.stringify(item.evidence ?? {}));
+    const verificationVersion = String(
+      isRecord(item.evidence) && isInt(item.evidence.verifyVersion)
+        ? item.evidence.verifyVersion
+        : 1,
+    );
+
+    completionResults.push({
+      clientOpId: item.clientOpId,
+      status: verificationStatus === 'verified' ? 'accepted' : verificationStatus,
+      reason,
+    });
 
     completionRows.push({
       user_id: userData.user.id,
@@ -729,16 +803,28 @@ Deno.serve(async (request) => {
       client_value: item.value,
       client_target: item.target,
       goal_requested: item.goal,
-      verification_status: status,
+      verification_status: verificationStatus,
       verification_reason: reason,
       evidence: item.evidence ?? {},
-      evidence_hash: await sha256Hex(JSON.stringify(item.evidence ?? {})),
-      verification_version: String(
-        isRecord(item.evidence) && isInt(item.evidence.verifyVersion)
-          ? item.evidence.verifyVersion
-          : 1,
-      ),
+      evidence_hash: evidenceHash,
+      verification_version: verificationVersion,
     });
+
+    // Resultado autoritativo de la racha: solo un reto verificado escribe
+    // daily_challenges con completion_source = 'server' (lo que lee get_ranking).
+    if (verificationStatus === 'verified' && exercise) {
+      verifiedCompletions.push({
+        user_id: userData.user.id,
+        challenge_date: item.challengeDate,
+        exercise_id: exercise.id,
+        target: item.target,
+        status: 'completed',
+        goal_requested: item.goal,
+        completion_source: 'server',
+        verified_at: new Date().toISOString(),
+        verification_version: verificationVersion,
+      });
+    }
 
     // Materializar la asignación SOLO si no existe (fuente de verdad). Nunca
     // recalcular ni sobrescribir una asignación ya creada.
@@ -789,8 +875,9 @@ Deno.serve(async (request) => {
     }
     const rowsToWrite = completionRows.filter((r) => {
       const dateKey = String(r.challenge_date);
+      const opId = String(r.client_op_id);
       if (decidedDates.has(dateKey)) {
-        const result = completionResults.find((res) => res.clientOpId === `daily:${dateKey}`);
+        const result = completionResults.find((res) => res.clientOpId === opId);
         if (result) {
           result.status = 'accepted';
           result.reason = 'already_verified';
@@ -804,6 +891,18 @@ Deno.serve(async (request) => {
         .from('daily_challenge_submissions')
         .upsert(rowsToWrite, { onConflict: 'user_id,challenge_date' });
       if (insertError) return response({ error: 'completion_storage_failed' }, 503);
+    }
+
+    // Resultado autoritativo de la racha: solo se crea el completado verified
+    // para fechas nuevas (no las ya decididas) para no degradar una fila previa.
+    const completionsToWrite = verifiedCompletions.filter(
+      (r) => !decidedDates.has(String(r.challenge_date)),
+    );
+    if (completionsToWrite.length > 0) {
+      const { error: dailyError } = await admin
+        .from('daily_challenges')
+        .upsert(completionsToWrite, { onConflict: 'user_id,challenge_date' });
+      if (dailyError) return response({ error: 'daily_challenge_storage_failed' }, 503);
     }
   }
 
@@ -834,6 +933,6 @@ Deno.serve(async (request) => {
       ...completionResults,
     ],
     message:
-      'Todas las propuestas quedan en revisión (pending). El ranking se reabre solo cuando exista un validador server-side real.',
+      'Validador server-side activo: las propuestas con evidencia válida se verifican (verified) y alimentan el ranking (sesiones libres rankeadas, premium) o la racha (retos diarios, todos). Las que fallan un gate quedan pending/rejected con su motivo.',
   });
 });

@@ -1,7 +1,9 @@
 # Acta 016 — Ranking por ejercicio en la rutina (modo libre)
 
 - **Fecha**: 2026-10-16 · **Tipo**: decisión de producto (ranking) · **Fase**: 1 (producto) → implementación en Fase 4 (verificación real).
-- **Estado**: **decisión tomada**; implementación **pendiente** (bloqueada por el validador server-side).
+- **Estado**: **implementado** (2026-10-16). El validador server-side está desplegado
+  (acta 017) y el ranking en modo rutina quedó encendido: cada tramo del `seq` viaja
+  con `ranked=1` y rankea por ejercicio, además de sumar al total.
 - **Participan**: [PO] (decide), [CV]/[DER], [BE], [SEC], [QA], [MOB], [DATA], [UX]/[GRO], [PM].
 
 ## 1. Motivo
@@ -126,10 +128,25 @@ vacías). Se puede adelantar la **UI** (selector + estados vacíos) sin datos.
 ## 8. Acciones
 
 1. **[PO]**: decisión tomada (§3). — **Hecho**.
-2. **[BE]/[DER]**: corregir el handshake de versión de evidencia. — **Pendiente**.
+2. **[BE]/[DER]**: corregir el handshake de versión de evidencia. — **Hecho** (acta 017: v53 aceptada y
+   validador real desplegado; el ranking enciende para libre 1-ejercicio + racha).
 3. **[CV]/[MOB]**: diseño/implementación del ranking por tramo en el `seq`
-   (gesto, cadencia, vida por tramo) + retiro de la nota. — **Pendiente** (Fase 4).
-4. **[QA]**: matriz 1 vs N ejercicios, mezcla reps/segundos, REPETIR, rutina
+   (gesto, cadencia, vida por tramo) + retiro de la nota. — **Hecho** (2026-10-16):
+   `camretos.tsx` pasa `ranked` y `cadence` también en la rama `seq`; el toggle
+   "participar del ranking" se muestra a premium tanto en 1 como en N ejercicios;
+   se retiró la nota `cam.free_setup_routine_note` y su estilo. La cámara ya
+   soporta `MODE_RANKED` + `SEQ` (vida y gesto por tramo) y `handleMessage` ya
+   encolaba cada tramo con su `seqIndex`/`evidence`. El server valida las N
+   sesiones del mismo `body` en un solo loop (una fila por ejercicio).
+   **Pendiente de prueba en dispositivo** ([QA], acción 4).
+4. **[PO] Ocultar el ranking a usuarios free** (2026-10-16): la pestaña Ranking se
+   oculta del tab bar (`href: null`) para no-premium, se oculta el botón
+   "VER RANKING" del inicio, y el toggle de participación solo se muestra a
+   premium. Refuerza el ADR `2026-09-29_free-sin-ranking_premium-todo.md`.
+5. **[QA]**: matriz 1 vs N ejercicios, mezcla reps/segundos, REPETIR, rutina
    parcial, cola offline, motivos de rechazo, i18n. — **Pendiente**.
-5. **[MOB]/[BE]**: selector de período en la pestaña Ranking + funciones con
-   `p_since` (migración) + i18n. — **Pendiente** (Fase 4).
+6. **[MOB]/[BE]**: selector de período en la pestaña Ranking + funciones con
+   `p_since` (migración) + i18n. — **Hecho** (UI = Fase A, commit `c427f6a`;
+   datos/backend = Fase B, migración `0019` **aplicada en producción** y
+   `syncService` cableado; smoke test OK). La UI muestra vacío hasta que exista
+   el **validador real** (Fase 4): hoy hay 0 retos verificados en prod.

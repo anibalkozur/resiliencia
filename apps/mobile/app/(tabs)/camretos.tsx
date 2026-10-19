@@ -179,14 +179,17 @@ export default function LibreScreen() {
     };
   }, [sessionOpen, focused]);
 
+  const ranking = premiumActive && libreRanked;
   const uri = first
     ? isMulti
       ? buildVerifyUri(first.id, first.target, 'reps', {
           seq: routine.map((it) => ({ id: it.id, target: it.target })),
+          ranked: ranking,
+          cadenceSec: ranking ? cadence : undefined,
         })
       : buildVerifyUri(first.id, first.target, unitOf(first.id), {
-          ranked: libreRanked,
-          cadenceSec: libreRanked ? cadence : undefined,
+          ranked: ranking,
+          cadenceSec: ranking ? cadence : undefined,
         })
     : '';
 
@@ -282,25 +285,29 @@ export default function LibreScreen() {
           <Pressable style={styles.addBtn} onPress={() => setAddOpen(true)}>
             <Text style={styles.addBtnText}>{translate(lang, 'cam.free_setup_add')}</Text>
           </Pressable>
-          {!isMulti ? (
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>
-                {translate(lang, 'cam.free_setup_participate')}
-              </Text>
-              <Switch
-                value={libreRanked}
-                onValueChange={setLibreRanked}
-                trackColor={{ true: colors.teal, false: colors.line }}
-                thumbColor={libreRanked ? '#ffffff' : colors.silverDim}
-              />
-            </View>
-          ) : (
-            <Text style={styles.routineNote}>{translate(lang, 'cam.free_setup_routine_note')}</Text>
-          )}
-          {!isMulti && libreRanked ? (
+          {premiumActive ? (
             <>
-              <Text style={styles.hint}>{translate(lang, 'cam.free_setup_hint', { cadence })}</Text>
-              <Text style={styles.livenessNote}>{translate(lang, 'cam.free_setup_liveness')}</Text>
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>
+                  {translate(lang, 'cam.free_setup_participate')}
+                </Text>
+                <Switch
+                  value={libreRanked}
+                  onValueChange={setLibreRanked}
+                  trackColor={{ true: colors.teal, false: colors.line }}
+                  thumbColor={libreRanked ? '#ffffff' : colors.silverDim}
+                />
+              </View>
+              {ranking ? (
+                <>
+                  <Text style={styles.hint}>
+                    {translate(lang, 'cam.free_setup_hint', { cadence })}
+                  </Text>
+                  <Text style={styles.livenessNote}>
+                    {translate(lang, 'cam.free_setup_liveness')}
+                  </Text>
+                </>
+              ) : null}
             </>
           ) : null}
           <Pressable
@@ -561,14 +568,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     flexShrink: 1,
     marginRight: spacing.md,
-  },
-  routineNote: {
-    color: colors.silverDim,
-    fontSize: 12,
-    lineHeight: 17,
-    textAlign: 'center',
-    marginTop: spacing.md,
-    maxWidth: 320,
   },
   hint: {
     color: colors.silverDim,

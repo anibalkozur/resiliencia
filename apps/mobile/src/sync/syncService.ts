@@ -178,8 +178,15 @@ export async function syncGoalToServer(
   }
 }
 
-export async function fetchRanking(client: SupabaseClient, maxRows = 50): Promise<RankingRow[]> {
-  const { data, error } = await client.rpc('get_ranking', { max_rows: maxRows });
+export async function fetchRanking(
+  client: SupabaseClient,
+  maxRows = 50,
+  since: string | null = null,
+): Promise<RankingRow[]> {
+  const { data, error } = await client.rpc('get_ranking', {
+    p_max_rows: maxRows,
+    p_since: since,
+  });
   if (error || !data) {
     return [];
   }
@@ -226,10 +233,12 @@ export async function fetchRepsRanking(
   client: SupabaseClient,
   exerciseCode: string,
   maxRows = 10,
+  since: string | null = null,
 ): Promise<RepsRankingRow[]> {
   const { data, error } = await client.rpc('get_reps_ranking', {
     p_exercise_code: exerciseCode,
     p_max_rows: maxRows,
+    p_since: since,
   });
   if (error || !data) {
     return [];
@@ -240,9 +249,11 @@ export async function fetchRepsRanking(
 export async function fetchTotalRepsRanking(
   client: SupabaseClient,
   maxRows = 10,
+  since: string | null = null,
 ): Promise<TotalRepsRankingRow[]> {
   const { data, error } = await client.rpc('get_total_reps_ranking', {
     p_max_rows: maxRows,
+    p_since: since,
   });
   if (error || !data) {
     return [];
