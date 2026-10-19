@@ -28,6 +28,13 @@ type LibreExerciseState = {
   setSalirHandler: (handler: (() => void) | null) => void;
   /** Dispara la acción de salir registrada (botón touch del header). */
   salir: () => void;
+  /** True mientras la cámara del reto diario está montada en la pestaña Retos. */
+  retosActive: boolean;
+  setRetosActive: (active: boolean) => void;
+  /** La pantalla del reto registra acá su acción de salir. */
+  setRetosSalirHandler: (handler: (() => void) | null) => void;
+  /** Dispara la salida del reto (botón touch del header). */
+  salirRetos: () => void;
 };
 
 const LibreExerciseContext = createContext<LibreExerciseState | null>(null);
@@ -39,6 +46,8 @@ export function LibreExerciseProvider({ children }: { children: ReactNode }) {
   const [libreRanked, setLibreRanked] = useState(false);
   const [libreActive, setLibreActive] = useState(false);
   const salirHandler = useRef<(() => void) | null>(null);
+  const [retosActive, setRetosActive] = useState(false);
+  const retosSalirHandler = useRef<(() => void) | null>(null);
 
   const addExercise = useCallback((id: string) => {
     setRoutine((r) => [...r, { id, target: DEFAULT_TARGETS[id] ?? 10 }]);
@@ -70,6 +79,13 @@ export function LibreExerciseProvider({ children }: { children: ReactNode }) {
     salirHandler.current?.();
   }, []);
 
+  const setRetosSalirHandler = useCallback((handler: (() => void) | null) => {
+    retosSalirHandler.current = handler;
+  }, []);
+  const salirRetos = useCallback(() => {
+    retosSalirHandler.current?.();
+  }, []);
+
   return (
     <LibreExerciseContext.Provider
       value={{
@@ -84,6 +100,10 @@ export function LibreExerciseProvider({ children }: { children: ReactNode }) {
         setLibreActive,
         setSalirHandler,
         salir,
+        retosActive,
+        setRetosActive,
+        setRetosSalirHandler,
+        salirRetos,
       }}
     >
       {children}

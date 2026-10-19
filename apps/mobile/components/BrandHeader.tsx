@@ -26,7 +26,7 @@ export default function BrandHeader() {
   const pathname = usePathname();
   const { prefs } = usePrefs();
   const { profile } = useUser();
-  const { routine, libreActive, salir } = useLibreExercise();
+  const { routine, libreActive, salir, retosActive, salirRetos } = useLibreExercise();
   useDayKey();
   const lang = prefs?.language ?? 'es';
   const section = sectionForPath(pathname);
@@ -42,7 +42,20 @@ export default function BrandHeader() {
         </Text>
       ) : null}
       {section === 'retos' ? (
-        <Text style={[styles.text, styles.textStrong]}>{translate(lang, 'header.reto')}</Text>
+        <>
+          <Text style={[styles.text, styles.textStrong]}>{translate(lang, 'header.reto')}</Text>
+          {retosActive ? (
+            <Pressable
+              style={styles.exitBtn}
+              onPress={salirRetos}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={translate(lang, 'cam.exit')}
+            >
+              <Text style={styles.exitBtnText}>{translate(lang, 'cam.exit')}</Text>
+            </Pressable>
+          ) : null}
+        </>
       ) : null}
       {section === 'progreso' ? (
         <Text style={[styles.text, styles.textStrong]}>{translate(lang, 'progress.title')}</Text>

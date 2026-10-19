@@ -25,6 +25,7 @@ import { hablarVoz } from '../../src/lib/voz';
 import { TECNICA } from '../../src/lib/tecnica';
 import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
+import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useDayKey } from '../../src/retos/DayProvider';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
@@ -56,6 +57,7 @@ export default function RetosScreen() {
   const [retoSalido, setRetoSalido] = useState(false);
   const restartKey = useCameraRestart();
   const focused = useScreenFocused();
+  const { setRetosActive, setRetosSalirHandler } = useLibreExercise();
 
   const week = useMemo(
     () => buildWeek(goal, trainingDays, new Date(`${dayKey}T00:00:00`)),
@@ -104,6 +106,14 @@ export default function RetosScreen() {
   const today = week.find((d) => d.isToday);
   const trainingToday = today?.isTraining ?? false;
 
+  // Cierra la cámara del reto: mismo resultado que apretar SALIR dentro del
+  // WebView (que además se traba si el cuerpo no está 100% visible).
+  const exitChallenge = useCallback(() => {
+    setCamaraAbierta(false);
+    setRetoSalido(true);
+    setRetrying(false);
+  }, []);
+
   const handleMessage = useCallback(
     (event: any) => {
       let data: Record<string, unknown>;
@@ -118,9 +128,7 @@ export default function RetosScreen() {
       }
       if (data.type === 'voz_log') return;
       if (data.type === 'exit') {
-        setCamaraAbierta(false);
-        setRetoSalido(true);
-        setRetrying(false);
+        exitChallenge();
         return;
       }
       if (data.type === 'repeat') return;
@@ -163,12 +171,28 @@ export default function RetosScreen() {
         })();
       }
     },
-    [repo, challenge, date, retrying, session, done],
+    [repo, challenge, date, retrying, session, done, exitChallenge],
   );
 
   const webviewRef = useRef<any>(null);
 
   const challengeBlock = challenge && challengeExercise && trainingToday;
+
+  // Espejo de la rama del JSX: el botón nativo de SALIR se muestra solo
+  // mientras la cámara del reto está montada.
+  const showDoneBox = challengeDone && !camaraAbierta;
+  const showStartBox = retoSalido && !challengeDone;
+  const cameraVisible = Boolean(challengeBlock) && !showDoneBox && !showStartBox && focused;
+
+  useEffect(() => {
+    setRetosActive(cameraVisible);
+    return () => setRetosActive(false);
+  }, [cameraVisible, setRetosActive]);
+
+  useEffect(() => {
+    setRetosSalirHandler(exitChallenge);
+    return () => setRetosSalirHandler(null);
+  }, [setRetosSalirHandler, exitChallenge]);
 
   useEffect(() => {
     if (!challengeBlock) return;
@@ -233,7 +257,7 @@ export default function RetosScreen() {
 
       {challengeBlock ? (
         <View style={styles.cameraContainer}>
-          {challengeDone && !camaraAbierta ? (
+          {showDoneBox ? (
             <View style={styles.doneBox}>
               <Text style={styles.cameraDoneText}>{doneLabel}</Text>
               {isRejected ? (
@@ -246,7 +270,7 @@ export default function RetosScreen() {
                 </Pressable>
               )}
             </View>
-          ) : retoSalido && !challengeDone ? (
+          ) : showStartBox ? (
             <View style={styles.doneBox}>
               <Text style={styles.cameraDoneText}>
                 {translate(lang, 'cam.challenge')} ·{' '}
