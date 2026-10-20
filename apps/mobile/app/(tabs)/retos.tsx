@@ -132,12 +132,17 @@ export default function RetosScreen() {
       }
       if (data.type === 'repeat') return;
       if (data.type !== 'complete') return;
-      // Dejamos la cámara montada tras completar para ofrecer REPETIR / SALIR
-      // (el primer intento ya marca el reto como completado).
+      // Reto completado: al confirmar la señal de vida el WebView emite
+      // `complete` con el resultado ya validado. Marcamos el reto y salimos
+      // automáticamente a la pantalla inicial (no dejamos REPETIR activo).
       const reps = Number(data.reps) || 0;
       const target = challenge?.target ?? 0;
       const already = done[date] === true;
       if (reps >= target && (!already || retrying)) {
+        // Marcamos el reto como hecho ANTES de volver a Inicio, para que la
+        // pantalla inicial muestre el estado "completado" sin un parpadeo.
+        setDone((prev) => ({ ...prev, [date]: true }));
+        exitChallenge();
         void (async () => {
           const wasRetrying = retrying;
           await markCompleted(
@@ -156,7 +161,6 @@ export default function RetosScreen() {
             },
             { retry: wasRetrying },
           );
-          setDone((prev) => ({ ...prev, [date]: true }));
           setRetrying(false);
           setSyncState((prev) => ({ ...prev, [date]: { status: 'pending' } }));
           if (session) {

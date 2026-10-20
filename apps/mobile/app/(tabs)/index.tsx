@@ -23,6 +23,7 @@ import {
 import { getBestStreak, getCompletedCount, getStreak } from '../../src/retos/streak';
 import { getFreeSessions } from '../../src/retos/freeSessions';
 import { buildHistory, type DailyHistoryInput, type HistoryEntry } from '../../src/retos/history';
+import { weeklyFact } from '../../src/retos/weeklyFact';
 import { useDayKey } from '../../src/retos/DayProvider';
 import { usePremium } from '../../src/premium/usePremium';
 import { translate } from '../../src/i18n/translations';
@@ -205,6 +206,8 @@ export default function InicioScreen() {
     return { done, total };
   }, [weekCells, trainingDays, dayKey]);
 
+  const fact = useMemo(() => weeklyFact(new Date(`${dayKey}T00:00:00`)), [dayKey]);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -285,6 +288,12 @@ export default function InicioScreen() {
               })}
             </Text>
           ) : null}
+        </View>
+
+        <View style={styles.factCard}>
+          <Text style={styles.factEyebrow}>{translate(lang, 'weekly.title')}</Text>
+          <Text style={styles.factTitle}>{translate(lang, fact.titleKey)}</Text>
+          <Text style={styles.factBody}>{translate(lang, fact.bodyKey)}</Text>
         </View>
 
         {premium ? (
@@ -498,6 +507,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: spacing.lg,
     textAlign: 'center',
+  },
+  factCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+  },
+  factEyebrow: {
+    color: colors.teal,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  factTitle: {
+    color: colors.silver,
+    fontSize: 17,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
+  factBody: {
+    color: colors.silverDim,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.sm,
   },
   iaBtn: {
     position: 'absolute',

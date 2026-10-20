@@ -11,7 +11,7 @@ const es = {
   'home.greeting_morning': 'Buen día, {name}',
   'home.greeting_afternoon': 'Buenas tardes, {name}',
   'home.greeting_evening': 'Buenas noches, {name}',
-  'home.streak': 'RACHA HOY',
+  'home.streak': 'DÍAS DE RACHA',
   'home.challenge': 'RETO DE HOY',
   'home.meta': 'Meta: {target} {unit}',
   'home.day_n': 'Día {n} de tu reto',
@@ -21,6 +21,28 @@ const es = {
   'home.days_short': 'DÍAS',
   'home.last': 'Último: {exercise} {value}',
   'home.best': 'Mejor racha: {n} días',
+  'weekly.title': 'DATO DE LA SEMANA',
+  'weekly.breath.title': 'Respirá con el esfuerzo',
+  'weekly.breath.body':
+    'Soltá el aire en la parte más dura de la repe y no lo retengas: sostener la respiración sube la presión y te cansa antes.',
+  'weekly.rest.title': 'Descansá entre series',
+  'weekly.rest.body':
+    'El músculo crece cuando descansás, no cuando entrenás. Un día de descanso por semana te hace más fuerte, no más débil.',
+  'weekly.posture.title': 'La postura manda',
+  'weekly.posture.body':
+    'En sentadillas y flexiones, el pecho arriba y la espalda recta pesan más que la velocidad. Mejor pocas reps bien hechas.',
+  'weekly.consistency.title': 'La constancia gana',
+  'weekly.consistency.body':
+    'Es mejor 10 minutos todos los días que una hora un solo día. La racha está para eso: que no cortes.',
+  'weekly.warmup.title': 'Calentá primero',
+  'weekly.warmup.body':
+    'Una serie suave antes de la de verdad activa los músculos y baja el riesgo de molestias. No hace falta estirar antes.',
+  'weekly.form.title': 'Rango completo',
+  'weekly.form.body':
+    'Bajá hasta donde llegues con control y subí todo. Media repe hecha de verdad vale más que dos a medias.',
+  'weekly.recovery.title': 'Escuchá tu cuerpo',
+  'weekly.recovery.body':
+    'Molestia en una articulación no es cansancio. Si algo duele de más, parás y lo retomás cuando estés bien.',
   'home.start': 'EMPEZAR RETO',
   'home.view_ranking': 'VER RANKING',
   'home.completed': 'RETO COMPLETADO',
@@ -281,7 +303,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.greeting_morning': 'Good morning, {name}',
     'home.greeting_afternoon': 'Good afternoon, {name}',
     'home.greeting_evening': 'Good evening, {name}',
-    'home.streak': 'STREAK TODAY',
+    'home.streak': 'STREAK DAYS',
     'home.challenge': "TODAY'S CHALLENGE",
     'home.meta': 'Goal: {target} {unit}',
     'home.day_n': 'Day {n} of your challenge',
@@ -291,6 +313,28 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.days_short': 'DAYS',
     'home.last': 'Last: {exercise} {value}',
     'home.best': 'Best streak: {n} days',
+    'weekly.title': 'FACT OF THE WEEK',
+    'weekly.breath.title': 'Breathe with the effort',
+    'weekly.breath.body':
+      'Breathe out on the hardest part of the rep and do not hold it: holding your breath raises blood pressure and tires you sooner.',
+    'weekly.rest.title': 'Rest between sets',
+    'weekly.rest.body':
+      'Muscle grows when you rest, not when you train. One rest day a week makes you stronger, not weaker.',
+    'weekly.posture.title': 'Posture comes first',
+    'weekly.posture.body':
+      'In squats and push-ups, chest up and a straight back matter more than speed. Better a few reps done well.',
+    'weekly.consistency.title': 'Consistency wins',
+    'weekly.consistency.body':
+      'Ten minutes every day beats one hour once a week. That is what the streak is for: don’t break it.',
+    'weekly.warmup.title': 'Warm up first',
+    'weekly.warmup.body':
+      'An easy set before the real one wakes up the muscles and lowers the risk of aches. No need to stretch first.',
+    'weekly.form.title': 'Full range',
+    'weekly.form.body':
+      'Go down as far as you can with control and come all the way up. Half a real rep beats two half-done ones.',
+    'weekly.recovery.title': 'Listen to your body',
+    'weekly.recovery.body':
+      'Joint discomfort is not fatigue. If something hurts too much, stop and pick it up again when you are fine.',
     'home.start': 'START CHALLENGE',
     'home.view_ranking': 'VIEW RANKING',
     'home.completed': 'CHALLENGE DONE',
@@ -546,7 +590,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.greeting_morning': 'Bom dia, {name}',
     'home.greeting_afternoon': 'Boa tarde, {name}',
     'home.greeting_evening': 'Boa noite, {name}',
-    'home.streak': 'SEQUÊNCIA HOJE',
+    'home.streak': 'DIAS DE SEQUÊNCIA',
     'home.challenge': 'DESAFIO DE HOJE',
     'home.meta': 'Meta: {target} {unit}',
     'home.day_n': 'Dia {n} do seu desafio',
@@ -556,6 +600,28 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'home.days_short': 'DIAS',
     'home.last': 'Último: {exercise} {value}',
     'home.best': 'Melhor sequência: {n} dias',
+    'weekly.title': 'DICA DA SEMANA',
+    'weekly.breath.title': 'Respire com o esforço',
+    'weekly.breath.body':
+      'Solte o ar na parte mais difícil da repetição e não o segure: prender a respiração sobe a pressão e cansa mais rápido.',
+    'weekly.rest.title': 'Descanse entre séries',
+    'weekly.rest.body':
+      'O músculo cresce quando você descansa, não quando treina. Um dia de descanso por semana te deixa mais forte, não mais fraco.',
+    'weekly.posture.title': 'A postura manda',
+    'weekly.posture.body':
+      'Nos agachamentos e flexões, peito erguido e costas retas pesam mais que a velocidade. Melhor poucas repetições bem feitas.',
+    'weekly.consistency.title': 'A constância vence',
+    'weekly.consistency.body':
+      'Dez minutos todos os dias vencem uma hora uma vez por semana. A sequência serve para isso: não cortar.',
+    'weekly.warmup.title': 'Aqueça primeiro',
+    'weekly.warmup.body':
+      'Uma série leve antes da de verdade ativa os músculos e reduz o risco de desconforto. Não precisa alongar antes.',
+    'weekly.form.title': 'Amplitude completa',
+    'weekly.form.body':
+      'Desça até onde conseguir com controle e suba tudo. Meia repetição feita de verdade vale mais que duas pela metade.',
+    'weekly.recovery.title': 'Escute seu corpo',
+    'weekly.recovery.body':
+      'Desconforto numa articulação não é cansaço. Se algo doer demais, pare e retome quando estiver bem.',
     'home.start': 'INICIAR DESAFIO',
     'home.view_ranking': 'VER RANKING',
     'home.completed': 'DESAFIO CONCLUÍDO',
