@@ -1851,3 +1851,45 @@ dispositivo. Sin cambios de cámara (v53), sin migración ni edge.
 
 **Estado:** código en **`f3e6df8`**; acta 021 en `docs/equipo/actas/2026-10-19_inicio_compacto_responsive.md`;
 backup local `backup-resiliencia-20261019-150015` (Punto 26).
+
+### 2026-10-19 - Inicio: dato de la semana (Fase 1) y competencias geolocalizadas (Fase 2, futuro)
+
+**Pedido del PO:** un "flyer de noticias semanales de deporte" desde fuentes gratuitas. Tras el análisis se
+acordó **no** traer noticias de terceros (copyright + red + backend) y usar **contenido propio**; además dejar
+**analizado a futuro** un módulo de competencias locales geolocalizadas.
+
+**Fase 1 (implementada):** tarjeta "DATO DE LA SEMANA" en Inicio. `src/retos/weeklyFact.ts` con 7 datos
+curados (respiración, descanso, postura, constancia, calentamiento, rango, escuchar el cuerpo) que rotan de
+forma **determinística por semana ISO** — sin red, sin backend, sin copyright. i18n es/en/pt
+(`weekly.title` + `weekly.<id>.title|body`). Test nuevo `weeklyFact.test.ts`. Verificación: `typecheck` ✓ ·
+`lint` ✓ · **221/221 (19 suites)** ✓. Sin cámara, sin migración, sin dependencias nuevas.
+
+**Fase 2 (sólo documentada, NO construida):** módulo de **competencias locales** (running, MTB, calistenia,
+gym, natación, aguas abiertas, duatlón, triatlón, tetratlón) publicadas por organizadores. **Decisión de
+privacidad tomada: ciudad/región del perfil, sin GPS** (sin permisos nuevos ni consentimiento de ubicación).
+Riesgos a resolver antes de construir: atribución/link a inscripción oficial (LEG), moderación de eventos
+falsos, textos de salud para eventos exigentes (MED), métricas honestas (DATA) y modelo de pago (FIN).
+Encuadre `[PM] + [LEG] + [SEC] + [DATA] (+ [FIN])`. No crear trabajo operativo hasta tener usuarios o un
+organizador real (modo lean).
+
+**Estado:** Fase 1 **en disco** (pendiente de prueba del PO y cierre); acta 022 en
+`docs/equipo/actas/2026-10-19_inicio_dato_semana_y_competencias_futuro.md`.
+
+### 2026-10-20 - Cierre aprobado: salida automática del reto + dato de la semana
+
+**Prueba del PO:** completado el reto del día en dispositivo, al terminar las repeticiones la app **salió sola
+a la pestaña Retos** con la caja de reto completado. **Aprobado.** Se cierra con el protocolo completo.
+
+**Entregado (commit + push):**
+
+- **Auto-salida del reto** (`apps/mobile/app/(tabs)/retos.tsx`): fix del bug "REPETIR queda activo" — al llegar
+  un `complete` válido (`reps >= target`) se marca hecho de forma sincrónica y se vuelve a la pantalla de
+  inicio del reto. Si no completa, `REPETIR` sigue igual (acta 018).
+- **Dato de la semana** (`src/retos/weeklyFact.ts` + `index.tsx` + i18n es/en/pt + test): tarjeta "DATO DE LA
+  SEMANA" con 7 datos propios que rotan por semana ISO; sin red, sin backend, sin copyright.
+- **Texto de racha**: `home.streak` → DÍAS DE RACHA / STREAK DAYS / DIAS DE SEQUÊNCIA.
+
+**Verificación:** `typecheck` ✓ · `lint` ✓ · **221/221 (19 suites)** ✓. Sin cámara (v53), sin migración, sin
+edge, sin dependencias nuevas.
+
+**Estado:** acta 023 en `docs/equipo/actas/2026-10-20_cierre_salida_reto_dato_semana.md`; backup Punto 27.
