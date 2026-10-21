@@ -965,6 +965,8 @@
       let livenessChallengeActive = false,
         livenessPassed = false,
         livenessNextTriggerAt = null,
+        livenessDeadline = 0,
+        livenessCadenceExtended = false,
         livenessConfirmFrames = 0,
         livenessHoldStartTime = null,
         // Umbral de "abajo" congelado al arrancar la vida de aguante: los gates
@@ -978,6 +980,7 @@
         LIVENESS_MAX_MS = 13000,
         LIVENESS_FRAMES = 3,
         LIVENESS_HOLD_MS = 2000,
+        LIVENESS_TIMEOUT_MS = 10000,
         // Con meta de repes > 10 la vida sale aleatoria pero nunca antes de
         // terminar esta repetición.
         LIVENESS_MIN_REP = 5;
@@ -1173,9 +1176,18 @@
           livenessChallengeActive = true;
           livenessConfirmFrames = 0;
           const now = performance.now();
-          extendCadenceForLiveness(now);
+          livenessNextTriggerAt = null;
+          livenessDeadline = now + LIVENESS_TIMEOUT_MS;
+          if (!livenessCadenceExtended) {
+            extendCadenceForLiveness(now);
+            livenessCadenceExtended = true;
+          }
           showLiveness('Levantá la mano por encima de la cabeza');
           speak('Señal de vida. Levantá la mano por encima de la cabeza');
+        }
+        if (livenessDeadline > 0 && performance.now() >= livenessDeadline) {
+          failLiveness();
+          return true;
         }
         const rw = lm[LID.right_wrist],
           lw = lm[LID.left_wrist],
@@ -1200,9 +1212,18 @@
           livenessHoldStartTime = null;
           livenessDownThresh = startThresh;
           const now = performance.now();
-          extendCadenceForLiveness(now);
+          livenessNextTriggerAt = null;
+          livenessDeadline = now + LIVENESS_TIMEOUT_MS;
+          if (!livenessCadenceExtended) {
+            extendCadenceForLiveness(now);
+            livenessCadenceExtended = true;
+          }
           showLiveness('Bajá y aguantá abajo unos segundos');
           speak('Señal de vida. Bajá y aguantá abajo unos segundos');
+        }
+        if (livenessDeadline > 0 && performance.now() >= livenessDeadline) {
+          failLiveness();
+          return true;
         }
         const thresh = livenessDownThresh != null ? livenessDownThresh : down;
         const inDown = thresh != null && smoothed < thresh;
@@ -1236,6 +1257,8 @@
       function onLivenessPassed() {
         livenessPassed = true;
         livenessChallengeActive = false;
+        livenessNextTriggerAt = null;
+        livenessDeadline = 0;
         hideLiveness();
         log('Prueba de vida confirmada');
         // Vida al final: se envía el resultado y la voz lo anuncia como "Serie
@@ -1248,6 +1271,28 @@
         } else {
           speak('Listo, gracias');
         }
+      }
+      function failLiveness() {
+        if (livenessPassed || !livenessChallengeActive) return;
+        livenessChallengeActive = false;
+        livenessNextTriggerAt = null;
+        livenessDeadline = 0;
+        livenessConfirmFrames = 0;
+        livenessHoldStartTime = null;
+        pendingCompletionDetail = null;
+        seriesOk = false;
+        completed = true;
+        hideLiveness();
+        cadenceHud.style.display = 'none';
+        gestureHud.style.display = 'none';
+        countdownOverlay.style.display = 'none';
+        stateMsg.style.display = 'none';
+        checklistHud.style.display = 'none';
+        stopBtn.style.display = 'none';
+        startBtn.style.display = 'none';
+        statusText.textContent = 'Prueba de vida no confirmada';
+        showActionButton('REPETIR', 'repeat');
+        log('Prueba de vida no confirmada: tiempo agotado');
       }
       function ensureAudio() {
         if (!audioCtx) {
@@ -1348,6 +1393,8 @@
         livenessChallengeActive = false;
         livenessPassed = false;
         livenessNextTriggerAt = null;
+        livenessDeadline = 0;
+        livenessCadenceExtended = false;
         livenessConfirmFrames = 0;
         livenessHoldStartTime = null;
         livenessDownThresh = null;
@@ -2026,6 +2073,14 @@
       // ---------- procesar pose ----------
       function processPose(result) {
         bodyComplete = false;
+        if (
+          livenessChallengeActive &&
+          livenessDeadline > 0 &&
+          performance.now() >= livenessDeadline
+        ) {
+          failLiveness();
+          return;
+        }
         if (orientationSupported && !deviceIsVertical) {
           bodyOkStreak = 0;
           candidateState = null;
@@ -2058,8 +2113,14 @@
             if (lastHoldOk) holdMs = 0;
             lastHoldOk = false;
           }
-          hideLiveness();
-          livenessChallengeActive = false;
+          if (livenessChallengeActive) {
+            // Una pérdida breve de pose no reinicia la prueba ni rearma el
+            // disparador: el desafío sigue vigente hasta confirmarse o vencer.
+            livenessConfirmFrames = 0;
+            livenessHoldStartTime = null;
+          } else {
+            hideLiveness();
+          }
           return;
         }
         const lm = result.landmarks[0];
