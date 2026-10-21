@@ -2009,3 +2009,125 @@ prod. Regla: **bump de versión + edge + deploy en el mismo movimiento**.
 prod. `typecheck` ✓ · `lint` ✓ · **222/222 (20 suites)** ✓.
 
 **Estado:** acta 026 en `docs/equipo/actas/2026-10-21_prueba_de_vida_v54_y_sincronizacion.md`.
+
+### 2026-10-21 - Deuda técnica: dependencias desalineadas de Expo SDK 57 (no se toca ahora)
+
+**Motivo:** `npx expo install --check` reportó **11 paquetes** fuera de la versión
+recomendada para Expo SDK 57. Investigación del historial (confirmada):
+
+- `expo-camera` y `react-native-webview` entraron con **`pnpm add`** (commit `48990d4`,
+  implementación de la cámara por WebView), **no** con `expo install` → se instaló la
+  última versión, sin consultar la tabla de compatibilidad de SDK 57.
+- `onPermissionRequest` (permisos de cámara) quedó **asociado al runtime de webview v14**;
+  la deuda ya conocida es que **no está tipado** en v14 (se usa con `any`).
+
+**Inventario (actual → esperado):**
+
+- `expo-camera` 15.0.16 → ~57.0.6 (**major**)
+- `react-native-webview` 14.0.1 → 13.16.1 (**downgrade**; ligado a permisos de cámara)
+- Patch: `expo` 57.0.20→~57.0.31, `expo-auth-session` 57.0.11→~57.0.16,
+  `expo-constants` 57.0.17→~57.0.22, `expo-crypto` 57.0.3→~57.0.4,
+  `expo-linking` 57.0.9→~57.0.13, `expo-router` 57.0.19→~57.0.29,
+  `expo-sqlite` 57.0.2→~57.0.4, `expo-web-browser` 57.0.2→~57.0.3,
+  `jest-expo` 57.0.5→~57.0.6.
+
+**Decisión:** **no cambiar nada ahora** (la app funciona; la cámara/WebView/sensor están
+estables). Abordar **de forma controlada antes del release** (APK/AAB a Play Store):
+`expo install --fix` sobre un punto de backup, **prebuild nativo + build real** (no solo
+Expo Go) y **prueba en dispositivo de cámara/WebView/sensor** por el PO. Los tests de Jest
+**no** cubren el lado nativo, así que un verde no garantiza build sano.
+
+**Regla preventiva:** usar **`npx expo install <pkg>`** (nunca `pnpm add`) para dependencias
+de Expo, para no reintroducir esta desalineación.
+
+**Estado:** solo registro; **sin cambios de dependencias ni de versiones**.
+
+### 2026-10-21 - Deuda de seguridad: defensa contra clientes modificados (no se implementa ahora)
+
+**Motivo:** propuesta de un asesor para endurecer la protección contra evidencia falsificada,
+en capas. Revisada por [SEC]/[BE] con una **corrección importante**: la Edge Function **no
+rederiva la evidencia cruda**; es autoridad del **estado**, pero parte del input sigue siendo
+**declarado por el cliente**.
+
+**1. Qué controles ya existen (server-side):**
+
+- El servidor es la **autoridad del estado**: solo él marca `verified`
+  (`verification_source='server'`); el cliente solo **propone**.
+- **Deriva en server** lo derivable: ejercicio, meta, unidad y fecha del reto.
+- **Lista blanca de versiones** de evidencia (`ALLOWED_EVIDENCE_VERSIONS`).
+- **Límites de valores**, validación de duración mínima, cadencia, objetivo, `series_ok`.
+- **Deduplicación / anti-reenvío**: `client_op_id` + unique `(user_id, client_op_id)` + `upsert`;
+  `decidedDates` bloquea fechas ya `verified`.
+
+**2. Autoridad del estado ≠ verificar evidencia cruda.**
+
+El server **decide** el estado final, pero **no rederiva la prueba de vida ni el conteo**: valida
+que el cliente envíe campos **coherentes** (`livenessPassed`, `durationMs`, `startedAt`,
+`finishedAt`, `evidence`, `seriesOk`), no que sean **auténticos**.
+
+**3. Qué campos todavía puede falsificar un cliente modificado:**
+
+`livenessPassed`, `seriesOk`, `evidence`/`onPermissionRequest`, `durationMs`, `startedAt`,
+`finishedAt`. Un hash del cliente, una firma con clave embebida o un `livenessOk:true` son
+**falsificables** y por eso **no** se usan como fuente de verdad.
+
+**4. Prioridad de lo que falta:**
+
+1. **Rate limiting** por usuario/dispositivo (dificulta ataques automatizados).
+2. **Nonce / intento firmado** — principalmente **anti-replay**; por sí solo **no** impide
+   fabricar evidencia nueva.
+3. **Play Integrity (Android) / App Attest (iOS)** + verificación server-side del token —
+   antes de competencia pública o premios.
+4. **Validación de evidencia real** (video/frames) — solo si se requiere confianza alta.
+
+**5. Decisión:** **no implementar ahora.** Un nonce emitido por el servidor **exige round-trip
+previo** y **rompería el modo offline-first** de la cámara; no se implementa sin diseñar antes
+cómo convive con el offline. Queda como **deuda de seguridad de release**.
+
+**6. Condición para resolverlo:** **antes** de rankings públicos, premios o release comercial
+(APK/AAB a Play Store). No es urgente hoy: no hay usuarios reales compitiendo.
+
+**Conclusión:** la app ya tiene **validación server-side sólida** contra datos inválidos y
+duplicados, pero **todavía no** tiene defensa fuerte contra una **aplicación cliente modificada**.
+
+**Estado:** solo registro; **sin cambios de código**.
+
+### 2026-10-21 - Plan de verificación server-side (mínimo lean): estado real de cada punto
+
+**Motivo:** recomendación de un asesor con un "mínimo" para verificar que la app funciona.
+Revisada por [SEC]/[QA]/[BE] contra el código real de la Edge Function. De los 5 puntos,
+**3 ya están hechos**, **1 es parcial** y **1 falta entero**.
+
+**1. Mantener la validación server-side actual — ✅ HECHO.**
+`validate_workout` valida ejercicio, meta, fecha, unidad, duración y cadencia; decide el estado
+final (`verified`/`pending`/`rejected`).
+
+**2. Rate limiting básico — ⚠️ PARCIAL.**
+Existe tope de **tamaño de lote** (`MAX_BATCH = 50`, `index.ts:10`, chequeado en `:390-392`),
+pero **NO hay** límite por **usuario/IP ni ventana de tiempo**. Falta un contador básico por
+usuario/ventana (barato para el modo lean); un sistema con estado pesado no se justifica.
+
+**3. Idempotencia — ✅ HECHO.**
+`client_op_id` único (`(user_id, client_op_id)`) + `upsert`; `decidedDates` bloquea fechas ya
+`verified` (no degrada ni duplica).
+
+**4. Motivos de rechazo distinguibles — ✅ HECHO.**
+La edge devuelve motivos específicos: `unsupported_evidence_version`, `invalid_evidence`,
+`invalid_duration`, `impossible_duration`, `invalid_timestamps`, `impossible_cadence`,
+`liveness_failed`, `invalid_target`, `challenge_mismatch`.
+
+**5. Probar los 5 casos — ❌ FALTA (ítem de más valor hoy).**
+No existe ningún test de la Edge Function (`supabase/` sin archivos de test). Casos a cubrir:
+sesión válida → pending/verified; meta incorrecta → rejected; duplicada → no duplica; reintento
+de rechazada → funciona; sesión offline → cola y sincroniza después.
+**Nota técnica:** la edge corre en **Deno** y no hay `deno` instalado localmente; hay que decidir
+cómo testearla (`deno test` o extraer y testear la **lógica pura**). Es tarea real, no trivial.
+Este punto habría atrapado el incidente real de hoy (`unsupported_evidence_version` v54 vs edge).
+
+**No implementar (acordado):** nonce, Play Integrity/App Attest y validación de video — medidas
+de release/rankings importantes (ver entrada anterior).
+
+**Prioridad recomendada:** **tests de la edge primero** (capturan lo que ya rompió), luego rate
+limit **básico** por usuario/ventana.
+
+**Estado:** solo registro; **sin cambios de código**.
