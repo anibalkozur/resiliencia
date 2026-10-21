@@ -27,6 +27,13 @@ export type ExerciseInfo = {
    */
   step?: number;
   liveness: 'hand' | 'hold';
+  /**
+   * Orientación que exige el ejercicio. Por defecto el celular parado en
+   * vertical. `landscape` es el experimento del banco: el celular en
+   * horizontal (pantalla apaisada) para que el cuerpo de perfil entre
+   * completo en el cuadro.
+   */
+  orientation?: 'portrait' | 'landscape';
 };
 
 export const EXERCISES: ExerciseInfo[] = [
@@ -150,6 +157,19 @@ export const EXERCISES: ExerciseInfo[] = [
     tier: 'premium',
     target: 12,
     liveness: 'hold',
+  },
+  {
+    // Experimento del banco: el MISMO conteo de flexiones (type 'lateral'),
+    // pero exige el celular en horizontal (pantalla apaisada) en vez de
+    // vertical, para que el cuerpo de perfil entre completo en el cuadro.
+    // Solo existe en el banco: la pagina de produccion no lo conoce.
+    id: 'flexiones_landscape',
+    name: 'Flexiones apaisado',
+    unit: 'reps',
+    tier: 'premium',
+    target: 10,
+    liveness: 'hold',
+    orientation: 'landscape',
   },
   {
     id: 'flexion_declinada',

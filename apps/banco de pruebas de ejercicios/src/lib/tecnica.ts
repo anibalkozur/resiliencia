@@ -26,6 +26,11 @@ export const TECNICA: Record<string, Tecnica> = {
     resumen:
       'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando.',
   },
+  flexiones_landscape: {
+    guia: 'Mismo ejercicio que flexiones, pero con el celular APAISADO (horizontal, pantalla girada 90°). Ponete de perfil a la cámara, con la cabeza a un costado, y hacé las flexiones como en el instructivo de flexiones. La idea es que el cuerpo entre completo en el cuadro.',
+    resumen:
+      'Mismo ejercicio que flexiones, pero con el celular APAISADO (horizontal, pantalla girada 90°). Ponete de perfil a la cámara, con la cabeza a un costado.',
+  },
   abdominales: {
     guia: 'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Llevá el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
     resumen:

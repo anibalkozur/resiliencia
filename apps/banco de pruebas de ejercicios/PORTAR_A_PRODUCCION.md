@@ -22,21 +22,21 @@ git diff --no-index --unified=3 -- camera-verification.html "apps/banco de prueb
 Orden de trabajo para el siguiente ciclo. Entre paréntesis, el punto original de
 este documento, que no se renumera.
 
-1. **Zancadas de perfil** *(doc §3)* — `CFG.zancadas` pasa de `frontal` a `lateral`
+1. **Zancadas de perfil** _(doc §3)_ — `CFG.zancadas` pasa de `frontal` a `lateral`
    como flexiones: `sides` por lado con shoulder/hip/knee/ankle, ángulo de rodilla
    autocalibrado, y el usuario de costado a la cámara.
-2. **Mountain Climbers: decir que es de perfil** *(doc §4)* — solo textos de
+2. **Mountain Climbers: decir que es de perfil** _(doc §4)_ — solo textos de
    `HOWTO.mountain_climbers`, `postureMsg` y `startMsg`. Queda por definir si
    "de perfil" se aclara también en flexiones, abdominales, plancha y puente.
-3. **Zancadas: objetivo par** *(doc §5)* — el selector del modo libre en
+3. **Zancadas: objetivo par** _(doc §5)_ — el selector del modo libre en
    `apps/mobile/app/(tabs)/camretos.tsx` avanza de 2 en 2 para zancadas
    (`step: 2`, ya hecho en el banco).
-4. **Flexiones: cuclillas de arranque y 10 s para la primera rep** *(doc §7)* —
+4. **Flexiones: cuclillas de arranque y 10 s para la primera rep** _(doc §7)_ —
    `firstRepGraceMs: 10000` en `CFG.flexiones` + textos de cuclillas en
    instructivo, `postureMsg` y `startMsg`.
-5. **Tobillos en rojo si el pie sale de cuadro** *(doc §8)* — tobillo derivado
+5. **Tobillos en rojo si el pie sale de cuadro** _(doc §8)_ — tobillo derivado
    de pie/talón con `FOOT_VIS = 0.35` y `FOOT_CONFIRM_FRAMES = 2` (acta 010).
-6. **Cámara completa sin scroll** *(doc §9)* — `max-height: calc(100vh - 200px)` +
+6. **Cámara completa sin scroll** _(doc §9)_ — `max-height: calc(100vh - 200px)` +
    `calc(100dvh - 200px)` en `.video-wrap` para que checklist, conteo y voz no
    salgan de pantalla.
 
@@ -124,7 +124,7 @@ en los últimos 2 s se pone rojo y pulsa.
 +  cadenceHud.textContent = String(rem);
 +  cadenceHud.classList.toggle('urgent', rem <= 2);
  }
- ```
+```
 
 - **✅ PORTADO a producción (2026-10-09)** — aplicado en `camera-verification.html`
   (CSS 72px + `.urgent` + pulso, `beginCadence` con `classList.remove('urgent')`,
@@ -730,8 +730,8 @@ sobre un botón** (dwell de 1 s con anillo de progreso), en lugar del gesto
 - **REPETIR**: arriba-derecha, **de la segunda serie en adelante**. Dwell → arranca
   directo la serie siguiente (postea `repeat`; el móvil limpia el último resultado).
 - Ambos botones **solo se habilitan si todos los checks del cuerpo están en verde**
-  (`bodyComplete`). Con un check en rojo no cargan y la voz avisa *"Todo tu cuerpo
-  debe verse en cámara, sostené la mano sobre INICIAR"* (o REPETIR).
+  (`bodyComplete`). Con un check en rojo no cargan y la voz avisa _"Todo tu cuerpo
+  debe verse en cámara, sostené la mano sobre INICIAR"_ (o REPETIR).
 - El estado del cuerpo se refresca **también después** de la serie (`refreshBodyState`)
   para habilitar / deshabilitar REPETIR correctamente.
 - Se quitó el HUD superior (**"En vivo"**, chip **0/n** y botón **"Frontal"**) y los
@@ -750,8 +750,8 @@ Cambio pedido por el PO **directamente sobre producción** (no pasó por el banc
 - El texto de ayuda de cada ejercicio (guía de técnica) **se movió a la barra
   superior** de la app:
   - **Modo libre** (`camretos.tsx`): la barra de resultado muestra
-    `TECNICA[libreExerciseId].guia` en vez del viejo hint *"Elegí un ejercicio y la
-    cámara se activa al instante"*.
+    `TECNICA[libreExerciseId].guia` en vez del viejo hint _"Elegí un ejercicio y la
+    cámara se activa al instante"_.
   - **Reto del día** (`retos.tsx`): la guía aparece en la barra del reto, arriba del
     video.
   - Se eliminó la clave i18n `cam.free_hint` (es/en/pt).
@@ -868,8 +868,8 @@ orientación "¡Poné el celular vertical!" / "Vertical" al centro-arriba.
   un stub JS `const stateMsg = { style: {}, className: '', textContent: '' };`
   (mismo patrón que `resultCard`): todos los avisos de arriba-centro dejan de
   mostrarse sin tocar la lógica de detección.
-- Se **conserva** el recuadro de checks `#checklistHud` (abajo-izquierda). *(En v37
-  se había quitado y se restauró en v38.)*
+- Se **conserva** el recuadro de checks `#checklistHud` (abajo-izquierda). _(En v37
+  se había quitado y se restauró en v38.)_
 - La advertencia de orientación `#orientationBadge` se mueve de arriba (`top: 76px`)
   a pegado arriba-centro (`top: 10px`); ya estaba centrada horizontalmente.
 
@@ -952,6 +952,57 @@ sin el anillo de carga, solo cambia el texto y el color.
 
 **✅ Verificado por PO en la app (2026-10-12)** — `VERIFY_VERSION` **45**, publicado en
 gh-pages (`9840ba2`).
+
+---
+
+## 20. Gate de orientación por ejercicio (vertical / horizontal) — experimento en el banco
+
+Pedido del PO: probar flexiones con el celular **apaisado** (pantalla girada 90°)
+para que el cuerpo de perfil entre completo en el cuadro. En el banco se
+implementa como el ejercicio `flexiones_landscape`; **la app real no lo tiene** y
+esta sección describe qué habría que portar si el experimento se valida.
+
+El cálculo de orientación viejo no podía distinguir "horizontal" de "vertical":
+`atan2(|gz|,|gy|) ≤ 35` ignora el eje `x`, así que con el celular apaisado daba 0
+(falso "vertical") y el guard `hypot(gy,gz) < 1` descartaba la muestra entera: el
+puente nativo dejaba de informar la orientación y la página se quedaba con el
+último valor.
+
+Qué hace el banco:
+
+- `apps/banco de pruebas de ejercicios/src/lib/orientation.ts` (nuevo, con test en
+  `src/__tests__/orientation.test.ts`): clasifica la postura desde la gravedad en
+  los tres ejes → `portrait` / `landscape` / `flat` / `tilted`. Misma tolerancia
+  de 35°, pero el **eje dominante** define la postura (`|y| ≥ |x|` para vertical,
+  `|x| ≥ |y|` para apaisado).
+- `src/screens/TestScreen.tsx`: el puente manda
+  `{ available, orientation, vertical, landscape, beta }`. La página acepta el
+  contrato viejo (`{ available, vertical, beta }`), así que este cambio no rompe
+  la página de producción.
+- `camera-verification-bench.html`:
+  - `deviceIsVertical` pasa a ser una de tres cosas: `deviceIsVertical`,
+    `deviceIsLandscape`, `deviceOrientation`.
+  - `requiredOrientation()` lee `cfg.orientation` del ejercicio activo
+    (`'landscape'` o `'portrait'` por defecto) y `orientationOk()` /
+    `orientationHint()` dan el gate y el mensaje ("Girá el celular a horizontal
+    (apaisado)" / "Poné el celular parado en vertical").
+  - `setOrientationState(orientation, beta)` + `refreshOrientationBadge()`: el
+    badge dice "Vertical" o "Horizontal" según lo que pide el ejercicio.
+  - `applyLayout()` + CSS `html[data-layout='wide']`: video 16:9 al alto
+    disponible y botones fijos en la esquina inferior derecha (cerca del pulgar).
+- `app.json` del banco: `"orientation": "portrait"` → `"default"`, para que la app
+  gire. **En la app real esto no se porta sin más**: exige decidir si la app
+  puede girar y cómo queda el resto de los ejercicios (hoy todos piden vertical).
+- `src/lib/exercises.ts`: campo `orientation` en el catálogo.
+
+Ojo al portar: en producción el gate actual solo dice "no vertical"; con este
+cambio, girar el celular a horizontal **bloquea** los ejercicios que piden
+vertical (antes la muestra se descartaba y el estado quedaba viejo). Es una
+mejora, pero cambia el comportamiento en dispositivo: hay que probarlo.
+
+Pendiente: la validación del PO en dispositivo (que la app rote, que el cuerpo de
+perfil entre completo, que la cuenta de reps sea la misma que en vertical y que
+funcionen los dos sentidos de giro).
 
 ---
 

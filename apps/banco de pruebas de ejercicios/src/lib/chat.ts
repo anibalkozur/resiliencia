@@ -183,9 +183,12 @@ function buscarCampo(n: string): CampoPerfil | null {
  * para alguien que pregunta cómo se hace una sentadilla.
  */
 function fichaEjercicio(n: string, ranked: boolean): ChatReply | null {
-  const ejercicio = EXERCISES.find(
+  // Gana el nombre más largo: "flexiones apaisado" (experimento del banco)
+  // contiene "flexiones", y con el orden del catálogo se respondía siempre la
+  // guía de flexiones.
+  const ejercicio = EXERCISES.filter(
     (e) => normalizar(e.name).includes(n) || n.includes(normalizar(e.name)),
-  );
+  ).sort((a, b) => b.name.length - a.name.length)[0];
   if (!ejercicio) return null;
   const tec = TECNICA[ejercicio.id];
   const posicion = tec ? tec.resumen : `${ejercicio.name}: no hay guía cargada.`;

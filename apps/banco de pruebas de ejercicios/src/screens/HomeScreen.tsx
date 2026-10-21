@@ -78,6 +78,9 @@ export function HomeScreen({ results, onSelect, onStartSequence, onReport }: Pro
             {e.tier}
           </Text>
           <Text style={styles.tag}>{e.unit === 'seconds' ? 'segundos' : 'reps'}</Text>
+          {e.orientation === 'landscape' ? (
+            <Text style={styles.tag}>celular horizontal</Text>
+          ) : null}
         </View>
       </View>
       <Text style={styles.cardBody}>

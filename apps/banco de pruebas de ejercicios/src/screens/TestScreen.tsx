@@ -7,10 +7,19 @@
 import { useCameraPermissions } from 'expo-camera';
 import { DeviceMotion } from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { FIRST_EXERCISE, exerciseById, type ExerciseInfo } from '../lib/exercises';
+import { classifyOrientation } from '../lib/orientation';
 import { summarizeCompletion, type TestResult } from '../lib/report';
 import { hablarVoz } from '../lib/voz';
 import { buildSequenceUri, buildVerifyUri, type SequenceItem } from '../lib/verify';
@@ -35,6 +44,10 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
   // Índice del último ejercicio que terminó, para marcar el avance en la lista.
   const [doneIndex, setDoneIndex] = useState(-1);
   const webRef = useRef<WebView<object>>(null);
+  // En horizontal (el experimento de flexiones apaisado) la pantalla es baja:
+  // el chrome nativo se achica para dejarle alto a la cámara.
+  const { width, height } = useWindowDimensions();
+  const landscape = width > height;
 
   const step = first.step ?? (first.unit === 'seconds' ? 5 : 1);
   const minTarget = first.unit === 'seconds' ? 5 : step;
@@ -49,10 +62,16 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
       return next;
     });
 
-  // Puente de orientación: idéntico a producción. La página espera el sensor
-  // antes de encender la cámara, y dentro del WebView no llegan los eventos
-  // deviceorientation/devicemotion sin gesto; por eso los lee expo-sensors y los
-  // inyecta la app nativa.
+  // Puente de orientación: idéntico a producción, con una diferencia. La
+  // página espera el sensor antes de encender la cámara, y dentro del WebView no
+  // llegan los eventos deviceorientation/devicemotion sin gesto; por eso los lee
+  // expo-sensors y los inyecta la app nativa.
+  //
+  // El cálculo viejo (`tilt = atan2(|gz|,|gy|)·180/π`, `vertical = tilt ≤ 35`)
+  // ignoraba el eje x: con el celular en horizontal daba 0 (falso "vertical") y
+  // el guard `hypot(gy,gz) < 1` descartaba la muestra, así que el puente dejaba
+  // de informar la orientación. Ahora se manda la clasificación de los tres
+  // ejes (ver src/lib/orientation.ts) y la página decide según el ejercicio.
   useEffect(() => {
     if (!live) return;
     let active = true;
@@ -61,12 +80,19 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
       if (!available || !active) return;
       DeviceMotion.setUpdateInterval(200);
       sub = DeviceMotion.addListener(({ accelerationIncludingGravity: g }) => {
-        if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
-        if (Math.hypot(g.y, g.z) < 1) return;
-        const tilt = (Math.atan2(Math.abs(g.z), Math.abs(g.y)) * 180) / Math.PI;
-        const vertical = tilt <= 35;
+        if (!g) return;
+        const orientation = classifyOrientation(g);
+        if (orientation === 'unknown') return;
         webRef.current?.injectJavaScript(
-          `window.__resilienciaSetNativeOrientation && window.__resilienciaSetNativeOrientation(${JSON.stringify({ available: true, vertical, beta: null })})`,
+          `window.__resilienciaSetNativeOrientation && window.__resilienciaSetNativeOrientation(${JSON.stringify(
+            {
+              available: true,
+              orientation,
+              vertical: orientation === 'portrait',
+              landscape: orientation === 'landscape',
+              beta: null,
+            },
+          )})`,
         );
       });
     });
@@ -225,7 +251,7 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
 
   return (
     <View style={styles.live}>
-      <View style={styles.bar}>
+      <View style={[styles.bar, landscape ? styles.barCompact : null]}>
         <Pressable onPress={onExit} hitSlop={8}>
           <Text style={styles.barText}>← Salir</Text>
         </Pressable>
@@ -262,7 +288,10 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
         </View>
       ) : null}
 
-      <Text style={styles.resultBar} numberOfLines={2}>
+      <Text
+        style={[styles.resultBar, landscape ? styles.resultBarCompact : null]}
+        numberOfLines={2}
+      >
         {last ?? `En vivo${ranked ? ' · ranking: ~6 s por rep o se rompe la serie' : ''}`}
       </Text>
 
@@ -382,6 +411,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  barCompact: { paddingVertical: 3 },
   barText: { color: '#39D98A', fontSize: 13, fontWeight: '700' },
   barTitle: {
     color: '#EAF2FF',
@@ -397,5 +427,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  resultBarCompact: { paddingVertical: 3, fontSize: 11 },
   web: { flex: 1, backgroundColor: '#000' },
 });

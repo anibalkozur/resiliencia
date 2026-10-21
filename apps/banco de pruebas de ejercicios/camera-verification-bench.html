@@ -441,6 +441,40 @@
         padding: 14px;
         margin-top: 10px;
       }
+      /* ---- Modo apaisado (horizontal) -----------------------------------
+         Modo del experimento del banco: el ejercicio pide el celular en
+         horizontal. La pantalla se ve ancha, el video toma el alto
+         disponible con proporción 16:9 y los botones quedan fijos en la
+         esquina inferior derecha, cerca del pulgar.
+         `data-layout` lo fija la página según el ejercicio activo y la
+         orientación detectada. */
+      html[data-layout='wide'] #app {
+        max-width: none;
+        padding: 4px 8px 8px;
+      }
+      html[data-layout='wide'] #desc,
+      html[data-layout='wide'] .log {
+        display: none;
+      }
+      html[data-layout='wide'] .video-wrap {
+        aspect-ratio: 16/9;
+        width: min(100%, calc((100dvh - 24px) * 16 / 9));
+        max-height: none;
+        margin: 0 auto;
+        border-radius: 12px;
+      }
+      html[data-layout='wide'] #startBtn,
+      html[data-layout='wide'] #stopBtn {
+        position: fixed;
+        right: 14px;
+        bottom: 14px;
+        width: 190px;
+        z-index: 30;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+      }
+      html[data-layout='wide'] .result {
+        margin-top: 8px;
+      }
     </style>
   </head>
   <body>
@@ -585,6 +619,7 @@
       const NAME = {
         sentadillas: 'Sentadillas',
         flexiones: 'Flexiones',
+        flexiones_landscape: 'Flexiones apaisado',
         abdominales: 'Abdominales',
         elevacion_piernas: 'Elevación de piernas',
         plancha: 'Plancha',
@@ -614,6 +649,8 @@
           'Parate derecho frente a la cámara con los pies al ancho de los hombros. Bajá llevando la cadera hacia atrás hasta que tus rodillas queden cerca de 90° y volvé a subir. Cada bajada y subida completa cuenta como 1.',
         flexiones:
           'Apoyá las manos a la altura de los hombros y estirá el cuerpo en plancha. Bajá el pecho doblando los codos hasta casi tocar el piso y volvé arriba empujando. Mantené el cuerpo recto todo el tiempo. Para arrancar, ponete en cuclillas listo para tomar la posición de plancha: tenés 10 segundos para hacer la primera flexión.',
+        flexiones_landscape:
+          'Mismo ejercicio que flexiones, pero con el celular APAISADO (horizontal, pantalla girada 90°). Ponete de perfil a la cámara, con la cabeza a un costado, y hacé las flexiones como en el instructivo de flexiones. La idea es que el cuerpo entre completo en el cuadro.',
         abdominales:
           'Recostate boca arriba con las rodillas flexionadas y los pies apoyados. Llevá el pecho hacia las rodillas contrayendo el abdomen y volvé a apoyar la espalda. Cada subida completa cuenta como 1.',
         elevacion_piernas:
@@ -749,6 +786,35 @@
           lineMin: 150,
           groundedMax: 0.9,
           // Margen extra para la primera rep: hay que pasar de cuclillas a plancha.
+          firstRepGraceMs: 10000,
+          liveness: 'hold',
+          postureMsg: 'Ponete en cuclillas y pasá a plancha horizontal para contar',
+          startMsg: 'Ponete en cuclillas y estirá a plancha, quieto un segundo',
+        },
+        // Experimento del BANCO: mismo conteo que flexiones (type 'lateral'),
+        // pero exige el celular en horizontal (pantalla apaisada) en vez de
+        // vertical, para que el cuerpo de perfil entre completo en el cuadro.
+        flexiones_landscape: {
+          name: 'Flexiones apaisado',
+          unit: 'reps',
+          type: 'lateral',
+          orientation: 'landscape',
+          sides: {
+            left: {
+              points: ['left_shoulder', 'left_elbow', 'left_wrist', 'left_hip', 'left_ankle'],
+              angle: { a: 'left_shoulder', b: 'left_elbow', c: 'left_wrist' },
+              line: { a: 'left_shoulder', b: 'left_hip', c: 'left_ankle' },
+            },
+            right: {
+              points: ['right_shoulder', 'right_elbow', 'right_wrist', 'right_hip', 'right_ankle'],
+              angle: { a: 'right_shoulder', b: 'right_elbow', c: 'right_wrist' },
+              line: { a: 'right_shoulder', b: 'right_hip', c: 'right_ankle' },
+            },
+          },
+          downDelta: 40,
+          upDelta: 12,
+          lineMin: 150,
+          groundedMax: 0.9,
           firstRepGraceMs: 10000,
           liveness: 'hold',
           postureMsg: 'Ponete en cuclillas y pasá a plancha horizontal para contar',
@@ -1235,6 +1301,10 @@
         document.title = NAME[item.id] || 'Verificación';
         descEl.textContent =
           HOWTO[item.id] || 'Seguí la guía en pantalla para completar el ejercicio.';
+        // El ejercicio cambia la orientación exigida: se re-aplica el layout
+        // (ancho o alto) y el badge.
+        applyLayout();
+        refreshOrientationBadge();
         resetRepState();
         log('Ejercicio ' + (seqIndex + 1) + '/' + SEQ.length + ': ' + (NAME[item.id] || item.id));
       }
@@ -1313,6 +1383,8 @@
       let livenessBeepTimer = null;
       let orientationSupported = false,
         deviceIsVertical = true,
+        deviceIsLandscape = false,
+        deviceOrientation = 'unknown',
         betaHistory = [],
         sensorConfirmRetries = 0,
         sensorUnavailable = false;
@@ -2247,7 +2319,7 @@
         bodyComplete = false;
         const poseLm = result.landmarks && result.landmarks.length ? result.landmarks[0] : null;
         updateFootStreak(poseLm);
-        if (orientationSupported && !deviceIsVertical) {
+        if (orientationSupported && !orientationOk()) {
           bodyOkStreak = 0;
           footStreak.left = 0;
           footStreak.right = 0;
@@ -2260,7 +2332,7 @@
           checklistHud.style.display = 'none';
           stateMsg.style.display = 'block';
           stateMsg.className = 'state-msg blocked';
-          stateMsg.textContent = 'Poné el celular parado en vertical';
+          stateMsg.textContent = orientationHint();
           return;
         }
         if (!result.landmarks || !result.landmarks.length) {
@@ -2834,32 +2906,89 @@
           })();
         });
       }
+      // Orientación del celular a partir de la gravedad. Espejo de
+      // src/lib/orientation.ts del banco (mismo criterio y misma tolerancia).
+      // Marco del dispositivo: x = derecha, y = eje largo, z = fuera de la
+      // pantalla. La gravedad cae sobre `y` con el celular parado en vertical,
+      // sobre `x` con el celular en horizontal (pantalla apaisada) y sobre `z`
+      // si está acostado.
+      function classifyOrientation(g) {
+        if (!g) return 'unknown';
+        const x = g.x,
+          y = g.y,
+          z = g.z;
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return 'unknown';
+        if (Math.hypot(x, y, z) < 2.5) return 'unknown';
+        const deg = (r) => (r * 180) / Math.PI;
+        const tiltYZ = deg(Math.atan2(Math.abs(z), Math.abs(y)));
+        const tiltXZ = deg(Math.atan2(Math.abs(z), Math.abs(x)));
+        const tiltZ = deg(Math.atan2(Math.hypot(x, y), Math.abs(z)));
+        if (tiltYZ <= VERTICAL_TOLERANCE && Math.abs(y) >= Math.abs(x)) return 'portrait';
+        if (tiltXZ <= VERTICAL_TOLERANCE && Math.abs(x) >= Math.abs(y)) return 'landscape';
+        if (tiltZ <= VERTICAL_TOLERANCE) return 'flat';
+        return 'tilted';
+      }
+      // Qué orientación exige el ejercicio activo. Por defecto vertical; los
+      // ejercicios de horizontal (experimento del banco) lo piden en `cfg`.
+      function requiredOrientation() {
+        return cfg && cfg.orientation === 'landscape' ? 'landscape' : 'portrait';
+      }
+      function orientationOk() {
+        return requiredOrientation() === 'landscape' ? deviceIsLandscape : deviceIsVertical;
+      }
+      function orientationHint() {
+        return requiredOrientation() === 'landscape'
+          ? 'Girá el celular a horizontal (apaisado)'
+          : 'Poné el celular parado en vertical';
+      }
+      // El layout ancho (video 16:9 y botones en la esquina, cerca del pulgar)
+      // se usa cuando el ejercicio pide horizontal o cuando el celular ya
+      // está en horizontal.
+      function applyLayout() {
+        const wide = requiredOrientation() === 'landscape' || deviceIsLandscape;
+        document.documentElement.setAttribute('data-layout', wide ? 'wide' : 'tall');
+      }
+      function refreshOrientationBadge() {
+        if (!orientationSupported) return;
+        const req = requiredOrientation();
+        const ok = orientationOk();
+        orientationBadge.style.display = 'flex';
+        orientationBadge.className = 'badge ' + (ok ? '' : 'orientation-bad');
+        orientationIcon.innerHTML = ok ? ICON.check : ICON.warning;
+        orientationText.textContent = ok
+          ? req === 'landscape'
+            ? 'Horizontal'
+            : 'Vertical'
+          : req === 'landscape'
+            ? '¡Girá el celular a horizontal!'
+            : '¡Poné el celular vertical!';
+      }
       function onDeviceOrientation(ev) {
         if (ev.beta == null) return;
         betaHistory.push(ev.beta);
         if (betaHistory.length > 8) betaHistory.shift();
         const avg = betaHistory.reduce((a, b) => a + b, 0) / betaHistory.length;
         const dev = Math.abs(90 - Math.abs(avg));
-        setOrientationState(dev <= VERTICAL_TOLERANCE);
+        // `beta` solo dice si el celular está en vertical: no alcanza para
+        // distinguir horizontal de acostado.
+        setOrientationState(dev <= VERTICAL_TOLERANCE ? 'portrait' : 'tilted', ev.beta);
       }
       function onDeviceMotion(ev) {
-        const g = ev.accelerationIncludingGravity;
-        if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
-        if (Math.hypot(g.y, g.z) < 1) return;
-        const tilt = (Math.atan2(Math.abs(g.z), Math.abs(g.y)) * 180) / Math.PI;
-        setOrientationState(tilt <= VERTICAL_TOLERANCE);
+        const orientation = classifyOrientation(ev.accelerationIncludingGravity);
+        if (orientation === 'unknown') return;
+        setOrientationState(orientation, null);
       }
-      function setOrientationState(vertical, beta) {
+      function setOrientationState(orientation, beta) {
         orientationSupported = true;
-        deviceIsVertical = vertical;
+        deviceOrientation = orientation || 'unknown';
+        deviceIsVertical = deviceOrientation === 'portrait';
+        deviceIsLandscape = deviceOrientation === 'landscape';
         if (typeof beta === 'number' && Number.isFinite(beta)) {
           betaHistory.push(beta);
           if (betaHistory.length > 8) betaHistory.shift();
         }
-        orientationBadge.style.display = 'flex';
-        orientationBadge.className = 'badge ' + (deviceIsVertical ? '' : 'orientation-bad');
-        orientationIcon.innerHTML = deviceIsVertical ? ICON.check : ICON.warning;
-        orientationText.textContent = deviceIsVertical ? 'Vertical' : '¡Poné el celular vertical!';
+        applyLayout();
+        refreshOrientationBadge();
       }
 
       // Puente nativo: la app (Expo) lee el sensor con expo-sensors y nos
@@ -2872,8 +3001,14 @@
           sensorUnavailable = true;
           return;
         }
-        if (sample.available !== true || typeof sample.vertical !== 'boolean') return;
-        setOrientationState(sample.vertical, sample.beta);
+        if (sample.available !== true) return;
+        if (typeof sample.orientation === 'string') {
+          setOrientationState(sample.orientation, sample.beta);
+          return;
+        }
+        // Contrato viejo (producción): solo sabemos si estaba en vertical.
+        if (typeof sample.vertical !== 'boolean') return;
+        setOrientationState(sample.vertical ? 'portrait' : 'tilted', sample.beta);
       };
 
       async function startCamera() {
