@@ -23,6 +23,7 @@ import {
 } from '../../src/sync/rankingPeriods';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
+import { usePremium } from '../../src/premium/usePremium';
 
 type RankTab = 'streak' | 'reps' | 'total';
 const RANK_TABS: RankTab[] = ['streak', 'reps', 'total'];
@@ -43,6 +44,7 @@ export default function RankingScreen() {
   const { session } = useAuth();
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
+  const premium = usePremium();
   const [ranking, setRanking] = useState<RankingRow[]>([]);
   const [tab, setTab] = useState<RankTab>('streak');
   const [period, setPeriod] = useState<RankPeriod>('all');
@@ -100,6 +102,9 @@ export default function RankingScreen() {
       <View style={styles.card}>
         <Text style={styles.cardLabel}>{translate(lang, 'progress.ranking')}</Text>
         <Text style={styles.rankingNote}>{translate(lang, 'progress.ranking_note')}</Text>
+        {!premium ? (
+          <Text style={styles.rankingPremium}>{translate(lang, 'progress.ranking_premium')}</Text>
+        ) : null}
         <View style={styles.periodsRow}>
           {RANK_PERIODS.map((p) => {
             const active = p === period;
@@ -256,6 +261,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginTop: spacing.xs,
+  },
+  rankingPremium: {
+    color: colors.silverDim,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.sm,
+    backgroundColor: colors.bg,
+    borderRadius: radius.md,
+    padding: spacing.sm,
   },
   rankingEmpty: {
     color: colors.silverDim,

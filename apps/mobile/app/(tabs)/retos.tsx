@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { DeviceMotion } from 'expo-sensors';
@@ -27,6 +27,7 @@ import { useCameraRestart } from '../../src/retos/useCameraRestart';
 import { useScreenFocused } from '../../src/retos/useScreenFocused';
 import { useLibreExercise } from '../../src/header/LibreExerciseProvider';
 import { useDayKey } from '../../src/retos/DayProvider';
+import { usePremium } from '../../src/premium/usePremium';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 
@@ -49,6 +50,7 @@ export default function RetosScreen() {
   const trainingDays = prefs?.trainingDays ?? DEFAULT_TRAINING_DAYS;
   const repo = getRepo();
   const dayKey = useDayKey();
+  const premium = usePremium();
   const [challenge, setChallenge] = useState<DailyChallenge | null>(null);
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [syncState, setSyncState] = useState<Record<string, CompletionSyncState>>({});
@@ -260,7 +262,7 @@ export default function RetosScreen() {
       {challengeBlock ? (
         // Pantalla del ejercicio: sin encabezado, sin barra del reto y sin la
         // guía técnica, para que la cámara ocupe toda la pantalla.
-        fase === 'camara' ? (
+        fase === 'camara' && premium ? (
           focused ? (
             <View style={styles.cameraContainer}>
               <WebView
@@ -330,13 +332,32 @@ export default function RetosScreen() {
               </View>
               {tecnicaGuia ? <Text style={styles.startGuide}>{tecnicaGuia}</Text> : null}
             </View>
-            <Pressable
-              style={styles.startBtn}
-              onPress={() => setFase('camara')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.startBtnText}>{translate(lang, 'cam.free_setup_start')}</Text>
-            </Pressable>
+            {premium ? (
+              <Pressable
+                style={styles.startBtn}
+                onPress={() => setFase('camara')}
+                accessibilityRole="button"
+              >
+                <Text style={styles.startBtnText}>{translate(lang, 'cam.free_setup_start')}</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.premiumBox}>
+                <Text style={styles.premiumTitle}>{translate(lang, 'retos.premium_title')}</Text>
+                <Text style={styles.premiumBody}>{translate(lang, 'retos.premium_body')}</Text>
+                <Pressable
+                  style={styles.premiumCta}
+                  onPress={() =>
+                    Alert.alert(
+                      translate(lang, 'retos.premium_title'),
+                      translate(lang, 'retos.premium_body'),
+                    )
+                  }
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.premiumCtaText}>{translate(lang, 'retos.premium_cta')}</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         )
       ) : today && !trainingToday ? (
@@ -482,6 +503,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   startBtnText: {
+    color: colors.bg,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  premiumBox: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: spacing.lg,
+    gap: spacing.sm,
+  },
+  premiumTitle: {
+    color: colors.teal,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  premiumBody: {
+    color: colors.silverDim,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  premiumCta: {
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.sm,
+  },
+  premiumCtaText: {
     color: colors.bg,
     fontSize: 15,
     fontWeight: '800',

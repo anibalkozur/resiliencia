@@ -45,6 +45,10 @@ const es = {
     'Molestia en una articulación no es cansancio. Si algo duele de más, parás y lo retomás cuando estés bien.',
   'home.start': 'EMPEZAR RETO',
   'home.view_ranking': 'VER RANKING',
+  'home.free_retos':
+    'El reto diario y la racha son Premium. Como usuario free podés entrenar en Modo Libre.',
+  'home.free_ranking':
+    'El ranking es Premium: podés verlo, pero para participar tenés que pasarte a Premium.',
   'home.completed': 'RETO COMPLETADO',
   'home.completed_pending': 'RETO ENVIADO · EN REVISIÓN',
   'home.completed_rejected': 'RETO RECHAZADO · REINTENTAR',
@@ -65,6 +69,10 @@ const es = {
 
   'retos.title': 'TU SEMANA',
   'retos.plan_small': 'Plan {n} días',
+  'retos.premium_title': 'RETO DIARIO PREMIUM',
+  'retos.premium_body':
+    'El reto diario y la racha son Premium. Como usuario free podés entrenar en Modo Libre cuando quieras.',
+  'retos.premium_cta': 'HACERTE PREMIUM',
   'retos.rest': 'DESCANSO',
   'retos.rest_note': 'Sin ejercicio. El descanso también es parte del plan.',
   'retos.today': 'HOY',
@@ -83,6 +91,8 @@ const es = {
   'progress.empty_body':
     'Cuando completes tu primer reto verás tu historial y los gráficos de evolución.',
   'progress.ranking': 'RANKING',
+  'progress.ranking_premium':
+    'Estás viendo el ranking. Para participar tenés que pasarte a Premium.',
   'progress.ranking_empty': 'Todavía no hay datos. Completá retos para entrar al ranking.',
   'progress.ranking_note': 'Solo cuentan las sesiones verificadas por el servidor.',
   'progress.rank_challenges': 'RETOS',
@@ -337,6 +347,10 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
       'Joint discomfort is not fatigue. If something hurts too much, stop and pick it up again when you are fine.',
     'home.start': 'START CHALLENGE',
     'home.view_ranking': 'VIEW RANKING',
+    'home.free_retos':
+      'The daily challenge and the streak are Premium. As a free user you can train in Free Mode.',
+    'home.free_ranking':
+      'The ranking is Premium: you can view it, but to take part you need to go Premium.',
     'home.completed': 'CHALLENGE DONE',
     'home.completed_pending': 'CHALLENGE SENT · UNDER REVIEW',
     'home.completed_rejected': 'CHALLENGE REJECTED · RETRY',
@@ -357,6 +371,10 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'retos.title': 'YOUR WEEK',
     'retos.plan_small': 'Plan {n} days',
+    'retos.premium_title': 'DAILY CHALLENGE PREMIUM',
+    'retos.premium_body':
+      'The daily challenge and the streak are Premium. As a free user you can train in Free Mode whenever you want.',
+    'retos.premium_cta': 'GO PREMIUM',
     'retos.rest': 'REST',
     'retos.rest_note': 'No workout. Rest is part of the plan too.',
     'retos.today': 'TODAY',
@@ -375,6 +393,7 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'progress.empty_body':
       'Once you complete your first challenge you will see your history and progress charts.',
     'progress.ranking': 'RANKING',
+    'progress.ranking_premium': 'You are viewing the ranking. To take part you need to go Premium.',
     'progress.ranking_empty': 'No data yet. Complete challenges to join the ranking.',
     'progress.ranking_note': 'Only sessions verified server-side count.',
     'progress.rank_challenges': 'CHALLENGES',
@@ -624,6 +643,10 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
       'Desconforto numa articulação não é cansaço. Se algo doer demais, pare e retome quando estiver bem.',
     'home.start': 'INICIAR DESAFIO',
     'home.view_ranking': 'VER RANKING',
+    'home.free_retos':
+      'O desafio diário e a sequência são Premium. Como usuário free você pode treinar no Modo Livre.',
+    'home.free_ranking':
+      'O ranking é Premium: você pode vê-lo, mas para participar precisa passar para o Premium.',
     'home.completed': 'DESAFIO CONCLUÍDO',
     'home.completed_pending': 'DESAFIO ENVIADO · EM REVISÃO',
     'home.completed_rejected': 'DESAFIO REJEITADO · TENTE DE NOVO',
@@ -644,6 +667,10 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
 
     'retos.title': 'SUA SEMANA',
     'retos.plan_small': 'Plano {n} dias',
+    'retos.premium_title': 'DESAFIO DIÁRIO PREMIUM',
+    'retos.premium_body':
+      'O desafio diário e a sequência são Premium. Como usuário free você pode treinar no Modo Livre quando quiser.',
+    'retos.premium_cta': 'VIRAR PREMIUM',
     'retos.rest': 'DESCANSO',
     'retos.rest_note': 'Sem exercício. O descanso também faz parte do plano.',
     'retos.today': 'HOJE',
@@ -662,6 +689,8 @@ export const TRANSLATIONS: Record<Language, Record<TranslationKey, string>> = {
     'progress.empty_body':
       'Quando você concluir seu primeiro desafio verá seu histórico e os gráficos de evolução.',
     'progress.ranking': 'RANKING',
+    'progress.ranking_premium':
+      'Você está vendo o ranking. Para participar precisa passar para o Premium.',
     'progress.ranking_empty': 'Ainda sem dados. Conclua desafios para entrar no ranking.',
     'progress.ranking_note': 'Apenas as sessões verificadas no servidor contam.',
     'progress.rank_challenges': 'DESAFIOS',

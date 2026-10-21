@@ -11,12 +11,10 @@ import PodiumIcon from '../../components/icons/PodiumIcon';
 import BrandHeader from '../../components/BrandHeader';
 import { LibreExerciseProvider } from '../../src/header/LibreExerciseProvider';
 import { DayProvider } from '../../src/retos/DayProvider';
-import { usePremium } from '../../src/premium/usePremium';
 
 export default function TabsLayout() {
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
-  const premium = usePremium();
 
   return (
     <LibreExerciseProvider>
@@ -66,7 +64,6 @@ export default function TabsLayout() {
             options={{
               title: translate(lang, 'tabs.ranking'),
               tabBarIcon: ({ color, size }) => <PodiumIcon color={color} size={size} />,
-              href: premium ? undefined : null,
             }}
           />
           <Tabs.Screen

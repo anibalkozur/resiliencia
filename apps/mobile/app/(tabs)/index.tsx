@@ -272,6 +272,10 @@ export default function InicioScreen() {
           <Text style={styles.hint}>{translate(lang, 'home.first_streak')}</Text>
         ) : null}
 
+        {!premium ? (
+          <Text style={styles.freeNotice}>{translate(lang, 'home.free_retos')}</Text>
+        ) : null}
+
         <View style={styles.strip}>
           {tomorrowExercise ? (
             <Text style={styles.stripText} numberOfLines={1}>
@@ -296,15 +300,17 @@ export default function InicioScreen() {
           <Text style={styles.factBody}>{translate(lang, fact.bodyKey)}</Text>
         </View>
 
-        {premium ? (
-          <Pressable
-            style={styles.secondary}
-            onPress={() => router.push('/(tabs)/ranking')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
-          </Pressable>
+        {!premium ? (
+          <Text style={styles.freeNotice}>{translate(lang, 'home.free_ranking')}</Text>
         ) : null}
+
+        <Pressable
+          style={styles.secondary}
+          onPress={() => router.push('/(tabs)/ranking')}
+          accessibilityRole="button"
+        >
+          <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
+        </Pressable>
 
         <Text style={styles.best}>{translate(lang, 'home.best', { n: best })}</Text>
       </ScrollView>
@@ -477,6 +483,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
     marginTop: spacing.md,
+  },
+  freeNotice: {
+    color: colors.silverDim,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
   },
   strip: {
     flexDirection: 'row',
