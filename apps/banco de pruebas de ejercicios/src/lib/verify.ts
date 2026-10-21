@@ -14,7 +14,7 @@ export const VERIFY_URL =
  * URL del WebView y sin esto el teléfono sigue mostrando la versión vieja desde
  * la caché del navegador.
  */
-export const VERIFY_VERSION = 50;
+export const VERIFY_VERSION = 51;
 
 export interface VerifyOptions {
   ranked?: boolean;
