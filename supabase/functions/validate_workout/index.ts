@@ -17,7 +17,7 @@ const MAX_CHALLENGE_AGE_DAYS = 365;
 // Versiones de evidencia soportadas. La versión llega en la URL de la cámara
 // (?v=) y en buildVerifyUri; solo se aceptan versiones explícitas para evitar
 // downgrade o versiones inventadas.
-const ALLOWED_EVIDENCE_VERSIONS = new Set([12, 13, 53]);
+const ALLOWED_EVIDENCE_VERSIONS = new Set([12, 13, 53, 54]);
 const GOALS = ['perder_grasa', 'ganar_musculo', 'mantener'] as const;
 type Goal = (typeof GOALS)[number];
 

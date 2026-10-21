@@ -1,5 +1,5 @@
 export const VERIFY_URL = 'https://anibalkozur.github.io/resiliencia/camera-verification.html';
-export const VERIFY_VERSION = 53;
+export const VERIFY_VERSION = 54;
 
 export interface RoutExercise {
   id: string;
