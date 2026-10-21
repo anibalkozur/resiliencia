@@ -458,10 +458,14 @@
       }
       html[data-layout='wide'] .video-wrap {
         aspect-ratio: 16/9;
-        width: min(100%, calc((100dvh - 24px) * 16 / 9));
+        width: 100%;
         max-height: none;
         margin: 0 auto;
         border-radius: 12px;
+      }
+      html[data-layout='wide'] video,
+      html[data-layout='wide'] canvas {
+        object-fit: cover;
       }
       html[data-layout='wide'] #startBtn,
       html[data-layout='wide'] #stopBtn {
