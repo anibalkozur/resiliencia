@@ -1893,3 +1893,58 @@ a la pestaña Retos** con la caja de reto completado. **Aprobado.** Se cierra co
 edge, sin dependencias nuevas.
 
 **Estado:** acta 023 en `docs/equipo/actas/2026-10-20_cierre_salida_reto_dato_semana.md`; backup Punto 27.
+
+### 2026-10-20 - Documentado: flujo de pago Premium (free → premium)
+
+**Pregunta del PO:** con la app en Play Store, ¿cómo se pasa un free a Premium pagando?
+¿Se activa solo y se controla mensual/anual automáticamente?
+
+**Respuesta (documentada, sin código):** el usuario **paga en la store y el Premium se
+activa solo** vía webhook. La app **nunca** se declara Premium localmente. Flujo canónico
+(`BITACORA:480`):
+
+```
+Play/App Store → RevenueCat → webhook firmado → Supabase Edge Function → entitlements → app
+```
+
+Mensual/anual se distingue por el **producto** (`premium_monthly` / `premium_annual`);
+la store renueva sola; cancelar **no** revoca (sigue hasta vencer); "Restaurar compra"
+reconstruye el estado.
+
+**Ya existe (núcleo server-side verificado):** `entitlements` (fuente de verdad, RLS
+select-own), `subscriptions`/`purchases` con ambos SKUs, `rc_event_id` unique
+(anti-replay), RPCs grant/revoke/simulador auditadas, gate real en `validate_workout`,
+lectura fail-closed en la app, simulador de ciclo de vida en la Console. Precios
+decididos: US$2.99/mes, US$19.99/año, trial 7d solo anual (D-D/D-E).
+
+**Falta (ejecución, no diseño):** SDK `react-native-purchases` (dev build, no Expo Go),
+paywall real (hoy es un `Alert`), Edge Function `revenuecat_webhook` (con firma +
+idempotencia), cuentas Play Console/RevenueCat + productos en Play, cumplimiento (T&C +
+data safety), y Fase C de la Console (replay de payloads).
+
+**Ruta crítica ya decidida:** paywall **mock** (sin cobrar) → medir intención de pago →
+si convierte (≥8% paywall→plan) → recién ahí pagar cuentas y activar cobro real. Respeta
+"sin inversión inicial".
+
+**Estado:** ADR `docs/equipo/adr/2026-10-20_flujo_pago_premium_store.md`. Sin cambios de
+código.
+
+### 2026-10-20 - Fondos en silla completado en el catálogo (prod + migración)
+
+**Hallazgo:** el catálogo móvil (`catalog.ts`) ofrecía **9** ejercicios incluyendo
+`fondos_silla` (premium), pero la tabla `exercises` de producción tenía un **CHECK que
+hardcodeaba solo 8 códigos** y las migraciones nunca insertaban `fondos_silla`. La cámara
+(v53), la técnica y el i18n ya lo soportaban completo. Consecuencia: cualquier sesión de
+`fondos_silla` era rechazada por la edge `validate_workout` (FK/CHECK sobre `exercise_code`).
+
+**Acción (autorizada por el PO):** en prod `cgaxpmmbpwaefaigsisu` se recreó el CHECK
+`exercises_code_check` incluyendo `fondos_silla` y se insertó la fila (premium, reps).
+`exercises` pasa de **8 → 9** ejercicios.
+
+**Replicado y versionado:** migración `supabase/migrations/0021_exercise_catalog_fondos_silla.sql`
+(idempotente: recrea el CHECK con la lista completa + upsert de la fila).
+
+**Verificación:** `select code, tier from public.exercises` en prod devuelve los 9, con
+`fondos_silla` premium. Sin cambios de código en la app (ya lo listaba).
+
+**Estado:** migración 0021 en el repo; sin commitear.
