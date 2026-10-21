@@ -1974,3 +1974,38 @@ hook, el `&&` lo descarta); riesgo bajo porque el efecto se monta con la cámara
 No verificado en dispositivo.
 
 **Estado:** acta 025 en `docs/equipo/actas/2026-10-21_fix_sensor_no_disponible.md`.
+
+### 2026-10-21 - Prueba de vida sin bucle (v54) + sincronización de versión de evidencia
+
+**Motivo:** el PO reportó un **bucle rápido de la señal de vida** en el reto diario de
+flexiones ("señal de vida → ejercicio → señal de vida → …"). Diagnóstico ([CV]/[BE]): el
+desafío se **cancelaba** al perder un frame de pose y dejaba `livenessNextTriggerAt` vencido →
+se rearmaba al instante, y cada rearme renovaba la cadencia estricta (anulaba `strict`).
+
+**Origen:** propuesta de otro asesor ([CV]) revisada por el equipo y aprobada por el PO.
+
+**Cambio:** solo `camera-verification.html` (65 inserciones, 4 borrados): no reiniciar la vida
+por pérdida breve de pose; `livenessNextTriggerAt = null` al armar; timeout `LIVENESS_TIMEOUT_MS
+= 10000` → `failLiveness()` corta con REPETIR; `livenessCadenceExtended` (extiende cadencia
+**una sola vez**); limpieza de temporizadores/estados al pasar o fallar. **Deploy** HTML v54 a
+gh-pages (`f1aa0ca..da7ab49`).
+
+**Sincronización obligatoria:** `verify.ts` `VERIFY_VERSION` **53 → 54**; edge
+`validate_workout` `ALLOWED_EVIDENCE_VERSIONS` **`[12,13,53]` → `[12,13,53,54]`** +
+**redeploy** de la edge.
+
+**Incidente detectado y corregido:** el PO hizo el reto **antes** de actualizar la edge y fue
+**rechazado** con `unsupported_evidence_version` (la cámara firmaba v54, la edge solo aceptaba
+hasta 53). No fue culpa del PO ni del registro. Corregido en la edge; el PO rehízo el reto por
+cámara ("reintentar reto" reenvía por cámara) y quedó **`verified`**: `workout_sessions`
+`reto:2026-10-21`, `ranked=true`, `series_ok=true`, `verification_version=54`,
+`verification_source=server`.
+
+**Guard nuevo:** `apps/mobile/src/retos/__tests__/evidenceVersionSync.test.ts` falla si
+`VERIFY_VERSION` no está en `ALLOWED_EVIDENCE_VERSIONS` → atrapa la desincronización antes de
+prod. Regla: **bump de versión + edge + deploy en el mismo movimiento**.
+
+**Verificación:** PO en dispositivo: reto completo con señal de vida, sin bucle, **verified** en
+prod. `typecheck` ✓ · `lint` ✓ · **222/222 (20 suites)** ✓.
+
+**Estado:** acta 026 en `docs/equipo/actas/2026-10-21_prueba_de_vida_v54_y_sincronizacion.md`.

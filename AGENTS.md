@@ -96,6 +96,15 @@ cuando el equipo o el código crezcan.
     `git archive` dentro de `backups/` + bloque nuevo al inicio de
     `apps/mobile/backup app resiliencia.txt`. Recordá este orden también cuando
     el PO diga “y además bitácora, registro y backup”.
+11. **Versión de evidencia de la cámara (sincronización obligatoria).** Todo bump de
+    `VERIFY_VERSION` (`apps/mobile/src/retos/verify.ts`) **debe** ir en el mismo
+    movimiento que `ALLOWED_EVIDENCE_VERSIONS`
+    (`supabase/functions/validate_workout/index.ts`) **y** el redeploy de la edge,
+    **junto** con el deploy del HTML a gh-pages. Nunca uno sin el otro: si la edge
+    no acepta la versión que firma la cámara, los retos se rechazan con
+    `unsupported_evidence_version`. El test
+    `apps/mobile/src/retos/__tests__/evidenceVersionSync.test.ts` verifica esta
+    sincronización y debe quedar en verde.
 
 ## Entregables por rol
 
