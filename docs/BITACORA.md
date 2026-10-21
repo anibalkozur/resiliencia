@@ -2131,3 +2131,42 @@ de release/rankings importantes (ver entrada anterior).
 limit **básico** por usuario/ventana.
 
 **Estado:** solo registro; **sin cambios de código**.
+
+### 2026-10-21 - Flexiones en horizontal (celular apaisado): experimento en el banco
+
+**Petición del PO:** probar flexiones con el celular **en horizontal** (pantalla girada 90°)
+para que el cuerpo de perfil entre completo en el cuadro, con los botones cerca del pulgar.
+
+**Hallazgo previo (el cálculo viejo no podía ver el horizontal):** el puente nativo usaba
+`tilt = atan2(|gz|,|gy|)·180/π`, `vertical = tilt ≤ 35` y el guard `hypot(gy,gz) < 1`.
+El cálculo **ignora el eje `x`**: con el celular apaisado daba 0 (falso "vertical") y el guard
+**descartaba la muestra** justamente en ese caso → el puente dejaba de informar la
+orientación y la página quedaba con el último valor.
+
+**Cambios aplicados (solo el banco; producción intacta):**
+
+- `apps/banco de pruebas de ejercicios/src/lib/orientation.ts` (nuevo) + test (7 casos):
+  clasificador de **tres ejes** (`portrait` / `landscape` / `flat` / `tilted`), misma tolerancia
+  de 35° pero con el **eje dominante** mandando (`|y| ≥ |x|` vertical, `|x| ≥ |y|` apaisado).
+- `src/screens/TestScreen.tsx`: el puente manda `{ available, orientation, vertical, landscape,
+beta }`; la página acepta el contrato viejo. Chrome nativo compacto en horizontal.
+- `camera-verification-bench.html`: gate **por ejercicio** (`cfg.orientation`), mensajes
+  ("Girá el celular a horizontal (apaisado)" / "Poné el celular parado en vertical"), badge
+  "Vertical"/"Horizontal" y layout ancho (`data-layout="wide"`: video 16:9 y botones fijos en la
+  esquina inferior derecha).
+- Ejercicio del banco `flexiones_landscape` (mismo CFG que `flexiones` + `orientation:
+'landscape'`), con marca en catálogo, chat y home.
+- `app.json` del banco: `"orientation": "portrait"` → `"default"` (para que la app gire).
+- `VERIFY_VERSION` del banco 48 → 49 y publicación en gh-pages (commit `1fcb838`).
+
+**Verificación:** banco con `typecheck` ✓ `lint` ✓ **39/39 tests** ✓; HTML parseado con
+`node --check` ✓; página publicada y **verificada servida** (contiene el clasificador, el gate y
+el ejercicio); las tres copias del HTML con hash idéntico (`7FF8ADEF…F7495`);
+`camera-verification.html` de producción **sin cambios**.
+
+**Pendiente:** validación del PO en dispositivo (que la app rote, el cuerpo entre completo, las
+reps coincidan con `flexiones` en vertical y los dos sentidos de giro). Ojo: si Expo Go no
+respeta el `app.json`, la app queda trabada en vertical y el experimento no es testeable ahí.
+
+**Estado:** código commiteado y publicado; **sin aprobación todavía como característica de
+producción** (ver `docs/equipo/actas/2026-10-21_flexiones_horizontal_banco.md`).
