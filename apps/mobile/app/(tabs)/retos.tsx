@@ -201,7 +201,13 @@ export default function RetosScreen() {
     let sensorSubscription: { remove: () => void } | null = null;
     let active = true;
     DeviceMotion.isAvailableAsync().then((available) => {
-      if (!available || !active) return;
+      if (!active) return;
+      if (!available) {
+        webviewRef.current?.injectJavaScript(
+          'window.__resilienciaSetNativeOrientation && window.__resilienciaSetNativeOrientation({ available: false }); true;',
+        );
+        return;
+      }
       DeviceMotion.setUpdateInterval(200);
       sensorSubscription = DeviceMotion.addListener(({ accelerationIncludingGravity: g }) => {
         if (!g || !Number.isFinite(g.y) || !Number.isFinite(g.z)) return;
