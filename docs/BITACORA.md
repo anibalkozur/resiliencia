@@ -1948,3 +1948,29 @@ hardcodeaba solo 8 códigos** y las migraciones nunca insertaban `fondos_silla`.
 `fondos_silla` premium. Sin cambios de código en la app (ya lo listaba).
 
 **Estado:** migración 0021 en el repo; sin commitear.
+
+### 2026-10-21 - Fix mínimo: sensor no disponible avisa a la WebView
+
+**Motivo:** en `retos.tsx` y `camretos.tsx`, si `DeviceMotion.isAvailableAsync()` devolvía
+`false`, el código hacía `return` **sin avisar** a la WebView; esta esperaba sus 8 s
+(`SENSOR_CONFIRM_MS`) y recién ahí mostraba "Sensor no confirmado", sin distinguir "sensor
+ausente" de "sensor lento".
+
+**Origen:** propuesta de otro asesor (máquina de estados + handshake completo). Se
+**descartó el plan sobredimensionado** y se aplicó **solo el fix mínimo**.
+
+**Cambio:** al detectar `!available`, se inyecta
+`window.__resilienciaSetNativeOrientation({ available: false })` (el HTML ya lo maneja,
+L2624-2627 → corta de inmediato). Se mantiene el guard `!active`. 2 archivos, +14/−2.
+
+**Alcance:** no se toca cámara, HTML ni `VERIFY_VERSION` (sigue 53); sin deploy de gh-pages.
+
+**Verificación:** PO en dispositivo (Caso 1, teléfono con sensor OK): Retos → INICIAR y Modo
+Libre arrancan **normalmente** — el fix no rompió el camino normal. Casos 2/3 (forzar sensor
+ausente) sin efecto por decisión del PO. `typecheck` ✓ · `lint` ✓ · **221/221 (19 suites)** ✓.
+
+**Límite:** el aviso depende del orden de carga (si `isAvailableAsync` resolviera antes del
+hook, el `&&` lo descarta); riesgo bajo porque el efecto se monta con la cámara ya visible.
+No verificado en dispositivo.
+
+**Estado:** acta 025 en `docs/equipo/actas/2026-10-21_fix_sensor_no_disponible.md`.
