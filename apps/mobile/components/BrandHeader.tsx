@@ -3,9 +3,7 @@ import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { usePrefs } from '../src/prefs/PrefsProvider';
-import { useUser } from '../src/user/UserProvider';
 import { translate } from '../src/i18n/translations';
-import { greetingKey } from '../src/i18n/greeting';
 import { useLibreExercise } from '../src/header/LibreExerciseProvider';
 import { useDayKey } from '../src/retos/DayProvider';
 
@@ -21,11 +19,19 @@ function sectionForPath(pathname: string): string | null {
   return null;
 }
 
+function displayDate(d: Date, lang: string): string {
+  const locale = lang === 'en' ? 'en-US' : lang === 'pt' ? 'pt-BR' : 'es-AR';
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(d);
+}
+
 export default function BrandHeader() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { prefs } = usePrefs();
-  const { profile } = useUser();
   const { routine, libreActive, salir, retosActive, salirRetos } = useLibreExercise();
   useDayKey();
   const lang = prefs?.language ?? 'es';
@@ -35,10 +41,8 @@ export default function BrandHeader() {
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
       <Image source={logo} style={styles.logo} resizeMode="contain" />
       {section === 'home' ? (
-        <Text style={styles.text} numberOfLines={1}>
-          {translate(lang, greetingKey(new Date().getHours()), {
-            name: profile?.nickname ?? 'Atleta',
-          })}
+        <Text style={[styles.text, styles.textStrong, styles.homeIdentity]} numberOfLines={1}>
+          {displayDate(new Date(), lang)}
         </Text>
       ) : null}
       {section === 'retos' ? (
@@ -116,6 +120,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  homeIdentity: {
+    color: colors.teal,
+    flex: 1,
+    fontSize: 12,
+    letterSpacing: 1,
+    textAlign: 'right',
   },
   routineChip: {
     alignItems: 'center',

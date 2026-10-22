@@ -4,6 +4,7 @@ import { getRepo } from '../repo';
 import type { UserProfile } from '../repo';
 import type { ProfilePatch } from './service';
 import { createUser, updateProfile } from './service';
+import { loadAvatar, persistAvatar, removeAvatar } from './avatar';
 
 type UserState = {
   profile: UserProfile | null;
@@ -11,6 +12,8 @@ type UserState = {
   createUser: (nickname: string) => Promise<void>;
   updateProfile: (patch: ProfilePatch) => Promise<UserProfile | null>;
   attachAccount: (account: { userId: string; nickname: string }) => Promise<void>;
+  avatarUri: string | null;
+  setAvatarUri: (sourceUri: string | null) => Promise<void>;
 };
 
 const UserContext = createContext<UserState | null>(null);
@@ -19,6 +22,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const repo = getRepo();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [avatarState, setAvatarState] = useState<{ ownerId: string | null; uri: string | null }>({
+    ownerId: null,
+    uri: null,
+  });
 
   useEffect(() => {
     repo.getProfile().then((stored) => {
@@ -26,6 +33,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
   }, [repo]);
+
+  useEffect(() => {
+    let active = true;
+    if (!profile?.id) return;
+
+    void loadAvatar(repo, profile.id).then((stored) => {
+      if (active) setAvatarState({ ownerId: profile.id, uri: stored });
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [profile?.id, repo]);
+
+  const avatarUri = avatarState.ownerId === profile?.id ? avatarState.uri : null;
 
   const value = useMemo<UserState>(
     () => ({
@@ -58,8 +80,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
         await repo.saveProfile(merged);
         setProfile(merged);
       },
+      avatarUri,
+      setAvatarUri: async (sourceUri: string | null) => {
+        if (!profile?.id) return;
+        if (sourceUri === null) {
+          await removeAvatar(repo, profile.id);
+          setAvatarState({ ownerId: profile.id, uri: null });
+          return;
+        }
+        const stored = await persistAvatar(repo, profile.id, sourceUri);
+        setAvatarState({ ownerId: profile.id, uri: stored });
+      },
     }),
-    [profile, isLoading, repo],
+    [profile, isLoading, repo, avatarUri],
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

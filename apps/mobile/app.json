@@ -28,6 +28,18 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router", "expo-sqlite", "expo-web-browser"]
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ResiliencIA necesita acceso a tus fotos para usar una imagen de perfil.",
+          "cameraPermission": "ResiliencIA necesita la cámara para tomar una imagen de perfil.",
+          "microphonePermission": false
+        }
+      ]
+    ]
   }
 }

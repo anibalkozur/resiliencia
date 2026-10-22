@@ -1,19 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 import { ChatPanel } from '../../components/ChatPanel';
+import { useAuth } from '../../src/auth/AuthProvider';
+import { useUser } from '../../src/user/UserProvider';
 import { usePrefs } from '../../src/prefs/PrefsProvider';
 import { DEFAULT_TRAINING_DAYS } from '../../src/prefs/service';
 import { getRepo } from '../../src/repo';
 import { EXERCISES, exerciseNameKey } from '../../src/retos/catalog';
-import {
-  buildChallenge,
-  getStoredChallenge,
-  getTodayChallenge,
-  tomorrowKey,
-} from '../../src/retos/service';
+import { getTodayChallenge } from '../../src/retos/service';
 import { buildNextTraining, buildWeek } from '../../src/retos/week';
 import {
   getCompletionSyncState,
@@ -21,8 +18,6 @@ import {
   type CompletionSyncState,
 } from '../../src/retos/completions';
 import { getBestStreak, getCompletedCount, getStreak } from '../../src/retos/streak';
-import { getFreeSessions } from '../../src/retos/freeSessions';
-import { buildHistory, type DailyHistoryInput, type HistoryEntry } from '../../src/retos/history';
 import { weeklyFact } from '../../src/retos/weeklyFact';
 import { useDayKey } from '../../src/retos/DayProvider';
 import { usePremium } from '../../src/premium/usePremium';
@@ -30,6 +25,7 @@ import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
 import type { DailyChallenge } from '../../src/retos/types';
 import type { Goal } from '../../src/prefs/types';
+import { greetingKey } from '../../src/i18n/greeting';
 
 const WEEKDAYS: TranslationKey[] = [
   'weekday.sun',
@@ -56,9 +52,18 @@ function localDate(d: Date): string {
 
 export default function InicioScreen() {
   const router = useRouter();
+  const { session } = useAuth();
+  const { avatarUri } = useUser();
   const { prefs } = usePrefs();
   const insets = useSafeAreaInsets();
   const lang = prefs?.language ?? 'es';
+  const userName =
+    (typeof session?.user.user_metadata?.nickname === 'string'
+      ? session.user.user_metadata.nickname
+      : typeof session?.user.user_metadata?.full_name === 'string'
+        ? session.user.user_metadata.full_name
+        : session?.user.email?.split('@')[0]) ?? 'atleta';
+  const greeting = translate(lang, greetingKey(new Date().getHours()), { name: userName });
   const goal: Goal = prefs?.goal ?? 'mantener';
   const repo = getRepo();
   const premium = usePremium();
@@ -78,7 +83,6 @@ export default function InicioScreen() {
   const [completedCount, setCompletedCount] = useState(0);
   const [completedToday, setCompletedToday] = useState(false);
   const [syncState, setSyncState] = useState<CompletionSyncState | undefined>(undefined);
-  const [lastEntry, setLastEntry] = useState<HistoryEntry | undefined>(undefined);
   const [weekCells, setWeekCells] = useState<boolean[]>([]);
   const [chatAbierto, setChatAbierto] = useState(false);
 
@@ -86,16 +90,14 @@ export default function InicioScreen() {
     useCallback(() => {
       let active = true;
       (async () => {
-        const [nextChallenge, nextStreak, nextBest, nextCount, done, state, free] =
-          await Promise.all([
-            getTodayChallenge(repo),
-            getStreak(repo),
-            getBestStreak(repo),
-            getCompletedCount(repo),
-            isCompleted(repo, dayKey),
-            getCompletionSyncState(repo, dayKey),
-            getFreeSessions(repo),
-          ]);
+        const [nextChallenge, nextStreak, nextBest, nextCount, done, state] = await Promise.all([
+          getTodayChallenge(repo),
+          getStreak(repo),
+          getBestStreak(repo),
+          getCompletedCount(repo),
+          isCompleted(repo, dayKey),
+          getCompletionSyncState(repo, dayKey),
+        ]);
 
         // Últimos 7 días completados (para la barra semanal compacta).
         const cells: boolean[] = [];
@@ -105,38 +107,6 @@ export default function InicioScreen() {
           cells.push((await repo.getSetting(`completed:${localDate(d)}`)) === '1');
         }
 
-        // Último entrenamiento (offline-first): el reto del día anterior con
-        // meta registrada, o la sesión libre más reciente.
-        const prev = new Date(`${dayKey}T00:00:00`);
-        prev.setDate(prev.getDate() - 1);
-        const prevKey = localDate(prev);
-        const [prevStored, prevMeta] = await Promise.all([
-          getStoredChallenge(repo, prevKey),
-          repo.getSetting(`completed:meta:${prevKey}`),
-        ]);
-        const daily: DailyHistoryInput[] = [];
-        if (prevMeta) {
-          let meta: { value?: number; target?: number; unit?: 'reps' | 'seconds' } | null = null;
-          try {
-            meta = JSON.parse(prevMeta) as {
-              value?: number;
-              target?: number;
-              unit?: 'reps' | 'seconds';
-            };
-          } catch {
-            meta = null;
-          }
-          const prevChallenge = prevStored ?? buildChallenge(prevKey, goal);
-          daily.push({
-            date: prevKey,
-            exerciseId: prevChallenge.exerciseId,
-            value: meta?.value ?? prevChallenge.target,
-            target: meta?.target ?? prevChallenge.target,
-            unit: meta?.unit ?? 'reps',
-          });
-        }
-        const history = buildHistory(free, daily);
-
         if (!active) return;
         setChallenge(nextChallenge);
         setStreak(nextStreak);
@@ -145,15 +115,18 @@ export default function InicioScreen() {
         setCompletedToday(done);
         setSyncState(state ?? undefined);
         setWeekCells(cells);
-        setLastEntry(history[0]);
       })();
       return () => {
         active = false;
       };
-    }, [repo, dayKey, goal]),
+    }, [repo, dayKey]),
   );
 
   function handleGoToReto() {
+    if (!premium) {
+      router.push('/planes');
+      return;
+    }
     if (completedToday) return;
     if (!trainingToday) {
       const restMessage = nextTraining
@@ -178,17 +151,15 @@ export default function InicioScreen() {
       : exercise?.unit === 'reps'
         ? 'unit.reps'
         : 'unit.reps';
-  const tomorrowExercise = EXERCISES.find(
-    (e) => e.id === buildChallenge(tomorrowKey(), goal).exerciseId,
-  );
-
   const isRejected = syncState?.status === 'rejected';
   const isPending = syncState?.status === 'pending';
-  const ctaLabel = isRejected
-    ? 'home.completed_rejected'
-    : isPending
-      ? 'home.completed_pending'
-      : 'home.completed';
+  const ctaLabel = !premium
+    ? 'home.plans_cta'
+    : isRejected
+      ? 'home.completed_rejected'
+      : isPending
+        ? 'home.completed_pending'
+        : 'home.completed';
 
   // Semana compacta: días completados de los últimos 7.
   const weekTraining = useMemo(() => {
@@ -215,8 +186,28 @@ export default function InicioScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: spacing.xxl + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.welcomeRow}>
+          <View style={styles.welcomeCopy}>
+            <Text style={styles.welcomeTitle}>{greeting}</Text>
+            <Text style={styles.welcomeSubtitle}>{translate(lang, 'home.focus')}</Text>
+          </View>
+          <Pressable
+            style={styles.avatar}
+            onPress={() => router.push('/(tabs)/ajustes')}
+            accessibilityRole="button"
+            accessibilityLabel={translate(lang, 'settings.avatar_accessibility')}
+          >
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{userName.charAt(0).toUpperCase()}</Text>
+            )}
+          </Pressable>
+        </View>
+
         {challenge && exercise ? (
           <View style={styles.card}>
+            <View style={styles.cardAccent} />
             <View style={styles.cardHead}>
               <View style={styles.headLeft}>
                 <Text style={styles.eyebrow}>{translate(lang, 'home.challenge')}</Text>
@@ -249,16 +240,18 @@ export default function InicioScreen() {
               </View>
             </View>
 
-            <Pressable
-              style={[styles.cta, completedToday && styles.ctaDone]}
-              disabled={completedToday}
-              onPress={handleGoToReto}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.ctaText, completedToday && styles.ctaTextDone]}>
-                {translate(lang, completedToday ? ctaLabel : 'home.start')}
-              </Text>
-            </Pressable>
+            {premium ? (
+              <Pressable
+                style={[styles.cta, completedToday && styles.ctaDone]}
+                disabled={completedToday}
+                onPress={handleGoToReto}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.ctaText, completedToday && styles.ctaTextDone]}>
+                  {translate(lang, completedToday ? ctaLabel : 'home.start')}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : (
           <View style={styles.skeleton}>
@@ -273,26 +266,26 @@ export default function InicioScreen() {
         ) : null}
 
         {!premium ? (
-          <Text style={styles.freeNotice}>{translate(lang, 'home.free_retos')}</Text>
+          <Pressable
+            style={styles.premiumCard}
+            onPress={() => router.push('/planes')}
+            accessibilityRole="button"
+            accessibilityLabel={translate(lang, 'home.plans_cta')}
+          >
+            <View style={styles.premiumCardTop}>
+              <View style={styles.premiumBadge}>
+                <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+              </View>
+              <Text style={styles.premiumArrow}>↗</Text>
+            </View>
+            <Text style={styles.premiumTitle}>{translate(lang, 'home.plans_title')}</Text>
+            <Text style={styles.premiumBody}>{translate(lang, 'home.plans_body')}</Text>
+            <View style={styles.premiumFooter}>
+              <Text style={styles.premiumPrice}>{translate(lang, 'home.plans_price')}</Text>
+              <Text style={styles.premiumCta}>{translate(lang, 'home.plans_cta')}</Text>
+            </View>
+          </Pressable>
         ) : null}
-
-        <View style={styles.strip}>
-          {tomorrowExercise ? (
-            <Text style={styles.stripText} numberOfLines={1}>
-              {translate(lang, 'home.tomorrow', {
-                exercise: translate(lang, exerciseNameKey(tomorrowExercise.id)),
-              })}
-            </Text>
-          ) : null}
-          {lastEntry ? (
-            <Text style={styles.stripText} numberOfLines={1}>
-              {translate(lang, 'home.last', {
-                exercise: translate(lang, exerciseNameKey(lastEntry.exerciseId)),
-                value: lastEntry.value,
-              })}
-            </Text>
-          ) : null}
-        </View>
 
         <View style={styles.factCard}>
           <Text style={styles.factEyebrow}>{translate(lang, 'weekly.title')}</Text>
@@ -301,16 +294,28 @@ export default function InicioScreen() {
         </View>
 
         {!premium ? (
-          <Text style={styles.freeNotice}>{translate(lang, 'home.free_ranking')}</Text>
+          <View style={styles.freeNotice}>
+            <Text style={styles.freeNoticeTitle}>{translate(lang, 'home.free_mode_title')}</Text>
+            <Text style={styles.freeNoticeText}>{translate(lang, 'home.free_ranking')}</Text>
+          </View>
         ) : null}
 
-        <Pressable
-          style={styles.secondary}
-          onPress={() => router.push('/(tabs)/ranking')}
-          accessibilityRole="button"
-        >
-          <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
-        </Pressable>
+        <View style={styles.actionRow}>
+          <Pressable
+            style={[styles.secondary, styles.actionButton]}
+            onPress={() => router.push('/(tabs)/ranking')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryText}>{translate(lang, 'home.view_ranking')}</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.secondary, styles.actionButton]}
+            onPress={() => router.push('/(tabs)/camretos')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryText}>{translate(lang, 'home.free_mode')}</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.best}>{translate(lang, 'home.best', { n: best })}</Text>
       </ScrollView>
@@ -355,7 +360,49 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.sm,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
+  },
+  welcomeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xs,
+  },
+  welcomeCopy: {
+    flex: 1,
+  },
+  welcomeTitle: {
+    color: colors.silver,
+    fontSize: 27,
+    fontWeight: '800',
+    marginTop: spacing.xs,
+  },
+  welcomeSubtitle: {
+    color: colors.silverDim,
+    fontSize: 14,
+    marginTop: spacing.xs,
+  },
+  avatar: {
+    alignItems: 'center',
+    backgroundColor: colors.teal,
+    borderColor: colors.cyan,
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    marginLeft: spacing.md,
+    width: 44,
+  },
+  avatarText: {
+    color: colors.bg,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  avatarImage: {
+    borderRadius: 21,
+    height: 42,
+    width: 42,
   },
   card: {
     backgroundColor: colors.surface,
@@ -363,6 +410,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     padding: spacing.lg,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  cardAccent: {
+    backgroundColor: colors.teal,
+    height: 4,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
   },
   cardHead: {
     flexDirection: 'row',
@@ -484,6 +541,68 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginTop: spacing.md,
   },
+  premiumCard: {
+    backgroundColor: '#0D272A',
+    borderColor: colors.teal,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+  },
+  premiumCardTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  premiumBadge: {
+    backgroundColor: colors.teal,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  premiumBadgeText: {
+    color: colors.bg,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  premiumArrow: {
+    color: colors.teal,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  premiumTitle: {
+    color: colors.silver,
+    fontSize: 22,
+    fontWeight: '800',
+    marginTop: spacing.md,
+  },
+  premiumBody: {
+    color: colors.silverDim,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: spacing.xs,
+  },
+  premiumFooter: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(45, 212, 168, 0.25)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+  },
+  premiumPrice: {
+    color: colors.silver,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  premiumCta: {
+    color: colors.teal,
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
   freeNotice: {
     color: colors.silverDim,
     fontSize: 14,
@@ -493,15 +612,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.md,
   },
-  strip: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.md,
+  freeNoticeTitle: {
+    color: colors.silver,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
-  stripText: {
+  freeNoticeText: {
     color: colors.silverDim,
     fontSize: 13,
+    lineHeight: 20,
+    marginTop: spacing.xs,
   },
   secondary: {
     alignItems: 'center',
@@ -510,6 +631,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     marginTop: spacing.lg,
     paddingVertical: spacing.sm,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  actionButton: {
+    flex: 1,
+    marginTop: 0,
   },
   secondaryText: {
     color: colors.silver,
