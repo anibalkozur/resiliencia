@@ -4,6 +4,27 @@ Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medi
 
 ## Historial
 
+### 2026-10-22 — Perfil local y rediseño profesional de Ajustes
+
+**Petición del PO:** implementar la foto de perfil en versión local y ordenar Ajustes con una presentación moderna y profesional.
+
+**Cambios aplicados:**
+
+- Se agregaron `expo-image-picker` y `expo-file-system` para Expo SDK 57.
+- La persona puede elegir una imagen de la galería, tomar una foto o quitarla desde Ajustes.
+- La imagen se recorta cuadrada, se comprime y se guarda de forma persistente en el dispositivo, separada por `userId`.
+- El avatar de Inicio abre Ajustes y muestra la foto guardada o la inicial como fallback.
+- Ajustes se reorganizó en cabecera, perfil, foto, días de entrenamiento, idioma, cuenta y reinicio de datos.
+- Se configuraron permisos de cámara/fotos y se agregaron traducciones es/en/pt.
+
+**Validación:** `typecheck` ✓ · `lint` ✓ · Expo config ✓ · **20 suites / 222 tests** ✓.
+
+**Alcance:** foto local únicamente; no hay subida a Supabase ni sincronización entre dispositivos. No afecta retos, ranking ni verificación.
+
+**Entrega:** commit `855e7b7` publicado en `main`; tag `backup-resiliencia-20261022-001312`; backup `backups/resiliencia-20261022-001312.zip`; acta 028.
+
+**Prueba manual pendiente del PO:** probar galería, cámara, cancelación, permisos denegados, eliminación, persistencia tras reinicio y cambio de cuenta en Expo Go.
+
 ### 2026-09-17 — Fase 1: sesión, logout y login persistente
 
 **Peticiones del PO (vía app/chat):**
@@ -2170,3 +2191,100 @@ respeta el `app.json`, la app queda trabada en vertical y el experimento no es t
 
 **Estado:** código commiteado y publicado; **sin aprobación todavía como característica de
 producción** (ver `docs/equipo/actas/2026-10-21_flexiones_horizontal_banco.md`).
+
+### 2026-10-21 - Registro consolidado de pendientes para Play Store y Premium real
+
+**Motivo:** el PO pidió consolidar qué falta para publicar ResiliencIA en Google Play,
+cobrar suscripciones Premium y actualizar automáticamente el acceso cuando cambie el estado
+del pago.
+
+**Registro existente localizado:** este pendiente ya tenía una base en el ADR
+`docs/equipo/adr/2026-10-20_flujo_pago_premium_store.md` y en la entrada de flujo de pago del
+2026-10-20. Esta entrada **no crea una arquitectura alternativa**: ordena y amplía el
+backlog de release con lo que todavía no está implementado o verificado.
+
+#### Lo que ya está construido
+
+- Tablas `entitlements`, `subscriptions` y `purchases`.
+- Productos definidos: `premium_monthly` y `premium_annual`.
+- Entitlement server-side `premium` y lectura fail-closed en la app.
+- Gate Premium en `validate_workout`.
+- Simulador de ciclo de vida en ResiliencIA Console.
+- Idempotencia de eventos simulados mediante `rc_event_id`.
+- Perfil de build de producción con incremento automático del `versionCode`.
+
+Esto **no equivale todavía a cobros reales**: la app no tiene SDK de compras, paywall real
+ni webhook de RevenueCat.
+
+#### Pendientes P0 — necesarios para cobrar Premium de verdad
+
+1. **SDK nativo de compras:** integrar `react-native-purchases` y configurar el `appUserID`
+   con el `auth.uid()` de Supabase. Requiere development build/EAS; Expo Go sirve para la
+   interfaz y simulación, pero no para compras reales.
+2. **Pantalla Premium real:** reemplazar el `Alert` actual por planes mensual/anual, precio
+   entregado por la store, prueba anual si se mantiene, compra, estados pendiente/error,
+   restaurar compras y acceso a administrar/cancelar la suscripción.
+3. **Webhook `revenuecat_webhook`:** crear y desplegar la Edge Function con firma Bearer,
+   comparación constante, mapeo seguro de `app_user_id`, escritura server-side,
+   idempotencia por `rc_event_id` y matriz de eventos: compra, renovación, cancelación,
+   vencimiento, reembolso, transferencia y problema de facturación.
+4. **Sincronización automática del entitlement:** refrescar después de comprar/restaurar, al
+   volver al foreground, al iniciar sesión y al abrir la app en otro dispositivo. Agregar
+   listener de cambios del SDK y corregir la caché para que quede asociada al `userId`.
+5. **Configuración comercial:** crear en Play Console los productos y base plans exactos,
+   precios, países, impuestos, renovación y testers; enlazarlos con RevenueCat y el
+   entitlement `premium`.
+6. **Pruebas end-to-end:** compra, prueba, pendiente, rechazo, restauración, renovación,
+   cancelación, vencimiento, reembolso, problema de facturación, cambio de cuenta,
+   reinstalación, offline/reintento y webhook duplicado.
+
+#### Pendientes P1 — publicación y cumplimiento
+
+1. Política de privacidad pública y enlace visible dentro de la app.
+2. Términos de suscripción con precio, frecuencia, renovación automática, cancelación,
+   prueba y reembolsos.
+3. Flujo para eliminar la cuenta y los datos; hoy existe cerrar sesión/borrar progreso,
+   pero no eliminación de cuenta.
+4. Formulario Data Safety, clasificación de contenido, público objetivo y declaración del
+   uso de cámara, sensores, evidencia y datos de cuenta.
+5. Ficha de Play Store: icono final, capturas, descripción, soporte y correo de contacto.
+6. Verificar el `targetSdk` del `.aab` generado. La documentación antigua del proyecto
+   menciona API 35; antes de publicar debe confirmarse el requisito vigente de Play y el
+   target real del build.
+7. Crear el `.aab` firmado, probarlo en track interno/cerrado y completar el rollout
+   gradual. La cuenta personal nueva puede quedar sujeta al requisito de testers y días de
+   prueba cerrada.
+8. Ejecutar `expo-doctor`/verificación de dependencias y resolver de forma controlada la
+   deuda de Expo SDK 57 antes del build final, con prueba real de cámara, WebView y sensor.
+
+#### Aclaración sobre “actualización automática”
+
+- **Actualización de la app:** la gestiona Google Play; el usuario puede tenerla automática
+  o manual según su configuración.
+- **Actualización de Premium:** la produce el webhook y la lectura fresca del entitlement;
+  no requiere publicar una nueva versión de la app.
+- **Actualización OTA:** `expo-updates` sería opcional para cambios JavaScript, pero no
+  reemplaza una publicación cuando cambian módulos nativos como billing.
+
+#### Propuesta: “Pantalla de planes” en Inicio
+
+**Opinión del equipo:** aprobada como **paywall mock de F2**, sin cobro todavía. Es una buena
+forma de medir interés antes de pagar cuentas externas y activar el billing real, siempre que
+no prometa una compra inexistente.
+
+Recomendación UX:
+
+- Mostrar en Inicio una tarjeta discreta: **“Conocé Premium”** o **“Ver planes Premium”**.
+- Abrir una pantalla común reutilizable desde Inicio, Retos y Ajustes/Perfil.
+- Comparar Free vs Premium y mostrar mensual/anual, beneficios y prueba prevista.
+- En modo mock, el botón debe decir **“Avisarme cuando esté disponible”** o equivalente;
+  no debe simular que el usuario pagó ni activar Premium localmente.
+- Cuando exista billing real, esa misma pantalla se conecta al SDK y agrega Comprar,
+  Restaurar compras y Administrar suscripción.
+
+**Decisión:** implementar primero la pantalla como presentación/medición, sin activar
+entitlements ni inventar cobros. El acceso desde Inicio es recomendable, pero no debe
+reemplazar la entrada desde Retos ni convertirse en un banner invasivo.
+
+**Estado:** registro actualizado; sin cambios de código en esta entrada. El ADR de flujo de
+pago continúa siendo la fuente de verdad arquitectónica.
