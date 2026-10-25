@@ -39,7 +39,9 @@
           "cameraPermission": "ResiliencIA necesita la cámara para tomar una imagen de perfil.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-status-bar"
     ]
   }
 }

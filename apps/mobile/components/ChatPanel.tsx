@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type ScrollViewInstance,
+} from 'react-native';
 import { colors, radius, spacing } from '@resiliencia/design-tokens';
 
 import { hablarVoz } from '../src/lib/voz';
@@ -43,19 +51,20 @@ export function ChatPanel() {
   const { profile } = useUser();
   const { prefs } = usePrefs();
   const lang = prefs?.language ?? 'es';
-  const objetivo = prefs?.goal
-    ? translate(lang, GOAL_TRANSLATION_KEYS[prefs.goal])
-    : undefined;
+  const objetivo = prefs?.goal ? translate(lang, GOAL_TRANSLATION_KEYS[prefs.goal]) : undefined;
   const perfil = perfilDelUsuario(profile, objetivo);
 
   const [msgs, setMsgs] = useState<Msg[]>([
-    { autor: 'bot', texto: `Hola ${perfil.nombre}. Preguntame qué ejercicio toca hoy o cómo funciona la app.` },
+    {
+      autor: 'bot',
+      texto: `Hola ${perfil.nombre}. Preguntame qué ejercicio toca hoy o cómo funciona la app.`,
+    },
   ]);
   const [texto, setTexto] = useState('');
 
   // El chat crece y nada se lee solo: cada mensaje nuevo baja la vista al
   // final, y el resize (teclado, respuestas largas) también.
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [msgs]);
@@ -98,9 +107,7 @@ export function ChatPanel() {
 
       {menor ? (
         <View style={styles.warn}>
-          <Text style={styles.warnText}>
-            El chat está bloqueado para menores de {EDAD_MINIMA}.
-          </Text>
+          <Text style={styles.warnText}>El chat está bloqueado para menores de {EDAD_MINIMA}.</Text>
         </View>
       ) : null}
       {!menor && sinEdad ? (
