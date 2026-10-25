@@ -4,6 +4,25 @@ Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medi
 
 ## Historial
 
+### 2026-10-25 — Migración de Expo SDK 57 a SDK 58
+
+**Problema:** Expo Go instalado desde Play Store era SDK 58, pero la app móvil estaba en SDK 57 y mostraba `Project is incompatible with this version of Expo Go`.
+
+**Cambios aplicados:**
+
+- Se actualizó la app móvil a Expo `~58.0.19`, React Native `0.88.0` y React `19.3.0`.
+- Se alinearon Expo Router, Camera, Sensors, File System, Image Picker, SQLite, Secure Store, Web Browser, WebView y el resto de módulos de SDK 58.
+- Se actualizaron Reanimated, Worklets, Jest y los presets de React Native.
+- Se corrigió la configuración de la ruta inicial de autenticación para Expo Router 58.
+- Se actualizó la referencia de `ScrollView` del chat para los tipos de React Native 0.88.
+- El banco de pruebas de ejercicios conserva su SDK 57 independiente.
+
+**Validación técnica:** `typecheck` ✓ · `lint` ✓ · Expo Doctor **20/20** ✓ · Expo config ✓ · bundle Android ✓ · **222/222 tests** ✓.
+
+**Validación del PO:** la app abrió y funcionó correctamente en Expo Go SDK 58 instalado desde Play Store.
+
+**Entrega:** commit de código `353c6f0` publicado en `main`; tag final `backup-resiliencia-20261025-110743`; backup previo preservado en `backup-resiliencia-20261025-105725`; acta 029.
+
 ### 2026-10-22 — Perfil local y rediseño profesional de Ajustes
 
 **Petición del PO:** implementar la foto de perfil en versión local y ordenar Ajustes con una presentación moderna y profesional.
