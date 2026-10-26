@@ -4,6 +4,33 @@ Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medi
 
 ## Historial
 
+### 2026-10-25 — Animaciones de ejercicios en el banco de pruebas
+
+**Petición del PO:** probar recursos visuales profesionales para ejercicios sin
+animar todas las tarjetas al mismo tiempo.
+
+**Cambios aplicados:**
+
+- Se agregó `expo-video` compatible con el SDK del banco.
+- Las tarjetas de abdominales y flexiones muestran una imagen estática
+  transparente en pose superior para reducir consumo y distracción.
+- Las pantallas "Antes de empezar" reproducen el video correspondiente en
+  bucle y sin audio.
+- Se incorporaron imágenes de mujer y hombre para abdominales, y poses de mujer
+  para flexiones, con fondo negro y variantes transparentes.
+- Se agregaron los componentes `AbdominalAnimation` y `PushupAnimation`.
+
+**Validación:** typecheck ✓ · lint ✓ · banco **39/39 tests ✓** · bundle Android ✓.
+El PO confirmó que el banco funciona correctamente.
+
+**Alcance:** solo banco de pruebas; no se modificó la app móvil de producción.
+Los cambios pendientes existentes de `apps/mobile` y `tmp.test` quedaron fuera
+del commit y fueron preservados.
+
+**Entrega:** commit de código `32f2f71`; acta 030; tag
+`backup-resiliencia-20261025-225714`; backup local
+`backups/resiliencia-20261025-225714.zip`.
+
 ### 2026-10-25 — Migración de Expo SDK 57 a SDK 58
 
 **Problema:** Expo Go instalado desde Play Store era SDK 58, pero la app móvil estaba en SDK 57 y mostraba `Project is incompatible with this version of Expo Go`.
