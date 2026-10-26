@@ -28,17 +28,25 @@ type Props = {
   items: SequenceItem[];
   /** La prueba de vida se elige en la home, junto con la secuencia. */
   ranked?: boolean;
+  /** La pestaña Libre ya mostró su propia pantalla de armado e intro. */
+  skipSetup?: boolean;
   onExit: () => void;
   onRecorded: (r: TestResult) => void;
 };
 
-export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecorded }: Props) {
+export function TestScreen({
+  items,
+  ranked: rankedProp = false,
+  skipSetup = false,
+  onExit,
+  onRecorded,
+}: Props) {
   const [permission, requestPermission] = useCameraPermissions();
   const multi = items.length > 1;
   const first: ExerciseInfo = exerciseById(items[0]?.id ?? '') ?? FIRST_EXERCISE;
   const [targets, setTargets] = useState<number[]>(items.map((i) => i.target));
   const [ranked, setRanked] = useState(rankedProp);
-  const [live, setLive] = useState(false);
+  const [live, setLive] = useState(skipSetup);
   const [restartKey, setRestartKey] = useState(0);
   const [last, setLast] = useState<string | null>(null);
   // Índice del último ejercicio que terminó, para marcar el avance en la lista.
@@ -54,6 +62,7 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
   const maxTarget = first.unit === 'seconds' ? 120 : 200;
   const unitLabel = first.unit === 'seconds' ? 'segundos' : 'reps';
   const target = targets[0] ?? first.target;
+  const liveReady = live || (skipSetup && permission?.granted === true);
   const bump = (i: number, dir: 1 | -1, min: number, max: number, by: number) =>
     setTargets((prev) => {
       const next = [...prev];
@@ -73,7 +82,7 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
   // de informar la orientación. Ahora se manda la clasificación de los tres
   // ejes (ver src/lib/orientation.ts) y la página decide según el ejercicio.
   useEffect(() => {
-    if (!live) return;
+    if (!liveReady) return;
     let active = true;
     let sub: { remove: () => void } | null = null;
     DeviceMotion.isAvailableAsync().then((available) => {
@@ -100,7 +109,7 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
       active = false;
       sub?.remove();
     };
-  }, [live, restartKey]);
+  }, [liveReady, restartKey]);
 
   const onWebMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
@@ -160,7 +169,7 @@ export function TestScreen({ items, ranked: rankedProp = false, onExit, onRecord
     );
   }
 
-  if (!live) {
+  if (!liveReady) {
     return (
       // Con varios ejercicios la lista, el toggle y el botón no entran: sin
       // scroll quedan inalcanzables.

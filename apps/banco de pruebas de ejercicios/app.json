@@ -6,7 +6,6 @@
     "scheme": "exercise-tester",
     "orientation": "default",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.resiliencia.tester",
@@ -26,7 +25,9 @@
           "cameraPermission": "El banco de pruebas usa la cámara para contar repeticiones durante el QA."
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-status-bar",
+      "expo-video"
     ]
   }
 }
