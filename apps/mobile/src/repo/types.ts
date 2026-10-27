@@ -4,6 +4,8 @@ export interface UserSport {
   daysPerWeek: number;
 }
 
+export type VisualModel = 'mujer' | 'hombre';
+
 export interface UserProfile {
   id: string;
   nickname: string;
@@ -11,6 +13,7 @@ export interface UserProfile {
   age?: number;
   weight?: number;
   height?: number;
+  visualModel?: VisualModel;
   sports?: UserSport[];
   waistCm?: number;
 }

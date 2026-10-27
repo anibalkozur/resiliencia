@@ -1,8 +1,23 @@
-import { Linking, AppState } from 'react-native';
+import { AppState, Linking } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase, setPkceFlowActive } from './supabase';
 import { mapAuthError, type AuthResult } from './authService';
+
+const OAUTH_CALLBACK_GRACE_MS = 3000;
+
+function isExpectedOAuthRedirect(url: string, redirectTo: string): boolean {
+  const normalizedRedirect = redirectTo.replace(/\/+$/, '');
+  const baseRedirect = normalizedRedirect.replace(/\/--$/, '');
+
+  if (url.startsWith(normalizedRedirect)) {
+    return true;
+  }
+
+  // Android/Expo Go may remove or add the `/--/` segment when reopening the
+  // project. Accept the same base only when the URL carries OAuth material.
+  return url.startsWith(baseRedirect) && /[?&#](code|access_token|error)=/.test(url);
+}
 
 export function extractAuthCode(url: string): string | null {
   const match = url.match(/[?&#]code=([^&#]+)/);
@@ -55,7 +70,12 @@ export async function signInWithGoogle(
     return { ok: false, errorCode: 'auth_not_configured' };
   }
 
-  const redirectTo = AuthSession.makeRedirectUri();
+  // Use the stable native callback registered in Supabase for the
+  // Development Build. The onboarding route is also valid in Expo Router.
+  const redirectTo = AuthSession.makeRedirectUri({
+    scheme: 'resiliencia',
+    path: 'onboarding',
+  });
 
   try {
     const { data, error } = await client.auth.signInWithOAuth({
@@ -70,41 +90,59 @@ export async function signInWithGoogle(
     }
 
     setPkceFlowActive(true);
-    let cancelUrlListener: ReturnType<typeof Linking.addEventListener> | null = null;
-    let appStateListener: ReturnType<typeof AppState.addEventListener> | null = null;
-
     try {
       const result = await new Promise<{ type: string; url?: string }>((resolve) => {
-        const onUrl = (event: { url: string }) => {
-          if (event.url.startsWith(redirectTo)) {
-            cleanup();
-            resolve({ type: 'success', url: event.url });
-          }
-        };
-
-        let appStateActive = false;
-        const onAppStateChange = (nextAppState: string) => {
-          if (nextAppState === 'active' && appStateActive) {
-            cleanup();
-            resolve({ type: 'dismiss' });
-          }
-          appStateActive = true;
-        };
+        let settled = false;
+        let urlListener: ReturnType<typeof Linking.addEventListener> | null = null;
+        let appStateListener: ReturnType<typeof AppState.addEventListener> | null = null;
+        let dismissTimer: ReturnType<typeof setTimeout> | null = null;
+        let appWentBackground = false;
 
         const cleanup = () => {
-          if (cancelUrlListener) {
-            cancelUrlListener.remove();
-            cancelUrlListener = null;
-          }
-          if (appStateListener) {
-            appStateListener.remove();
-            appStateListener = null;
+          urlListener?.remove();
+          urlListener = null;
+          appStateListener?.remove();
+          appStateListener = null;
+          if (dismissTimer) {
+            clearTimeout(dismissTimer);
+            dismissTimer = null;
           }
         };
 
-        cancelUrlListener = Linking.addEventListener('url', onUrl);
-        appStateListener = AppState.addEventListener('change', onAppStateChange);
-        Linking.openURL(data.url!);
+        const finish = (next: { type: string; url?: string }) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          cleanup();
+          resolve(next);
+        };
+
+        const scheduleDismiss = () => {
+          if (dismissTimer) {
+            clearTimeout(dismissTimer);
+          }
+          dismissTimer = setTimeout(() => finish({ type: 'dismiss' }), OAUTH_CALLBACK_GRACE_MS);
+        };
+
+        urlListener = Linking.addEventListener('url', ({ url }) => {
+          if (isExpectedOAuthRedirect(url, redirectTo)) {
+            finish({ type: 'success', url });
+          }
+        });
+
+        appStateListener = AppState.addEventListener('change', (nextAppState) => {
+          if (nextAppState === 'background' || nextAppState === 'inactive') {
+            appWentBackground = true;
+            return;
+          }
+          if (nextAppState === 'active' && appWentBackground) {
+            // Android may reactivate the app before delivering the deep link.
+            scheduleDismiss();
+          }
+        });
+
+        void Linking.openURL(data.url!).catch(() => finish({ type: 'error' }));
       });
 
       if (result.type !== 'success' || !result.url) {

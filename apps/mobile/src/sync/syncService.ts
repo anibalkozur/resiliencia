@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { IRepo } from '../repo';
+import type { IRepo, UserProfile } from '../repo';
 import { getSupabase } from '../auth/supabase';
 import { getPrefs } from '../prefs/service';
 import {
@@ -13,6 +13,7 @@ import { buildChallenge, getStoredChallenge, inferChallengeGoal } from '../retos
 import { EXERCISES } from '../retos/catalog';
 import { getFreeSessions, retainOnlyUnaccepted, applySessionResults } from '../retos/freeSessions';
 import type { FreeSession } from '../retos/freeSessions';
+import { isProfileComplete } from '../user/service';
 
 export interface RankingRow {
   user_id: string;
@@ -172,6 +173,34 @@ export async function syncGoalToServer(
   try {
     const prefs = await getPrefs(repo);
     const { error } = await client.rpc('set_goal', { p_goal: prefs.goal });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/** Guarda el perfil mínimo del onboarding en Supabase. El perfil local sigue
+ * siendo la fuente inmediata para funcionar offline; esta sincronización es
+ * best-effort y permite recuperar la preferencia visual en otro dispositivo. */
+export async function syncProfileToServer(
+  client: SupabaseClient | null,
+  profile: UserProfile,
+): Promise<boolean> {
+  if (!client || !isProfileComplete(profile)) {
+    return false;
+  }
+  try {
+    const { error } = await client
+      .from('profiles')
+      .update({
+        nickname: profile.nickname,
+        age: profile.age,
+        weight_kg: profile.weight,
+        height_cm: profile.height,
+        visual_model: profile.visualModel,
+        onboarding_completed_at: new Date().toISOString(),
+      })
+      .eq('user_id', profile.id);
     return !error;
   } catch {
     return false;

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { getRepo } from '../repo';
-import type { UserProfile } from '../repo';
+import type { UserProfile, VisualModel } from '../repo';
 import type { ProfilePatch } from './service';
 import { createUser, updateProfile } from './service';
 import { loadAvatar, persistAvatar, removeAvatar } from './avatar';
@@ -11,7 +11,15 @@ type UserState = {
   isLoading: boolean;
   createUser: (nickname: string) => Promise<void>;
   updateProfile: (patch: ProfilePatch) => Promise<UserProfile | null>;
-  attachAccount: (account: { userId: string; nickname: string }) => Promise<void>;
+  attachAccount: (account: {
+    userId: string;
+    nickname: string;
+    age?: number;
+    weight?: number;
+    height?: number;
+    visualModel?: VisualModel;
+  }) => Promise<void>;
+  clearProfile: () => void;
   avatarUri: string | null;
   setAvatarUri: (sourceUri: string | null) => Promise<void>;
 };
@@ -64,21 +72,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
         return updated;
       },
-      attachAccount: async (account: { userId: string; nickname: string }) => {
+      attachAccount: async (account: {
+        userId: string;
+        nickname: string;
+        age?: number;
+        weight?: number;
+        height?: number;
+        visualModel?: VisualModel;
+      }) => {
         const local = await repo.getProfile();
-        const existing = local ?? {
-          id: account.userId,
-          nickname: 'Atleta',
-          createdAt: new Date().toISOString(),
-        };
+        const existing =
+          local?.id === account.userId
+            ? local
+            : {
+                id: account.userId,
+                nickname: 'Atleta',
+                createdAt: new Date().toISOString(),
+              };
         const merged: UserProfile = {
           ...existing,
           id: account.userId,
           nickname:
             account.nickname.trim().length > 0 ? account.nickname.trim() : existing.nickname,
+          age: account.age ?? existing.age,
+          weight: account.weight ?? existing.weight,
+          height: account.height ?? existing.height,
+          visualModel: account.visualModel ?? existing.visualModel,
         };
         await repo.saveProfile(merged);
         setProfile(merged);
+      },
+      clearProfile: () => {
+        setProfile(null);
+        setAvatarState({ ownerId: null, uri: null });
       },
       avatarUri,
       setAvatarUri: async (sourceUri: string | null) => {

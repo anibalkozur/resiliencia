@@ -13,6 +13,10 @@ export class MemoryRepo implements IRepo {
     this.profile = profile;
   }
 
+  async clearProfile(): Promise<void> {
+    this.profile = null;
+  }
+
   async getSetting(key: string): Promise<string | null> {
     return this.settings.get(key) ?? null;
   }

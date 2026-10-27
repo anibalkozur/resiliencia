@@ -4,6 +4,32 @@ Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medi
 
 ## Historial
 
+### 2026-10-26 — Cierre de cambios móviles, onboarding y recursos visuales
+
+**Petición del PO:** guardar y registrar el estado probado de la app, incluyendo
+la corrección de la imagen de flexiones en las tarjetas de Modo Libre.
+
+**Cambios incluidos en el cierre:**
+
+- La pose mostrada en las tarjetas de flexiones de mujer y hombre usa la
+  posición inferior/de trabajo, no la posición superior/de descanso.
+- Se incorporó el mapa de recursos visuales de ejercicios para adaptar la
+  imagen al modelo visual elegido por el usuario.
+- Se conservaron los recursos de ejercicios, onboarding y banco de pruebas
+  acumulados en el estado de trabajo.
+- Se incluyeron los cambios acumulados de onboarding de perfil, autenticación,
+  ajustes, eliminación de cuenta y persistencia local que estaban pendientes de
+  cierre.
+
+**Validación:** typecheck ✓ · lint ✓ · **225/225 tests ✓** · la app móvil y la
+selección visual de ejercicios fueron probadas por el PO: **OK**.
+
+**Alcance:** se excluyó `tmp.test`, que permanece sin tocar como archivo local
+pendiente. No se eliminaron backups ni cambios fuera de este cierre.
+
+**Entrega:** commit y push a `main`; acta 031; tag de recuperación y backup
+local asociados al mismo commit.
+
 ### 2026-10-25 — Animaciones de ejercicios en el banco de pruebas
 
 **Petición del PO:** probar recursos visuales profesionales para ejercicios sin

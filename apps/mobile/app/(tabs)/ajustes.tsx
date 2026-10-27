@@ -8,6 +8,7 @@ import { useAuth } from '../../src/auth/AuthProvider';
 import { getSupabase } from '../../src/auth/supabase';
 import { getRepo } from '../../src/repo';
 import { resetCloudProgress, resetLocalProgress } from '../../src/retos/reset';
+import { clearLocalAccountData, deleteAccount } from '../../src/auth/accountDeletion';
 import { LANGUAGE_OPTIONS } from '../../src/prefs/service';
 import { translate } from '../../src/i18n/translations';
 import type { TranslationKey } from '../../src/i18n/translations';
@@ -42,10 +43,11 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 export default function AjustesScreen() {
   const { prefs, updatePrefs } = usePrefs();
   const { session, signOut } = useAuth();
-  const { profile, avatarUri, setAvatarUri } = useUser();
+  const { profile, avatarUri, setAvatarUri, clearProfile } = useUser();
   const lang = prefs?.language ?? 'es';
   const [perfilOpen, setPerfilOpen] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const email = session?.user?.email ?? null;
   const displayName = profile?.nickname?.trim() || email?.split('@')[0] || 'Atleta';
@@ -191,6 +193,62 @@ export default function AjustesScreen() {
     );
   }
 
+  function confirmDeleteAccount() {
+    if (deleteBusy || !session?.user?.id) return;
+    Alert.alert(
+      translate(lang, 'settings.delete_account_title'),
+      translate(lang, 'settings.delete_account_warning'),
+      [
+        { text: translate(lang, 'settings.reset_cancel'), style: 'cancel' },
+        {
+          text: translate(lang, 'settings.delete_account_continue'),
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              translate(lang, 'settings.delete_account_confirm_title'),
+              translate(lang, 'settings.delete_account_confirm'),
+              [
+                { text: translate(lang, 'settings.reset_cancel'), style: 'cancel' },
+                {
+                  text: translate(lang, 'settings.delete_account'),
+                  style: 'destructive',
+                  onPress: () => void performDeleteAccount(),
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+
+  async function performDeleteAccount() {
+    const userId = session?.user?.id;
+    if (deleteBusy || !userId) return;
+    setDeleteBusy(true);
+    try {
+      await deleteAccount(getSupabase());
+    } catch (err) {
+      console.warn('[ajustes] delete account:', err);
+      setDeleteBusy(false);
+      Alert.alert(
+        translate(lang, 'settings.delete_account_error_title'),
+        translate(lang, 'settings.delete_account_error'),
+      );
+      return;
+    }
+
+    try {
+      await clearLocalAccountData(getRepo(), userId);
+    } catch (err) {
+      console.warn('[ajustes] clear local account data:', err);
+    } finally {
+      clearProfile();
+      await signOut();
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <ScrollView
       style={styles.screen}
@@ -313,6 +371,23 @@ export default function AjustesScreen() {
               onPress={confirmReset}
             >
               <Text style={styles.actionDangerText}>{translate(lang, 'settings.reset')}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.sectionBlockDanger}>
+            <Text style={styles.section}>{translate(lang, 'settings.delete_account')}</Text>
+            <Text style={styles.accountLine}>
+              {translate(lang, 'settings.delete_account_desc')}
+            </Text>
+            <Pressable
+              style={({ pressed }) => [styles.actionDanger, pressed && styles.chipPressed]}
+              onPress={confirmDeleteAccount}
+              disabled={deleteBusy || !session}
+            >
+              <Text style={styles.actionDangerText}>
+                {deleteBusy
+                  ? translate(lang, 'settings.delete_account_deleting')
+                  : translate(lang, 'settings.delete_account')}
+              </Text>
             </Pressable>
           </View>
         </View>

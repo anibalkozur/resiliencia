@@ -2,7 +2,7 @@ import type { IRepo } from './IRepo';
 import { SqliteRepo } from './sqliteRepo';
 
 export type { IRepo } from './IRepo';
-export type { UserProfile, UserSport } from './types';
+export type { UserProfile, UserSport, VisualModel } from './types';
 export { MemoryRepo } from './memoryRepo';
 export { SqliteRepo } from './sqliteRepo';
 

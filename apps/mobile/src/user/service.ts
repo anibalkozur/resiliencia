@@ -1,4 +1,4 @@
-import type { IRepo, UserProfile, UserSport } from '../repo';
+import type { IRepo, UserProfile, UserSport, VisualModel } from '../repo';
 import type { Goal } from '../prefs/types';
 
 export const AGE_MIN = 13;
@@ -36,6 +36,7 @@ export type SportId = (typeof SPORT_CATALOG)[number];
 export type ProfileMetrics = Pick<UserProfile, 'age' | 'weight' | 'height'>;
 
 export type ProfilePatch = Partial<ProfileMetrics> & {
+  visualModel?: VisualModel;
   sports?: UserSport[];
   waistCm?: number;
 };
@@ -74,14 +75,30 @@ export async function updateProfile(repo: IRepo, patch: ProfilePatch): Promise<U
   }
   const next: UserProfile = {
     ...existing,
-    age: normalizeMetric(patch.age, AGE_MIN, AGE_MAX),
-    weight: normalizeMetric(patch.weight, WEIGHT_MIN, WEIGHT_MAX),
-    height: normalizeMetric(patch.height, HEIGHT_MIN, HEIGHT_MAX),
+    age: patch.age !== undefined ? normalizeMetric(patch.age, AGE_MIN, AGE_MAX) : existing.age,
+    weight:
+      patch.weight !== undefined
+        ? normalizeMetric(patch.weight, WEIGHT_MIN, WEIGHT_MAX)
+        : existing.weight,
+    height:
+      patch.height !== undefined
+        ? normalizeMetric(patch.height, HEIGHT_MIN, HEIGHT_MAX)
+        : existing.height,
+    visualModel: patch.visualModel ?? existing.visualModel,
     sports: patch.sports !== undefined ? normalizeSports(patch.sports) : existing.sports,
     waistCm: patch.waistCm !== undefined ? normalizeWaistCm(patch.waistCm) : existing.waistCm,
   };
   await repo.saveProfile(next);
   return next;
+}
+
+export function isProfileComplete(profile: UserProfile | null): boolean {
+  return Boolean(
+    profile?.visualModel &&
+    profile.age !== undefined &&
+    profile.weight !== undefined &&
+    profile.height !== undefined,
+  );
 }
 
 export function normalizeSports(input: unknown): UserSport[] {

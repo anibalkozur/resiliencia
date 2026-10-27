@@ -47,6 +47,10 @@ export class SqliteRepo implements IRepo {
     );
   }
 
+  async clearProfile(): Promise<void> {
+    await (await this.getDb()).runAsync('DELETE FROM app_settings WHERE key = ?', PROFILE_KEY);
+  }
+
   async getSetting(key: string): Promise<string | null> {
     const row = await (
       await this.getDb()

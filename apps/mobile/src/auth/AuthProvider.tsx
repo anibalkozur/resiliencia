@@ -66,7 +66,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const server = await authService.fetchServerProfile(userId);
       const local = await repo.getProfile();
       const nickname = resolveNickname(server?.nickname, metaNickname, local?.nickname);
-      await attachAccount({ userId, nickname });
+      await attachAccount({
+        userId,
+        nickname,
+        age: server?.age,
+        weight: server?.weight,
+        height: server?.height,
+        visualModel: server?.visualModel,
+      });
       await syncAfterLogin(repo, userId);
     } catch (err) {
       console.warn('[auth] restoreServerProfile:', err);
