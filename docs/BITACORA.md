@@ -27,8 +27,9 @@ selección visual de ejercicios fueron probadas por el PO: **OK**.
 **Alcance:** se excluyó `tmp.test`, que permanece sin tocar como archivo local
 pendiente. No se eliminaron backups ni cambios fuera de este cierre.
 
-**Entrega:** commit y push a `main`; acta 031; tag de recuperación y backup
-local asociados al mismo commit.
+**Entrega:** commit `0f3313c` en `main`; acta 031; tag
+`backup-resiliencia-20261026-232247` y backup local
+`backups/resiliencia-20261026-232247.zip`.
 
 ### 2026-10-25 — Animaciones de ejercicios en el banco de pruebas
 

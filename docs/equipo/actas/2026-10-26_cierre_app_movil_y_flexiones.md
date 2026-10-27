@@ -32,8 +32,9 @@ flexiones a la posición inferior/de trabajo para mujer y hombre.
 
 ## 4. Backup y recuperación
 
-- El tag de backup se creó sobre el commit final de este cierre.
-- Se generó un archivo ZIP mediante `git archive` dentro de `backups/`.
+- Commit de código: `0f3313c`.
+- Tag de recuperación previsto: `backup-resiliencia-20261026-232247`.
+- Backup local previsto: `backups/resiliencia-20261026-232247.zip`.
 - Se conservaron los backups anteriores.
 
 ## 5. Entrega
