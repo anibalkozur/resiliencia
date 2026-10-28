@@ -4,6 +4,48 @@ Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medi
 
 ## Historial
 
+### 2026-10-27 — Onboarding personalizado, dependencias Expo y preparación de rangos
+
+**Petición del PO:** implementar la selección de objetivo y experiencia del
+usuario, registrar los datos capturados y dejar preparada la app para que una
+fase posterior adapte dificultad, repeticiones y progresión.
+
+**Cambios incluidos:**
+
+- Onboarding con cuatro objetivos nuevos visibles: perder grasa, ganar músculo,
+  crear hábito y sentirse mejor/reducir estrés.
+- Selección de experiencia: nunca entrené, principiante, intermedio y avanzado.
+- Persistencia local y sincronización de `experience_level` con Supabase.
+- Migración `0023_profile_goals_experience.sql`, aplicada de forma dirigida en
+  el proyecto remoto para ampliar restricciones y funciones sin reejecutar la
+  historia antigua de migraciones.
+- Rediseño visual de la selección de experiencia y nombres completos de los
+  días en el onboarding, con traducciones es/en/pt.
+- Actualización de Expo `58.0.19 -> 58.0.20` y seis módulos compatibles:
+  `expo-auth-session`, `expo-camera`, `expo-dev-client`, `expo-file-system`,
+  `expo-router` y `expo-web-browser`.
+- `validate_workout` desplegada y activa en Supabase.
+
+**Estado funcional:** el objetivo ya se usa en la lógica actual de retos; la
+edad, peso y altura se usan en el perfil y contexto del entrenador. El nivel de
+experiencia todavía se guarda, pero aún no modifica metas ni dificultad. Los
+días de entrenamiento organizan la semana localmente y todavía no se
+sincronizan con Supabase.
+
+**Validación:** typecheck ✓ · lint ✓ · **227/227 tests móviles ✓** · bundle
+Android ✓ · comprobación Expo SDK 58 ✓.
+
+**Entrega:** commit `5cc37bc` publicado en `main`; acta 032; tag
+`backup-resiliencia-20261027-223853`; backup local
+`backups/resiliencia-20261027-223853.zip`.
+
+**Alcance pendiente:** definir e implementar rangos combinados de edad,
+experiencia y objetivo, con límites seguros, progresión y pruebas; sincronizar
+los días de entrenamiento para recuperar el plan en otro dispositivo.
+
+**Alcance excluido:** `tmp.test` permanece fuera del commit y no se eliminaron
+backups ni datos del perfil del PO.
+
 ### 2026-10-26 — Cierre de cambios móviles, onboarding y recursos visuales
 
 **Petición del PO:** guardar y registrar el estado probado de la app, incluyendo
