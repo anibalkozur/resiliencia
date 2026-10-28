@@ -84,10 +84,30 @@ export const GOAL_EXERCISE_ORDER: Record<Goal, string[]> = {
     'mountain_climbers',
     'sentadilla_isometrica',
   ],
+  crear_habito: [
+    'sentadillas',
+    'plancha',
+    'flexiones',
+    'zancadas',
+    'puente_gluteo',
+    'mountain_climbers',
+    'sentadilla_isometrica',
+  ],
+  sentirme_mejor: [
+    'sentadillas',
+    'plancha',
+    'flexiones',
+    'zancadas',
+    'puente_gluteo',
+    'mountain_climbers',
+    'sentadilla_isometrica',
+  ],
 };
 
 export const GOAL_TARGET_MULTIPLIER: Record<Goal, number> = {
   perder_grasa: 1.2,
   ganar_musculo: 1.1,
   mantener: 1,
+  crear_habito: 1,
+  sentirme_mejor: 1,
 };

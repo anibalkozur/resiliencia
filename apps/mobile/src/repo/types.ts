@@ -6,6 +6,8 @@ export interface UserSport {
 
 export type VisualModel = 'mujer' | 'hombre';
 
+export type ExperienceLevel = 'nunca_entrene' | 'principiante' | 'intermedio' | 'avanzado';
+
 export interface UserProfile {
   id: string;
   nickname: string;
@@ -14,6 +16,7 @@ export interface UserProfile {
   weight?: number;
   height?: number;
   visualModel?: VisualModel;
+  experienceLevel?: ExperienceLevel;
   sports?: UserSport[];
   waistCm?: number;
 }

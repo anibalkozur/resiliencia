@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { getRepo } from '../repo';
-import type { UserProfile, VisualModel } from '../repo';
+import type { ExperienceLevel, UserProfile, VisualModel } from '../repo';
 import type { ProfilePatch } from './service';
 import { createUser, updateProfile } from './service';
 import { loadAvatar, persistAvatar, removeAvatar } from './avatar';
@@ -18,6 +18,7 @@ type UserState = {
     weight?: number;
     height?: number;
     visualModel?: VisualModel;
+    experienceLevel?: ExperienceLevel;
   }) => Promise<void>;
   clearProfile: () => void;
   avatarUri: string | null;
@@ -79,6 +80,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         weight?: number;
         height?: number;
         visualModel?: VisualModel;
+        experienceLevel?: ExperienceLevel;
       }) => {
         const local = await repo.getProfile();
         const existing =
@@ -98,6 +100,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           weight: account.weight ?? existing.weight,
           height: account.height ?? existing.height,
           visualModel: account.visualModel ?? existing.visualModel,
+          experienceLevel: account.experienceLevel ?? existing.experienceLevel,
         };
         await repo.saveProfile(merged);
         setProfile(merged);

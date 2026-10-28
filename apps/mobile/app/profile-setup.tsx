@@ -18,6 +18,7 @@ import { usePrefs } from '../src/prefs/PrefsProvider';
 import { GOAL_TRANSLATION_KEYS, translate } from '../src/i18n/translations';
 import type { TranslationKey } from '../src/i18n/translations';
 import type { Goal } from '../src/prefs/types';
+import { ONBOARDING_GOALS } from '../src/prefs/service';
 import { useUser } from '../src/user/UserProvider';
 import {
   AGE_MAX,
@@ -30,20 +31,67 @@ import {
 import { syncGoalToServer, syncProfileToServer } from '../src/sync/syncService';
 import { getSupabase } from '../src/auth/supabase';
 import { getRepo } from '../src/repo';
-import type { VisualModel } from '../src/repo';
+import type { ExperienceLevel, VisualModel } from '../src/repo';
 
 const womanArt = require('../assets/brand/onboarding-mujer.png');
 const manArt = require('../assets/brand/onboarding-hombre.png');
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
+type OnboardingGoal = Exclude<Goal, 'mantener'>;
+
+const GOAL_DESCRIPTION_KEYS: Record<OnboardingGoal, TranslationKey> = {
+  perder_grasa: 'goal.perder_grasa_desc',
+  ganar_musculo: 'goal.ganar_musculo_desc',
+  crear_habito: 'goal.crear_habito_desc',
+  sentirme_mejor: 'goal.sentirme_mejor_desc',
+};
+
+const GOAL_ICONS: Record<OnboardingGoal, string> = {
+  perder_grasa: '↗',
+  ganar_musculo: '✦',
+  crear_habito: '↻',
+  sentirme_mejor: '≈',
+};
+
+const EXPERIENCE_OPTIONS: {
+  value: ExperienceLevel;
+  symbol: string;
+  label: TranslationKey;
+  description: TranslationKey;
+}[] = [
+  {
+    value: 'nunca_entrene',
+    symbol: '✦',
+    label: 'experience.nunca_entrene',
+    description: 'experience.nunca_entrene_desc',
+  },
+  {
+    value: 'principiante',
+    symbol: '↗',
+    label: 'experience.principiante',
+    description: 'experience.principiante_desc',
+  },
+  {
+    value: 'intermedio',
+    symbol: '◆',
+    label: 'experience.intermedio',
+    description: 'experience.intermedio_desc',
+  },
+  {
+    value: 'avanzado',
+    symbol: '✧',
+    label: 'experience.avanzado',
+    description: 'experience.avanzado_desc',
+  },
+];
 
 const DAY_OPTIONS: { value: number; label: TranslationKey }[] = [
-  { value: 1, label: 'weekday.mon' },
-  { value: 2, label: 'weekday.tue' },
-  { value: 3, label: 'weekday.wed' },
-  { value: 4, label: 'weekday.thu' },
-  { value: 5, label: 'weekday.fri' },
-  { value: 6, label: 'weekday.sat' },
-  { value: 0, label: 'weekday.sun' },
+  { value: 1, label: 'weekday.mon_full' },
+  { value: 2, label: 'weekday.tue_full' },
+  { value: 3, label: 'weekday.wed_full' },
+  { value: 4, label: 'weekday.thu_full' },
+  { value: 5, label: 'weekday.fri_full' },
+  { value: 6, label: 'weekday.sat_full' },
+  { value: 0, label: 'weekday.sun_full' },
 ];
 
 function clamp(value: number, min: number, max: number): number {
@@ -158,7 +206,8 @@ export default function ProfileSetupScreen() {
   const lang = prefs?.language ?? 'es';
   const [step, setStep] = useState(0);
   const [visualModel, setVisualModel] = useState<VisualModel | undefined>();
-  const [goal, setGoal] = useState<Goal>('mantener');
+  const [goal, setGoal] = useState<OnboardingGoal>('crear_habito');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>();
   const [ageText, setAgeText] = useState('');
   const [weight, setWeight] = useState(70);
   const [height, setHeight] = useState(170);
@@ -174,12 +223,13 @@ export default function ProfileSetupScreen() {
     setAgeText(profile.age != null ? String(profile.age) : '');
     setWeight(profile.weight ?? 70);
     setHeight(profile.height ?? 170);
+    setExperienceLevel(profile.experienceLevel);
   }, [profile]);
 
   useEffect(() => {
     if (prefsInitialized.current || !prefs) return;
     prefsInitialized.current = true;
-    setGoal(prefs.goal);
+    setGoal(prefs.goal === 'mantener' ? 'crear_habito' : prefs.goal);
     setTrainingDays(prefs.trainingDays);
   }, [prefs]);
 
@@ -191,11 +241,13 @@ export default function ProfileSetupScreen() {
       : step === 1
         ? validAge
         : step === 5
-          ? trainingDays.length > 0
-          : true;
+          ? experienceLevel !== undefined
+          : step === 6
+            ? trainingDays.length > 0
+            : true;
 
   async function finish() {
-    if (!profile || !visualModel || !validAge || busy) return;
+    if (!profile || !visualModel || !experienceLevel || !validAge || busy) return;
     setBusy(true);
     try {
       const updated = await updateProfile({
@@ -203,6 +255,7 @@ export default function ProfileSetupScreen() {
         age,
         weight,
         height,
+        experienceLevel,
       });
       await updatePrefs({ goal, trainingDays });
       if (updated) {
@@ -243,7 +296,9 @@ export default function ProfileSetupScreen() {
             ? translate(lang, 'profile_setup.height_title')
             : step === 4
               ? translate(lang, 'profile_setup.goal_title')
-              : translate(lang, 'profile_setup.days_title');
+              : step === 5
+                ? translate(lang, 'profile_setup.experience_title')
+                : translate(lang, 'profile_setup.days_title');
   const body =
     step === 0
       ? translate(lang, 'profile_setup.visual_body')
@@ -255,7 +310,9 @@ export default function ProfileSetupScreen() {
             ? translate(lang, 'profile_setup.height_body')
             : step === 4
               ? translate(lang, 'profile_setup.goal_body')
-              : translate(lang, 'profile_setup.days_body');
+              : step === 5
+                ? translate(lang, 'profile_setup.experience_body')
+                : translate(lang, 'profile_setup.days_body');
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -370,7 +427,7 @@ export default function ProfileSetupScreen() {
 
           {step === 4 ? (
             <View style={styles.goalGrid}>
-              {(Object.keys(GOAL_TRANSLATION_KEYS) as Goal[]).map((option) => (
+              {ONBOARDING_GOALS.map((option) => (
                 <Pressable
                   key={option}
                   style={({ pressed }) => [
@@ -382,10 +439,16 @@ export default function ProfileSetupScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: goal === option }}
                 >
+                  <View style={[styles.goalIcon, goal === option && styles.goalIconSelected]}>
+                    <Text style={styles.goalIconText}>{GOAL_ICONS[option]}</Text>
+                  </View>
                   <Text
                     style={[styles.goalCardText, goal === option && styles.goalCardTextSelected]}
                   >
                     {translate(lang, GOAL_TRANSLATION_KEYS[option])}
+                  </Text>
+                  <Text style={styles.goalCardDescription}>
+                    {translate(lang, GOAL_DESCRIPTION_KEYS[option])}
                   </Text>
                 </Pressable>
               ))}
@@ -393,6 +456,53 @@ export default function ProfileSetupScreen() {
           ) : null}
 
           {step === 5 ? (
+            <View style={styles.experienceList}>
+              {EXPERIENCE_OPTIONS.map((option) => {
+                const selected = experienceLevel === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={({ pressed }) => [
+                      styles.experienceCard,
+                      selected && styles.experienceCardSelected,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => setExperienceLevel(option.value)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <View
+                      style={[styles.experienceMark, selected && styles.experienceMarkSelected]}
+                    >
+                      <Text
+                        style={[
+                          styles.experienceMarkText,
+                          selected && styles.experienceMarkTextSelected,
+                        ]}
+                      >
+                        {option.symbol}
+                      </Text>
+                    </View>
+                    <View style={styles.experienceCopy}>
+                      <Text
+                        style={[styles.experienceLabel, selected && styles.experienceLabelSelected]}
+                      >
+                        {translate(lang, option.label)}
+                      </Text>
+                      <Text style={styles.experienceDescription}>
+                        {translate(lang, option.description)}
+                      </Text>
+                    </View>
+                    <View style={[styles.selectionMark, selected && styles.selectionMarkSelected]}>
+                      {selected ? <Text style={styles.selectionMarkText}>✓</Text> : null}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+
+          {step === 6 ? (
             <View style={styles.daysPanel}>
               <Text style={styles.daysCount}>
                 {translate(lang, 'profile_setup.days_count', { count: trainingDays.length })}
@@ -430,7 +540,7 @@ export default function ProfileSetupScreen() {
             </View>
           ) : null}
 
-          {step === 6 ? (
+          {step === 7 ? (
             <View style={styles.summaryPanel}>
               <View style={styles.summaryCharacter}>
                 <Image
@@ -454,6 +564,16 @@ export default function ProfileSetupScreen() {
                 </Text>
                 <Text style={styles.summaryRow}>
                   {translate(lang, GOAL_TRANSLATION_KEYS[goal])}
+                </Text>
+                <Text style={styles.summaryRow}>
+                  {translate(lang, 'profile_setup.experience_summary')}:{' '}
+                  {experienceLevel
+                    ? translate(
+                        lang,
+                        EXPERIENCE_OPTIONS.find((option) => option.value === experienceLevel)!
+                          .label,
+                      )
+                    : '—'}
                 </Text>
               </View>
             </View>
@@ -534,20 +654,88 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     textAlign: 'center',
   },
-  goalGrid: { gap: spacing.sm, marginTop: spacing.xl },
+  goalGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    marginTop: spacing.xl,
+  },
   goalCard: {
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    minHeight: 154,
+    justifyContent: 'flex-start',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    width: '48%',
+  },
+  goalCardSelected: { backgroundColor: colors.surface, borderColor: colors.teal, borderWidth: 2 },
+  goalIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+    width: 34,
+  },
+  goalIconSelected: { backgroundColor: colors.teal, borderColor: colors.teal },
+  goalIconText: { color: colors.teal, fontSize: 20, fontWeight: '900' },
+  goalCardText: { color: colors.silverDim, fontSize: 15, fontWeight: '800', lineHeight: 19 },
+  goalCardTextSelected: { color: colors.teal },
+  goalCardDescription: { color: colors.silverDim, fontSize: 12, lineHeight: 17, marginTop: 6 },
+  experienceList: { gap: spacing.sm, marginTop: spacing.xl },
+  experienceCard: {
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.line,
     borderRadius: radius.md,
     borderWidth: 1,
-    minHeight: 58,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    minHeight: 78,
+    padding: spacing.md,
   },
-  goalCardSelected: { backgroundColor: colors.surface, borderColor: colors.teal, borderWidth: 2 },
-  goalCardText: { color: colors.silverDim, fontSize: 16, fontWeight: '700' },
-  goalCardTextSelected: { color: colors.teal },
+  experienceCardSelected: {
+    backgroundColor: '#0D272A',
+    borderColor: colors.teal,
+    borderWidth: 2,
+  },
+  experienceMark: {
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+    marginRight: spacing.md,
+    width: 42,
+  },
+  experienceMarkSelected: { backgroundColor: colors.teal, borderColor: colors.teal },
+  experienceMarkText: { color: colors.teal, fontSize: 20, fontWeight: '900' },
+  experienceMarkTextSelected: { color: colors.bg },
+  experienceCopy: { flex: 1 },
+  experienceLabel: { color: colors.silver, fontSize: 16, fontWeight: '800' },
+  experienceLabelSelected: { color: colors.teal },
+  experienceDescription: { color: colors.silverDim, fontSize: 13, lineHeight: 18, marginTop: 3 },
+  selectionMark: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    height: 24,
+    justifyContent: 'center',
+    marginLeft: spacing.sm,
+    width: 24,
+  },
+  selectionMarkSelected: { backgroundColor: colors.teal, borderColor: colors.teal },
+  selectionMarkText: { color: colors.bg, fontSize: 15, fontWeight: '900' },
   daysPanel: {
     backgroundColor: colors.surface,
     borderColor: colors.line,
@@ -576,7 +764,7 @@ const styles = StyleSheet.create({
     width: '30%',
   },
   dayCardSelected: { borderColor: colors.teal, backgroundColor: colors.surface },
-  dayCardText: { color: colors.silverDim, fontSize: 13, fontWeight: '800' },
+  dayCardText: { color: colors.silverDim, fontSize: 13, fontWeight: '800', textAlign: 'center' },
   dayCardTextSelected: { color: colors.silver },
   dayDot: {
     backgroundColor: colors.line,

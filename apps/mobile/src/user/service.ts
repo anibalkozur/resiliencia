@@ -1,4 +1,4 @@
-import type { IRepo, UserProfile, UserSport, VisualModel } from '../repo';
+import type { ExperienceLevel, IRepo, UserProfile, UserSport, VisualModel } from '../repo';
 import type { Goal } from '../prefs/types';
 
 export const AGE_MIN = 13;
@@ -37,6 +37,7 @@ export type ProfileMetrics = Pick<UserProfile, 'age' | 'weight' | 'height'>;
 
 export type ProfilePatch = Partial<ProfileMetrics> & {
   visualModel?: VisualModel;
+  experienceLevel?: ExperienceLevel;
   sports?: UserSport[];
   waistCm?: number;
 };
@@ -85,6 +86,7 @@ export async function updateProfile(repo: IRepo, patch: ProfilePatch): Promise<U
         ? normalizeMetric(patch.height, HEIGHT_MIN, HEIGHT_MAX)
         : existing.height,
     visualModel: patch.visualModel ?? existing.visualModel,
+    experienceLevel: patch.experienceLevel ?? existing.experienceLevel,
     sports: patch.sports !== undefined ? normalizeSports(patch.sports) : existing.sports,
     waistCm: patch.waistCm !== undefined ? normalizeWaistCm(patch.waistCm) : existing.waistCm,
   };

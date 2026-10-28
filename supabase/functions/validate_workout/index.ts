@@ -18,7 +18,13 @@ const MAX_CHALLENGE_AGE_DAYS = 365;
 // (?v=) y en buildVerifyUri; solo se aceptan versiones explícitas para evitar
 // downgrade o versiones inventadas.
 const ALLOWED_EVIDENCE_VERSIONS = new Set([12, 13, 53, 54]);
-const GOALS = ['perder_grasa', 'ganar_musculo', 'mantener'] as const;
+const GOALS = [
+  'perder_grasa',
+  'ganar_musculo',
+  'crear_habito',
+  'sentirme_mejor',
+  'mantener',
+] as const;
 type Goal = (typeof GOALS)[number];
 
 // El título de sesión por ángulo del cuerpo NO cambia la rotación: desde
@@ -56,6 +62,24 @@ const EXERCISE_ORDER: Record<Goal, string[]> = {
     'mountain_climbers',
     'sentadilla_isometrica',
   ],
+  crear_habito: [
+    'sentadillas',
+    'plancha',
+    'flexiones',
+    'zancadas',
+    'puente_gluteo',
+    'mountain_climbers',
+    'sentadilla_isometrica',
+  ],
+  sentirme_mejor: [
+    'sentadillas',
+    'plancha',
+    'flexiones',
+    'zancadas',
+    'puente_gluteo',
+    'mountain_climbers',
+    'sentadilla_isometrica',
+  ],
 };
 
 const DEFAULT_TARGETS: Record<string, number> = {
@@ -73,6 +97,8 @@ const TARGET_MULTIPLIER: Record<Goal, number> = {
   perder_grasa: 1.2,
   ganar_musculo: 1.1,
   mantener: 1,
+  crear_habito: 1,
+  sentirme_mejor: 1,
 };
 
 const EXERCISE_UNITS: Record<string, 'reps' | 'seconds'> = {
@@ -112,7 +138,7 @@ type IncomingCompletion = {
   exerciseCode: string;
   value: number;
   target: number;
-  goal: 'perder_grasa' | 'ganar_musculo' | 'mantener';
+  goal: Goal;
   unit?: 'reps' | 'seconds';
   evidence?: Record<string, unknown>;
 };

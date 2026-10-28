@@ -36,6 +36,12 @@ describe('normalizePrefs', () => {
     expect(normalizePrefs({ language: 'xx' as never }).language).toBe(DEFAULT_PREFS.language);
   });
 
+  it('accepts the new onboarding goals and keeps legacy maintain valid', () => {
+    expect(normalizePrefs({ goal: 'crear_habito' }).goal).toBe('crear_habito');
+    expect(normalizePrefs({ goal: 'sentirme_mejor' }).goal).toBe('sentirme_mejor');
+    expect(normalizePrefs({ goal: 'mantener' }).goal).toBe('mantener');
+  });
+
   it('defaults to appearing in the ranking when visibility is not set', () => {
     expect(normalizePrefs(undefined).showInRanking).toBe(true);
   });

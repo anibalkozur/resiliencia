@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase } from './supabase';
 import { getRepo } from '../repo';
-import type { VisualModel } from '../repo';
+import type { ExperienceLevel, VisualModel } from '../repo';
 
 export const PASSWORD_MIN = 6;
 
@@ -27,6 +27,7 @@ export interface ServerProfile {
   weight?: number;
   height?: number;
   visualModel?: VisualModel;
+  experienceLevel?: ExperienceLevel;
 }
 
 const GENERIC_NICKNAMES = new Set(['atleta', 'atletas']);
@@ -192,7 +193,7 @@ export async function fetchServerProfile(
   try {
     const { data, error } = await client
       .from('profiles')
-      .select('user_id, nickname, age, weight_kg, height_cm, visual_model')
+      .select('user_id, nickname, age, weight_kg, height_cm, visual_model, experience_level')
       .eq('user_id', userId)
       .maybeSingle();
     if (error || !data) {
@@ -205,6 +206,7 @@ export async function fetchServerProfile(
       weight_kg?: number | null;
       height_cm?: number | null;
       visual_model?: VisualModel | null;
+      experience_level?: ExperienceLevel | null;
     };
     return {
       id: row.user_id,
@@ -213,6 +215,7 @@ export async function fetchServerProfile(
       weight: row.weight_kg ?? undefined,
       height: row.height_cm ?? undefined,
       visualModel: row.visual_model ?? undefined,
+      experienceLevel: row.experience_level ?? undefined,
     };
   } catch {
     return null;

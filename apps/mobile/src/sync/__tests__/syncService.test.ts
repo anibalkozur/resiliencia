@@ -136,7 +136,7 @@ describe('uploadCompletions', () => {
             challengeDate: todayKey(),
             exerciseCode: buildChallenge(todayKey(), 'mantener').exerciseId,
             target: buildChallenge(todayKey(), 'mantener').target,
-            goal: 'mantener',
+            goal: 'crear_habito',
             value: buildChallenge(todayKey(), 'mantener').target,
             unit: 'reps',
             evidence: undefined,
@@ -521,6 +521,6 @@ describe('syncAfterLogin', () => {
 
     await syncAfterLogin(repo, 'user-1', client);
 
-    expect(calls.rpc).toEqual({ name: 'set_goal', args: { p_goal: 'mantener' } });
+    expect(calls.rpc).toEqual({ name: 'set_goal', args: { p_goal: 'crear_habito' } });
   });
 });

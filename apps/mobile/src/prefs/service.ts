@@ -7,7 +7,7 @@ const PREFS_KEY = 'prefs';
 export const DEFAULT_TRAINING_DAYS: number[] = [1, 3, 5, 6];
 
 export const DEFAULT_PREFS: UserPrefs = {
-  goal: 'mantener',
+  goal: 'crear_habito',
   trainingDays: DEFAULT_TRAINING_DAYS,
   language: 'es',
   showInRanking: true,
@@ -26,8 +26,18 @@ const LEGACY_TRAINING_SLOTS: Record<number, number[]> = {
 export const GOAL_LABELS: Record<Goal, string> = {
   perder_grasa: 'Perder grasa',
   ganar_musculo: 'Ganar músculo',
+  crear_habito: 'Crear hábito',
+  sentirme_mejor: 'Sentirme mejor y reducir estrés',
+  // Compatibilidad con perfiles y retos creados antes del nuevo onboarding.
   mantener: 'Mantener',
 };
+
+export const ONBOARDING_GOALS: Exclude<Goal, 'mantener'>[] = [
+  'perder_grasa',
+  'ganar_musculo',
+  'crear_habito',
+  'sentirme_mejor',
+];
 
 export const LANGUAGE_OPTIONS: { code: Language; label: string }[] = [
   { code: 'es', label: 'Español' },

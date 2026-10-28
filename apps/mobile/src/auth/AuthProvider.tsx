@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         weight: server?.weight,
         height: server?.height,
         visualModel: server?.visualModel,
+        experienceLevel: server?.experienceLevel,
       });
       await syncAfterLogin(repo, userId);
     } catch (err) {

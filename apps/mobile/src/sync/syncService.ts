@@ -198,6 +198,7 @@ export async function syncProfileToServer(
         weight_kg: profile.weight,
         height_cm: profile.height,
         visual_model: profile.visualModel,
+        experience_level: profile.experienceLevel,
         onboarding_completed_at: new Date().toISOString(),
       })
       .eq('user_id', profile.id);

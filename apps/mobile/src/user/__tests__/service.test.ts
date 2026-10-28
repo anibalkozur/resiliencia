@@ -101,6 +101,14 @@ describe('updateProfile', () => {
     expect(updated?.height).toBe(100);
   });
 
+  it('persists the selected experience level', async () => {
+    const repo = new MemoryRepo();
+    await createUser(repo, 'Anibal');
+    const updated = await updateProfile(repo, { experienceLevel: 'principiante' });
+    expect(updated?.experienceLevel).toBe('principiante');
+    expect((await repo.getProfile())?.experienceLevel).toBe('principiante');
+  });
+
   it('returns null when there is no profile', async () => {
     const repo = new MemoryRepo();
     expect(await updateProfile(repo, { age: 30 })).toBeNull();
