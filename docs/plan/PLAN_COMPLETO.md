@@ -1322,6 +1322,216 @@ no como mera facturación de banners.
 
 ---
 
+## 24. Personalización guiada y control del usuario
+
+### 24.1 Decisión de producto del PO
+
+ResiliencIA ofrecerá recomendaciones personalizadas, pero no impondrá una
+rutina cerrada. La aplicación propondrá ejercicios, variantes, repeticiones,
+tiempos, descansos y días según los datos del usuario; el usuario podrá
+aceptarlos o modificarlos, subir o bajar el nivel general y ajustar cada
+ejercicio individualmente.
+
+El modelo de decisión será:
+
+```text
+datos del usuario
+→ recomendación inicial
+→ aceptación o edición del usuario
+→ plan vigente personalizado
+→ validación server-side del reto y del resultado
+```
+
+La elección del usuario tiene prioridad sobre la recomendación. Se mantienen,
+sin embargo, límites técnicos y de seguridad mínimos: valores válidos, señales
+de detención, advertencias claras y ningún dato enviado por el cliente puede
+convertirse por sí solo en una verificación o puntuación legítima.
+
+La preferencia mujer/hombre sigue siendo exclusivamente visual. No modifica
+repeticiones, fuerza esperada ni dificultad.
+
+### 24.2 Alcance inicial
+
+La primera implementación se limita a flexiones, abdominales y sentadillas,
+para evitar una matriz inmanejable y permitir pruebas reales en cámara. El
+motor debe ser reutilizable para los demás ejercicios después del gate inicial.
+
+No se implementará una fórmula directa de edad, peso y altura contra
+repeticiones. Las curvas suaves quedan postergadas hasta disponer de historial
+real y suficiente.
+
+### 24.3 Fase 0 — Ficha y límites por ejercicio
+
+Para cada ejercicio se define una ficha versionada con:
+
+- variantes fácil, normal y avanzada;
+- unidad: repeticiones o segundos;
+- meta mínima y máxima;
+- descanso recomendado;
+- incremento máximo por sesión;
+- regla de retroceso;
+- nivel inicial recomendado;
+- técnica y rango de movimiento esperados;
+- señales de detención;
+- compatibilidad con la cámara.
+
+Dueños: `[MED]` define seguridad; `[CV]` confirma verificabilidad; `[UX]`
+diseña la explicación; `[QA]` prepara extremos; `[PM]` aprueba el contrato.
+
+Gate: cada ficha tiene límites verificables, variante seleccionable y pruebas
+de cámara; no se activan metas sin mínimo, máximo ni regla de retroceso.
+
+### 24.4 Fase 1 — Datos y sincronización
+
+Se sincronizan con Supabase los días concretos de entrenamiento, experiencia,
+objetivo, edad, peso, altura y fecha de actualización. Los días deben
+recuperarse al iniciar sesión en otro dispositivo, funcionar offline y
+resolver conflictos sin duplicar ni perder cambios.
+
+Dueños: `[BE]` migración, RLS y contrato; `[MOB]` cola offline-first; `[SEC]`
+privacidad; `[SRE]` backup/rollback; `[QA]` reconexión y cambio de dispositivo.
+
+Gate: el usuario recupera sus días en otro dispositivo, el servidor rechaza
+valores inválidos, la operación es idempotente y los retos históricos no cambian
+al editar el calendario.
+
+### 24.5 Fase 2 — Recomendación inicial por experiencia
+
+La experiencia declarada selecciona el punto de partida dentro de la ficha:
+
+- nunca entrené: variante fácil y meta baja;
+- principiante: variante fácil-normal;
+- intermedio: variante normal;
+- avanzado: variante normal-avanzada.
+
+El usuario puede modificar la recomendación. La app debe explicar la propuesta
+sin presentarla como diagnóstico ni como obligación.
+
+Dueños: `[BE]` cálculo oficial; `[MOB]` propuesta offline; `[MED]` revisión de
+saltos; `[UX]` pantalla “por qué recibí esta meta”; `[QA]` matriz de niveles.
+
+Gate: móvil y servidor producen la misma propuesta, la selección queda dentro
+de la ficha, el usuario puede editarla y el cliente no puede falsificar el
+resultado verificado.
+
+### 24.6 Fase 3 — Edad como límite y recuperación
+
+La edad no calculará directamente la capacidad. Se utilizará para seleccionar
+bandas de precaución, descanso, recuperación, impacto y velocidad máxima de
+progresión. No se usarán IMC, peso o sexo para etiquetar al usuario ni para
+declararlo apto o no apto.
+
+Dueños: `[MED]` bandas y señales; `[BE]` límites server-side; `[UX]` lenguaje
+honesto; `[SEC]` datos sensibles; `[LEG]` cumplimiento; `[QA]` edades extremas.
+
+Gate: las reglas son iguales offline/online, no producen metas peligrosas por
+edad, permiten corregir datos y no muestran diagnósticos.
+
+### 24.7 Fase 4 — Objetivo y distribución semanal
+
+El objetivo modifica la estrategia, no solo un multiplicador de repeticiones:
+
+- perder grasa: continuidad y volumen moderado;
+- ganar músculo: control, pausas y progresión;
+- crear hábito: metas accesibles y constancia;
+- sentirse mejor: intensidad moderada y recuperación.
+
+Los días elegidos definen entrenamiento, descanso y distribución de carga. La
+app debe poder mostrar claramente por qué un día es de descanso.
+
+Dueños: `[PM]` estrategia; `[BE]` reglas semanales; `[MOB]` calendario y
+offline; `[UX]` presentación; `[MED]` distribución segura; `[QA]` combinaciones.
+
+Gate: no se propone entrenamiento en descanso, la distribución coincide en
+móvil y servidor y cambiar días no altera asignaciones históricas.
+
+### 24.8 Fase 5 — Motor único, server-authoritative y versionado
+
+Debe existir una única configuración de reglas compartida por móvil y servidor:
+
+```text
+rule_version
+exercise
+experience
+age_band
+goal
+training_days
+variant
+target
+rest_seconds
+limits_applied
+```
+
+El móvil puede calcular una propuesta provisional sin red. Supabase calcula y
+confirma la asignación oficial. Cada asignación nueva conserva la versión de
+reglas, el perfil usado, la variante, la meta, los límites y la fecha de
+cálculo. Las asignaciones históricas no se recalculan retroactivamente.
+
+Dueños: `[BE]` motor y Edge Function; `[MOB]` fallback; `[SEC]` integridad;
+`[QA]` paridad; `[SRE]` despliegue/rollback; `[PM]` gate.
+
+### 24.9 Fase 6 — Historial, dificultad y dolor
+
+Después de cada sesión se registra, con consentimiento y protección adecuada:
+
+- meta propuesta y resultado verificado;
+- variante utilizada;
+- completó, abandonó o fue rechazado;
+- dificultad: muy fácil, adecuado o muy difícil;
+- dolor o molestia;
+- descanso y motivo del ajuste.
+
+Reglas iniciales:
+
+- dolor o señal de alarma: detener progresión y mostrar orientación prudente;
+- muy difícil: mantener o reducir;
+- adecuado: mantener o progresar gradualmente;
+- muy fácil: progresar solo una variable;
+- abandono o rechazo: no aumentar automáticamente.
+
+Dueños: `[MOB]` captura; `[BE]` almacenamiento; `[MED]` reglas; `[UX]` flujo;
+`[SEC]` privacidad; `[QA]` escenarios.
+
+Gate: dolor congela la progresión, el historial funciona offline y sincroniza,
+el usuario puede corregir una respuesta accidental y estos datos nunca aparecen
+en rankings ni perfiles públicos.
+
+### 24.10 Fase 7 — Curva suave acotada, posterior
+
+Solo después de contar con historial real se podrá evaluar una curva suave para
+ajustar dentro de límites aprobados:
+
+```text
+meta base
+→ experiencia
+→ seguridad por edad
+→ objetivo
+→ historial real
+→ ajuste suave
+→ mínimo y máximo
+```
+
+La curva será determinista, explicable, versionada, reversible y apagable por
+bandera. No se implementarán curvas libres, edad × peso × altura como fórmula
+directa ni aprendizaje automático opaco.
+
+Dueños: `[DATA]`, `[MED]`, `[BE]`, `[SEC]`, `[QA]`, `[UX]` y `[PM]`.
+
+### 24.11 Participación de UX y criterio de terminado
+
+`[UX]` participa desde la Fase 0 y aprueba cada gate visualmente. Debe diseñar
+la meta personalizada, la explicación “por qué”, el selector de variante, el
+calendario, la evaluación posterior, el registro de dolor y los estados offline
+(`provisional`, `pendiente`, `confirmada`, `reintentar`).
+
+La personalización se considera terminada cuando el usuario entiende y puede
+editar su recomendación, los días se recuperan en otro dispositivo, móvil y
+servidor coinciden, las asignaciones quedan versionadas, el dolor no aumenta
+la carga, offline no marca verificado y pasan las pruebas ES/EN/PT, accesibilidad,
+cámara, reconexión y cambios de perfil.
+
+---
+
 ## Apéndice A — Orden de prioridad de las tareas críticas para no romper nada
 
 1. Portar `packages/domain` con tests idénticos a app.html (Fase 1.8) →

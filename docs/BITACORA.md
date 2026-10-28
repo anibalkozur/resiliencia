@@ -4,6 +4,45 @@ Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medi
 
 ## Historial
 
+### 2026-10-27 — Plan de personalización guiada con control del usuario
+
+**Decisión del PO:** la app debe recomendar una configuración personalizada,
+pero el usuario tiene la última palabra. Podrá aceptar o modificar ejercicios,
+variantes, repeticiones, tiempos, descansos, días y nivel general. La app
+mantiene advertencias y límites mínimos de seguridad; el servidor conserva la
+autoridad sobre la validez de la sesión, no sobre la preferencia personal del
+usuario.
+
+**Plan registrado por el equipo:**
+
+1. Fichas versionadas y límites para flexiones, abdominales y sentadillas.
+2. Sincronización de días y datos de perfil con Supabase.
+3. Meta inicial basada en experiencia.
+4. Edad para precauciones, límites y recuperación, no para adivinar capacidad.
+5. Objetivo para estrategia y días para distribuir carga y descanso.
+6. Historial de resultado, dificultad, abandono, dolor y motivo de ajuste.
+7. Motor único, server-authoritative y con `rule_version`.
+8. Curva suave acotada únicamente después de obtener historial real suficiente.
+
+**Participación del equipo:** `[MED]` valida límites; `[CV]` compatibilidad de
+cámara; `[UX]` diseña la experiencia desde el inicio; `[MOB]` mantiene
+offline-first; `[BE]` centraliza reglas, RLS y autoridad; `[SEC]` protege datos
+sensibles; `[QA]` prueba extremos, paridad y reconexión; `[SRE]` respalda y
+permite rollback; `[PM]` conduce gates; `[DER]` mantiene el estado y los riesgos.
+
+**Regla explícita:** no se implementarán curvas directas de edad × peso × altura
+contra repeticiones. La curva posterior será opcional, determinista,
+versionada, explicable, reversible y siempre limitada por la ficha del
+ejercicio.
+
+**Estado actual:** el onboarding ya captura los datos, pero la experiencia aún
+no gobierna las metas reales, los días todavía no se recuperan desde Supabase,
+el historial de dificultad/dolor no existe y el motor de dominio todavía no
+gobierna completamente el reto diario.
+
+**Documento fuente:** sección 24 de `docs/plan/PLAN_COMPLETO.md`. No se
+implementó código en esta sesión.
+
 ### 2026-10-27 — Onboarding personalizado, dependencias Expo y preparación de rangos
 
 **Petición del PO:** implementar la selección de objetivo y experiencia del

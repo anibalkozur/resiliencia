@@ -1,5 +1,27 @@
 # Estado del equipo
 
+## Snapshot vigente — 2026-10-27
+
+- El onboarding ya captura modelo visual, edad, peso, altura, objetivo,
+  experiencia y días de entrenamiento.
+- El plan de personalización está definido en la sección 24 de
+  `docs/plan/PLAN_COMPLETO.md` y en el acta 033.
+- Todavía no existe personalización real de metas: experiencia, edad, peso y
+  altura aún no gobiernan el reto diario.
+- Los días de entrenamiento siguen siendo locales y aún no se recuperan desde
+  Supabase en otro dispositivo.
+- El motor de progresión de `packages/domain` todavía no gobierna de forma
+  única el reto server-authoritative.
+- No existe todavía historial de dificultad, dolor, recuperación ni
+  `rule_version` en las asignaciones.
+- La curva suave queda postergada hasta contar con historial real; no se
+  implementará una fórmula directa edad × peso × altura.
+- El usuario podrá editar las recomendaciones; el servidor seguirá validando
+  la legitimidad del resultado y los límites técnicos mínimos.
+
+El detalle histórico que sigue contiene cifras y estados de cortes anteriores;
+para el estado actual debe usarse este snapshot, la última acta y el código.
+
 - **Fase**: 0 (Fundaciones) · **Sprint**: 0 → **atrasada**: sin acta de gate de
   Fase 0 pese a trabajo de Fases 0–1/E en `main` (el plan v4 free/pro rige
   desde 2026-09-28).
