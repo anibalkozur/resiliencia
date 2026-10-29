@@ -1,0 +1,239 @@
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-27 23:13:45
+Punto de estado actual: Punto 37 (documentacion): PLAN DE PERSONALIZACION GUIADA CON CONTROL DEL USUARIO. (a) La app recomienda ejercicios, variantes, repeticiones, tiempos, descansos, dias y nivel segun los datos del usuario; el usuario puede aceptar o modificar todo el plan. (b) Se definio el orden: fichas y limites de flexiones/abdominales/sentadillas; sincronizacion de dias; meta inicial por experiencia; edad como precaucion y recuperacion; objetivo y distribucion semanal; historial de dificultad/dolor; motor server-authoritative versionado; curva suave posterior y acotada. (c) No se implementan curvas directas edad x peso x altura. (d) UX participa desde la ficha inicial y debe explicar y permitir editar cada recomendacion. (e) El servidor valida la legitimidad del resultado, no impone la preferencia del usuario.
+Estado de pruebas: documentacion registrada; no hubo cambios de codigo en esta sesion. El commit de cierre anterior mantiene typecheck, lint, 227 tests moviles y exportacion Android OK.
+Publicacion GitHub: origin/main -> 3922d49 (docs: registrar plan de personalizacion guiada).
+Tag de recuperacion: backup-resiliencia-20261027-231345.
+Backup local final: backups\resiliencia-20261027-231345.zip (git archive del commit documentado).
+Acta: docs\equipo\actas\2026-10-27_plan_personalizacion_control_usuario.md. Plan fuente: docs\plan\PLAN_COMPLETO.md seccion 24. Registro: docs\BITACORA.md.
+Pendiente siguiente: definir las fichas concretas y limites aprobados por MED/CV para flexiones, abdominales y sentadillas.
+Nota de alcance: tmp.test permanece fuera del commit; no se borraron perfiles ni backups.
+
+--------------------------------------------------------------------------------
+
+Fecha/Hora (local): 2026-10-27 22:38:53
+Punto de estado actual: Punto 36 (app resiliencia): ONBOARDING PERSONALIZADO Y DEPENDENCIAS EXPO SDK 58. (a) Se agregaron cuatro objetivos visibles: perder grasa, ganar musculo, crear habito y sentirme mejor/reducir estres; mantener queda como compatibilidad historica. (b) Se agrego el nivel de experiencia: nunca entrene, principiante, intermedio y avanzado. (c) El nivel se guarda localmente y en profiles.experience_level de Supabase; todavia no ajusta dificultad, repeticiones ni progresion. (d) Los dias de entrenamiento organizan localmente la semana de retos; la sincronizacion remota queda pendiente. (e) Se mejoraron las tarjetas de experiencia y los dias del onboarding muestran nombres completos en es/en/pt. (f) Expo se actualizo de 58.0.19 a 58.0.20 y se alinearon seis modulos compatibles. (g) La migracion 0023 se aplico de forma dirigida en Supabase y validate_workout quedo desplegada y activa.
+Estado de pruebas: apps/mobile typecheck OK; lint OK; 21 suites / 227 tests OK; exportacion Android OK; expo install --check OK.
+Publicacion GitHub: origin/main -> 5cc37bc (feat(mobile): completar onboarding personalizado); docs -> ad7a4f4.
+Tag de recuperacion: backup-resiliencia-20261027-223853.
+Backup local final: backups\resiliencia-20261027-223853.zip (git archive del commit documentado).
+Acta: docs\equipo\actas\2026-10-27_onboarding_personalizado_y_dependencias.md. Registro: docs\BITACORA.md.
+Pendiente siguiente: rangos de edad + experiencia + objetivo para dificultad, repeticiones y progresion; sincronizacion remota de dias de entrenamiento.
+Nota de alcance: tmp.test permanece fuera del commit; no se borraron perfiles ni backups.
+
+--------------------------------------------------------------------------------
+
+Fecha/Hora (local): 2026-10-25 22:57:14
+Punto de estado actual: Punto 35 (banco de pruebas): ANIMACIONES DE ABDOMINALES Y FLEXIONES. (a) Las tarjetas muestran imágenes estáticas transparentes para evitar reproducción simultánea y reducir consumo. (b) Las pantallas "Antes de empezar" reproducen los videos MP4 correspondientes en bucle y sin audio. (c) Se agregó expo-video al banco y los componentes AbdominalAnimation y PushupAnimation. (d) Se conservaron recursos femeninos y masculinos de abdominales, y recursos femeninos de flexiones. (e) El PO confirmó que todo funciona correctamente en el banco.
+Estado de pruebas: banco typecheck OK; lint OK; 39/39 tests OK; bundle Android OK; Metro resolvió los recursos visuales de abdominales y flexiones.
+Publicacion GitHub: commit de código 32f2f71 (feat(bench): agregar animaciones de abdominales y flexiones).
+Tag de recuperacion final: backup-resiliencia-20261025-225714.
+Backup local final: backups\resiliencia-20261025-225714.zip (git archive del commit final).
+Acta: docs\equipo\actas\2026-10-25_animaciones_banco_de_pruebas.md. Registro: docs\BITACORA.md.
+Nota de alcance: los cambios pendientes existentes de apps/mobile y tmp.test no se incluyeron ni se borraron.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-25 11:07:43
+Punto de estado actual: Punto 34 (app resiliencia, migracion aprobada): EXPO SDK 58 PARA COMPATIBILIDAD CON EXPO GO DE PLAY STORE. (a) La app movil paso de Expo SDK 57 a ~58.0.19, React Native 0.88.0 y React 19.3.0. (b) Se alinearon Expo Router, Camera, Sensors, File System, Image Picker, SQLite, Secure Store, Web Browser, WebView, Reanimated, Worklets y dependencias de Jest. (c) Se corrigio la configuracion de la ruta inicial de autenticacion para Expo Router 58 y la referencia de ScrollView del chat para RN 0.88. (d) El banco de pruebas conserva su SDK 57 independiente. (e) El PO confirmo que la app funciona en Expo Go SDK 58 instalado desde Play Store.
+Estado de pruebas: typecheck OK; lint OK; expo-doctor 20/20 OK; expo config OK; bundle Android OK; 20 suites / 222 tests OK.
+Publicacion GitHub: origin/main -> 353c6f0 (chore(mobile): migrar a Expo SDK 58).
+Tag de recuperacion final: backup-resiliencia-20261025-110743.
+Backup local final: backups\resiliencia-20261025-110743.zip (git archive del commit de codigo).
+Rollback preservado: backup-resiliencia-20261025-105725 y backups\resiliencia-20261025-105725.zip (estado SDK 57 previo a la migracion).
+Acta: docs\equipo\actas\2026-10-25_migracion_expo_sdk_58.md. Registro: docs\BITACORA.md.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-22 00:13:12
+Punto de estado actual: Punto 33 (app resiliencia, implementacion local): FOTO DE PERFIL LOCAL + REDISENO PROFESIONAL DE AJUSTES. (a) Se agregaron expo-image-picker ~57.0.20 y expo-file-system ~57.0.7. (b) Ajustes permite elegir una imagen de galeria, tomar una foto o quitarla; los permisos se piden solo al ejecutar la accion. (c) La imagen se recorta cuadrada, se comprime y se copia al almacenamiento persistente del dispositivo; la clave y el archivo quedan separados por userId. (d) El avatar de Inicio muestra la foto o la inicial y abre Ajustes. (e) Ajustes se ordeno en cabecera, tarjeta de perfil, perfil editable plegable, dias de entrenamiento, idioma, cuenta y reinicio. (f) app.json configura permisos de fotos/camara y desactiva permiso de microfono para el picker.
+Estado de pruebas: apps/mobile typecheck OK; lint OK; Expo config OK; 20 suites / 222 tests OK; git diff --check OK.
+Publicacion GitHub: origin/main -> 855e7b7 (feat(mobile): agregar perfil local y renovar ajustes).
+Tag de recuperacion: backup-resiliencia-20261022-001312.
+Backup local: backups\resiliencia-20261022-001312.zip (git archive del commit de codigo).
+Alcance: foto local, sin Supabase Storage ni sincronizacion entre dispositivos; no modifica retos, ranking ni verificacion.
+Acta: docs\equipo\actas\2026-10-22_perfil_local_y_ajustes.md. Registro: docs\BITACORA.md.
+Pendiente de validacion del PO en Expo Go: galeria, camara, cancelacion, permisos denegados, quitar foto, persistencia y cambio de cuenta.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-21 16:24:05
+Punto de estado actual: Punto 32 (banco de pruebas, NO produccion): FLEXIONES EN HORIZONTAL (CELULAR APAISADO) + GATE DE ORIENTACION POR EJERCICIO. Peticion del PO: probar flexiones con el celular en horizontal (pantalla girada 90 grados) para que el cuerpo de perfil entre completo en el cuadro y los botones queden cerca del pulgar. HALLAZGO PREVIO: el calculo de orientacion viejo (tilt = atan2(|gz|,|gy|)*180/PI, vertical = tilt <= 35, guard hypot(gy,gz) < 1) NO PODIA VER EL HORIZONTAL: ignoraba el eje x (con el celular apaisado daba 0, falso "vertical") y el guard descartaba la muestra justamente en ese caso, asi que el puente dejaba de informar la orientacion y la pagina se quedaba con el ultimo valor. CAMBIOS (solo apps/banco de pruebas de ejercicios + las dos copias del HTML del banco): (a) src/lib/orientation.ts (nuevo) + src/__tests__/orientation.test.ts (nuevo, 7 casos): clasificador de TRES ejes -> portrait/landscape/flat/tilted, misma tolerancia de 35 grados pero con el eje dominante mandando (|y| >= |x| vertical, |x| >= |y| apaisado) y conservando la semantica vertical del calculo viejo; (b) src/screens/TestScreen.tsx: el puente nativo manda { available, orientation, vertical, landscape, beta } (la pagina acepta el contrato viejo { available, vertical, beta }) y el chrome nativo se compacta en horizontal; (c) camera-verification-bench.html: el gate pasa a ser POR EJERCICIO (cfg.orientation) con requiredOrientation/orientationOk/orientationHint, los mensajes "Gira el celular a horizontal (apaisado)" / "Pone el celular parado en vertical", el badge "Vertical"/"Horizontal" y el layout ancho (applyLayout + CSS html[data-layout='wide']: video 16:9 al alto disponible y botones fijos en la esquina inferior derecha); (d) ejercicio del banco flexiones_landscape (mismo CFG que flexiones, type lateral, + orientation landscape) con marca en catalogo, tecnica del chat y home; (e) app.json del banco: orientation portrait -> default para que la app gire; (f) VERIFY_VERSION del banco 48 -> 49 y publicacion en gh-pages (1fcb838).
+Archivo fuente principal: apps/banco de pruebas de ejercicios (src/lib/orientation.ts, src/screens/TestScreen.tsx, src/lib/exercises.ts, src/lib/tecnica.ts, src/lib/chat.ts, src/lib/verify.ts, src/screens/HomeScreen.tsx, app.json) + camera-verification-bench.html (raiz del repo y copia del banco, identicas, hash 7FF8ADEF...F7495) - la pagina de produccion camera-verification.html NO se toco (sigue v54)
+Estado tests: banco 4 suites / 39 tests OK (incluye 7 casos nuevos del clasificador); typecheck OK; lint OK; HTML del banco parseado con node --check OK
+Publicacion gh-pages: camera-verification-bench.html v49 publicado (rama gh-pages, commit 1fcb838) y VERIFICADO SERVIDO en https://anibalkozur.github.io/resiliencia/camera-verification-bench.html (contiene classifyOrientation, requiredOrientation, orientationOk, data-layout y flexiones_landscape); camera-verification.html (produccion) sin cambios (gh-pages da7ab49)
+Rama: main (commit de codigo 3fb830f; docs 1c9b447)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261021-162405 (creado, apunta a 1c9b447); copia local en backups\resiliencia-20261021-162405 (387 entradas en el zip)
+Notas: Todo el trabajo es del BANCO de pruebas: apps/mobile, supabase/functions/validate_workout y camera-verification.html NO se tocaron (la regla 11 de AGENTS.md, bump + edge + deploy, aplica a produccion; el bump 48 -> 49 es propio del banco). PENDIENTE de validacion del PO en dispositivo: que la app gire con el celular, que el cuerpo de perfil entre completo, que la cuenta de reps coincida con flexiones en vertical y que funcionen los dos sentidos de giro; si Expo Go no respeta el app.json la app queda trabada en vertical y el experimento no es testeable en ese dispositivo (haria falta build propia). Advertencia al portar: el gate en horizontal cambia el comportamiento respecto de produccion (girar el celular ahora BLOQUEA los ejercicios que piden vertical, antes la muestra se descartaba y el estado quedaba viejo): es una mejora, pero hay que probarla en la app real. Acta 027 en docs/equipo/actas/2026-10-21_flexiones_horizontal_banco.md; registro en docs/BITACORA.md; detalle de portabilidad en PORTAR_A_PRODUCCION.md seccion 20. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar. Pendiente de fondo: gate premium del reto/racha en validate_workout (requiere OK del PO).
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-21 15:34:11
+Punto de estado actual: Punto 31 (desarrollo directo en produccion): REGISTRO DE DEUDA TECNICA Y DE SEGURIDAD (solo documentacion, sin cambios de codigo ni de dependencias). Tres entradas nuevas en docs/BITACORA.md (2026-10-21). (a) DEUDA TECNICA: dependencias desalineadas de Expo SDK 57. npx expo install --check reporto 11 paquetes fuera de la version recomendada; expo-camera 15.0.16->~57.0.6 (major) y react-native-webview 14.0.1->13.16.1 (downgrade, ligado a permisos de camara) son los gruesos; +9 de patch (expo, expo-auth-session, expo-constants, expo-crypto, expo-linking, expo-router, expo-sqlite, expo-web-browser, jest-expo). Causa: entraron con pnpm add (commit 48990d4, implementacion de camara por WebView), no con expo install. Deuda conocida: onPermissionRequest sin tipar en webview v14 (se usa con any). Decision: NO tocar ahora (la app funciona; camara/WebView/sensor estables); alinear antes del release con expo install --fix sobre backup, prebuild nativo + build real y prueba en dispositivo. Regla preventiva: usar npx expo install, nunca pnpm add. (b) DEUDA DE SEGURIDAD: defensa contra clientes modificados. Hoy el server es autoridad del ESTADO (solo el marca verified) y deriva ejercicio/meta/unidad/fecha; pero NO rederiva la evidencia cruda: valida coherencia de livenessPassed/seriesOk/evidence/durationMs/startedAt/finishedAt, que un cliente modificado puede falsificar (no se confia en hash de cliente, firma con clave embebida ni livenessOk:true). Falta, por prioridad: rate limiting, nonce/intento firmado (anti-replay), Play Integrity/App Attest (antes de competencia/premios) y validacion de evidencia real (video/frames). Decision: NO implementar ahora (un nonce con round-trip romperia el offline-first); resolver antes de rankings publicos, premios o release comercial. (c) PLAN DE VERIFICACION SERVER-SIDE (minimo lean): de 5 puntos, 3 ya estan hechos (validacion server-side; idempotencia client_op_id+decidedDates; motivos de rechazo especificos), 1 parcial (MAX_BATCH=50 existe pero falta rate limit por usuario/IP/ventana) y 1 falta entero (NO hay tests de la edge; la edge corre en Deno y no hay deno local; hay que decidir deno test o testear la logica pura). Prioridad recomendada: tests de la edge primero (habrian atrapado el incidente de hoy unsupported_evidence_version v54 vs edge), luego rate limit basico.
+Archivo fuente principal: docs/BITACORA.md (solo documentacion; sin cambios en apps/mobile, supabase ni el HTML de camara)
+Estado tests: apps/mobile 20 suites / 222 tests OK (sin cambios); la edge validate_workout NO tiene tests (deuda registrada)
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v54; gh-pages da7ab49)
+Rama: main (commit docs f0b1542)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261021-153411 (creado, apunta a f0b1542); copia local en backups\resiliencia-20261021-153411 (384 entradas en el zip)
+Notas: Desarrollo directo en produccion (no paso por el banco). Solo se agrego documentacion a la BITACORA: sin cambios de codigo, dependencias, migraciones ni deploy. Las tres entradas son propuestas de asesores revisadas por los roles ([SEC]/[BE]/[QA]/[MOB]/[PM]); se registran como deuda/plan, no como trabajo ejecutado. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar. Pendiente de fondo: gate premium del reto/racha en validate_workout (requiere OK del PO).
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-21 15:16:35
+Punto de estado actual: Punto 30 (desarrollo directo en produccion): PRUEBA DE VIDA SIN BUCLE (v54) + SINCRONIZACION DE VERSION DE EVIDENCIA. (a) FIX DEL BUCLE RAPIDO DE LA SENAL DE VIDA en el reto diario de flexiones: en camera-verification.html, el desafio de vida se CANCELABA al perder un frame de pose (hideLiveness + livenessChallengeActive=false) dejando livenessNextTriggerAt vencido, asi que al recuperar la pose se rearmaba al instante (bucle) y cada rearme renovaba la cadencia estricta (anulaba strict=1). Ahora, si livenessChallengeActive, perder la pose NO reinicia el desafio (solo resetea confirmFrames/holdStartTime); al armar se limpia livenessNextTriggerAt; se agrega timeout LIVENESS_TIMEOUT_MS=10000 -> failLiveness() corta la serie con REPETIR; livenessCadenceExtended extiende la cadencia UNA SOLA VEZ por desafio; y se limpian temporizadores/estados al pasar o fallar. (b) SINCRONIZACION OBLIGATORIA: VERIFY_VERSION 53->54 en verify.ts; ALLOWED_EVIDENCE_VERSIONS [12,13,53]->[12,13,53,54] en validate_workout; deploy del HTML v54 a gh-pages (f1aa0ca..da7ab49) y redeploy de la edge. (c) INCIDENTE Y LECCION: el PO hizo el reto ANTES de actualizar la edge y fue RECHAZADO con unsupported_evidence_version; no fue culpa del PO ni del registro; corregido en la edge; rehizo el reto por camara ("reintentar reto" reenvia por camara) y quedo VERIFIED en prod. (d) GUARD NUEVO: test evidenceVersionSync verifica que VERIFY_VERSION este en ALLOWED_EVIDENCE_VERSIONS y falla si no. Regla de proceso: bump de version + edge + deploy en el mismo movimiento (AGENTS.md regla 11). Nota: se descarto la propuesta de flexiones "de frente" (pelea con el motor de pose y arriesga mal conteo).
+Archivo fuente principal: apps/mobile + supabase (edge validate_workout) + camera-verification.html (v54, deployado a gh-pages)
+Estado tests: apps/mobile 20 suites / 222 tests OK; typecheck raiz OK; lint raiz OK (0 warnings)
+Publicacion gh-pages: camera-verification.html v54 deployado (gh-pages da7ab49)
+Rama: main (commit de codigo a0778fd; docs d273827)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261021-151635 (creado, apunta a d273827); copia local en backups\resiliencia-20261021-151635 (384 entradas en el zip)
+Notas: Desarrollo directo en produccion (no paso por el banco). Deploy de edge validate_workout aplicado (con el PAT del Management API). Evidencia prod: workout_sessions reto:2026-10-21, ranked=true, series_ok=true, verification_version=54, verification_source=server; daily_challenge_submissions 2026-10-21 verified. Acta 026 en docs/equipo/actas/2026-10-21_prueba_de_vida_v54_y_sincronizacion.md; registro en docs/BITACORA.md; regla 11 en AGENTS.md. Probado por el PO (2026-10-21) en dispositivo: reto completo con senal de vida, sin bucle, verificado. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar. Pendiente de fondo: gate premium del reto/racha en validate_workout (requiere OK del PO).
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-21 14:12:06
+Punto de estado actual: Punto 29 (desarrollo directo en produccion): FIX MINIMO DEL PUENTE SENSOR->WEBVIEW. En retos.tsx y camretos.tsx, si DeviceMotion.isAvailableAsync() devolvia false, el codigo hacia return SIN AVISAR a la WebView; la pagina esperaba su ventana de SENSOR_CONFIRM_MS (8 s) y recien ahi mostraba "Sensor no confirmado", sin distinguir sensor ausente de sensor lento. Ahora, al detectar !available, se inyecta window.__resilienciaSetNativeOrientation({ available: false }) (el HTML ya lo maneja, L2624-2627: sensorUnavailable=true -> ensureOrientationSensor corta de inmediato). Se mantiene el guard !active primero. Origen: propuesta de otro asesor (maquina de estados + handshake completo) que se DESCARTO por sobredimensionada; se aplico solo el fix minimo. Alcance: no se toco la camara, el HTML ni VERIFY_VERSION (sigue v53); sin deploy de gh-pages; 2 archivos +14/-2. Limite conocido: el aviso es un injectJavaScript que depende del orden de carga (si isAvailableAsync resolviera antes de que el HTML defina el hook, el && lo descarta); riesgo bajo porque el efecto se monta con la camara ya visible; no verificado en dispositivo.
+Archivo fuente principal: apps/mobile (el HTML de camara no cambia: sigue v53, no se toco la camara ni se deployo)
+Estado tests: apps/mobile 19 suites / 221 tests OK; typecheck raiz OK; lint raiz OK (0 warnings)
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v53; gh-pages f1aa0ca)
+Rama: main (commit de codigo 63712b7; docs ed6bfef)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261021-141206 (creado, apunta a ed6bfef); copia local en backups\resiliencia-20261021-141206 (382 entradas en el zip)
+Notas: Desarrollo directo en produccion (no paso por el banco). Sin migracion y sin deploy de edge en este punto. Acta 025 en docs/equipo/actas/2026-10-21_fix_sensor_no_disponible.md; registro en docs/BITACORA.md. Probado por el PO (2026-10-21), Caso 1 (telefono con sensor OK): Retos -> INICIAR y Modo Libre arrancan normalmente; "funciona muy bien". Los Casos 2/3 (forzar sensor ausente / emulador) quedaron SIN EFECTO por decision del PO. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-21 14:05:03
+Punto de estado actual: Punto 28 (desarrollo directo en produccion): GATING FREE/PREMIUM + FONDOS_SILLA. (a) El FREE NO VE EL RETO DIARIO: en la pestana Retos, en vez del boton INICIAR se muestra una caja Premium (retos.premium_title/body/cta) que solo avisa (no hay pantalla de compra todavia); ademas el bloque de camara del reto exige premium, asi el free nunca la monta. (b) EL FREE NO PARTICIPA DEL RANKING PERO SI LO VE: se quito el ocultamiento de la tab Ranking (_layout.tsx, sin href condicional) y el boton VER RANKING de Inicio ahora es visible para el free; la pantalla Ranking muestra el aviso progress.ranking_premium. (c) ACLARACIONES en Inicio (home.free_retos bajo la tarjeta + home.free_ranking) y en Ranking, i18n es/en/pt sincronizado. (d) FONDOS_SILLA COMPLETADO EN LA DB DE PROD: el catalogo movil listaba 9 ejercicios (incluido fondos_silla, premium) pero la tabla exercises tenia un CHECK que hardcodeaba 8 codigos; se recreo exercises_code_check incluyendo fondos_silla y se inserto la fila (premium, reps, es/en/pt); exercises pasa de 8 a 9; replicado en la migracion 0021 (idempotente). Nota: el descenso a free NO borra datos (racha, record, reps, historial): solo congela la participacion. Documentado ademas el flujo de pago Premium (ADR 2026-10-20_flujo_pago_premium_store.md): Play/App Store -> RevenueCat -> webhook firmado -> Supabase -> entitlements; la app nunca se hace premium sola.
+Archivo fuente principal: apps/mobile + supabase (migracion 0021; el HTML de camara no cambia: sigue v53, no se toco la camara ni se deployo)
+Estado tests: apps/mobile 19 suites / 221 tests OK; typecheck raiz OK; lint raiz OK (0 warnings)
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v53; gh-pages f1aa0ca)
+Rama: main (commit de codigo be47810; docs 13802ea)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261021-140503 (creado, apunta a 13802ea); copia local en backups\resiliencia-20261021-140503 (381 entradas en el zip; ~12.7 MB)
+Notas: Desarrollo directo en produccion (no paso por el banco). Cambio de DDL aplicado a mano en prod (recreo del CHECK + INSERT) y replicado en la migracion 0021. Sin deploy de edge en este punto (pendiente: gate premium del reto/racha en validate_workout, requiere OK del PO). Acta 024 en docs/equipo/actas/2026-10-20_free_gating_y_fondos_silla.md; ADR del flujo de pago en docs/equipo/adr/2026-10-20_flujo_pago_premium_store.md; registro en docs/BITACORA.md. Probado por el PO (2026-10-20): sesion real de fondos_silla en Modo Libre funciona bien; ademas probo el flujo free/premium. Aprobado. Se probo tambien que el cambio de modelo no rompe el arranque (el crash anterior fue por expo-notifications en app.json, que exige rebuild nativo; NO se volvio a tocar). Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-20 11:15:02
+Punto de estado actual: Punto 27 (desarrollo directo en produccion): CIERRE de dos entregas probadas en dispositivo. (a) SALIDA AUTOMATICA DEL RETO al completar (fix del bug "REPETIR queda activo"): el reto abre la camara con strict=1 y SIN ranked=1, asi que la camara quedaba viva tras completar y mostraba REPETIR, y retos.tsx ignoraba data.type === 'repeat' -> repeticion ilimitada; ahora, al llegar un 'complete' VALIDO (reps >= target), se llama setDone(...) de forma SINCRONICA y exitChallenge(), que vuelve a fase='inicio' mostrando la caja "RETO COMPLETADO" sin parpadeo; se quito el setDone duplicado del bloque asincrono. Si NO completa, REPETIR sigue igual (acta 018). (b) DATO DE LA SEMANA en Inicio (Fase 1 del pedido de "flyer semanal"): tarjeta "DATO DE LA SEMANA" con 7 datos propios (respiracion, descanso, postura, constancia, calentamiento, rango, escuchar el cuerpo) que rotan de forma DETERMINISTICA por semana ISO - sin red, sin backend, sin copyright; modulo nuevo src/retos/weeklyFact.ts (WEEKLY_FACT_IDS + isoWeek + weeklyFact) + test weeklyFact.test.ts; i18n es/en/pt (weekly.title + weekly.<id>.title|body). (c) TEXTO DE RACHA: home.streak pasa a DIAS DE RACHA / STREAK DAYS / DIAS DE SEQUENCIA (antes "RACHA HOY").
+Archivo fuente principal: apps/mobile (el HTML de camara no cambia: sigue v53, no se toco la camara ni se deployo)
+Estado tests: apps/mobile 19 suites / 221 tests OK; typecheck raiz OK; lint raiz OK (0 warnings)
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v53; gh-pages f1aa0ca)
+Rama: main (commit de codigo a66974e; docs 369ee5c)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261020-111502 (creado, apunta a a66974e); copia local en backups\resiliencia-20261020-111502 (376 entradas en el zip)
+Notas: Desarrollo directo en produccion (no paso por el banco). Sin migracion y sin deploy de edge en este punto. Acta 023 (cierre) en docs/equipo/actas/2026-10-20_cierre_salida_reto_dato_semana.md; acta 022 (Fase 1 + competencias geolocalizadas a futuro, Fase 2 SOLO documentada, decision de privacidad: ciudad del perfil sin GPS) en docs/equipo/actas/2026-10-19_inicio_dato_semana_y_competencias_futuro.md; registro en docs/BITACORA.md. Probado por el PO (2026-10-20): completado el reto del dia, al terminar las repes la app salio sola a la pestana Retos. Aprobado. Fase 2 (competencias) NO se construye en modo lean. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-19 15:00:15
+Punto de estado actual: Punto 26 (desarrollo directo en produccion): REDISENO DE LA PESTANA INICIO (Fase 1, acta 021). (a) Tarjeta del reto a TODO EL ANCHO: "RETO DE HOY" + ejercicio a la izquierda (numberOfLines 2, flexShrink) y la meta grande alineada a la derecha. (b) Franja de 3 METRICAS en una fila (Racha · Completados · Dias N/M de los ultimos 7 dias de entrenamiento) con divisores finos, reemplazando los 2 chips y la caja de racha flotante. (c) Tira de una linea con "Manana: X" y "Ultimo: ejercicio V"; mejor racha y VER RANKING pasan a texto discreto. (d) RESPONSIVE: ScrollView real + paddingBottom con insets.bottom, FAB IA con bottom por safe-area, sin anchos fijos, paddingHorizontal spacing.sm (8) para llegar casi al borde. (e) Skeleton cuando falta el reto (antes renderizaba null); el estado de sincronizacion (pendiente/rechazado) se integra en el CTA. (f) Limpieza: se quita el color hardcodeado #1d5c3a, imports duplicados y GOAL_TRANSLATION_KEYS sin uso; bug latente del chip "Dia N" (completedCount + 1) eliminado. Soporte: design-tokens suma spacing.xxl; i18n suma home.days_short, home.last y home.best (es/en/pt). Auditoria de vicios + propuesta de datos en la acta 021.
+Archivo fuente principal: apps/mobile (el HTML de camara no cambia: sigue v53)
+Estado tests: apps/mobile 18 suites / 214 tests OK; typecheck raiz OK; lint raiz OK (0 warnings)
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v53; gh-pages f1aa0ca)
+Rama: main (commit f3e6df8)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261019-150015 (creado, apunta a f3e6df8); copia local en backups\resiliencia-20261019-150015 (298 archivos)
+Notas: Desarrollo directo en produccion (no paso por el banco). Sin migracion y sin deploy de edge en este punto. Acta 021 en docs/equipo/actas/2026-10-19_inicio_compacto_responsive.md; registro en docs/BITACORA.md. Aprobado por el PO (2026-10-19). Fuera de alcance acordado: peso/IMC/WHtR (salud, [MED]), notificaciones (expo-notifications), accesos rapidos y consejo del dia. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-19 10:33:54
+Punto de estado actual: Punto 25 (desarrollo directo en produccion): la pestana Retos pasa a DOS PANTALLAS. (a) Pantalla de INICIO: conserva el encabezado TU SEMANA con la fila de 7 dias y los puntos de completado, y debajo una tarjeta nueva "RETO DE HOY" con el ejercicio, el objetivo (ej. 11 reps) y la guia tecnica completa (TECNICA[].guia), cerrando con el boton INICIAR abajo de todo (mismo estilo que el setup de Libre). (b) Pantalla del EJERCICIO: al tocar INICIAR la WebView pasa a PANTALLA COMPLETA; se elimino todo el chrome de antes (encabezado TU SEMANA, fila de dias, barra "RETO DE HOY - ejercicio - meta" y la ayuda tecnica), ganando la altura que ocupaba. (c) Flujo: el boton nativo SALIR del header y el cierre tras completar vuelven a la pantalla de inicio; completado muestra su caja con CTA; el rechazo ofrece REINTENTAR que entra directo a la camara. Se quito la caja showStartBox (el "empezar de nuevo" ya lo hace la tarjeta de inicio) y los estados camaraAbierta/retoSalido pasaron a una sola variable de fase ('inicio' | 'camara'); el sensor DeviceMotion solo se suscribe con la camara visible.
+Archivo fuente principal: apps/mobile (el HTML de camara no cambia: sigue v53)
+Estado tests: apps/mobile 18 suites / 214 tests OK; typecheck OK; lint OK
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v53; gh-pages f1aa0ca)
+Rama: main (commit 87e308b)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261019-103354 (creado, apunta a 87e308b); copia local en backups\resiliencia-20261019-103354 (297 archivos)
+Notas: Desarrollo directo en produccion (no paso por el banco). Sin migracion y sin deploy de edge en este punto. Acta 020 en docs/equipo/actas/2026-10-19_reto_pantalla_inicio_camara_completa.md; registro en docs/BITACORA.md. Aprobado por el PO (2026-10-19). Decision del PO: el encabezado TU SEMANA queda SOLO en la pantalla de inicio, no se borra. Abiertos de siempre: tmp.test sin trackear y el PAT del Management API sin revocar.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-18 22:30:24
+Punto de estado actual: Punto 24 (desarrollo directo en produccion): encendido del ranking (Fase 4) + fixes de la camara del reto + 2 mejoras de pantalla. (a) validate_workout v3 DESPLEGADA: promueve a verified y escribe workout_sessions (sesiones libres rankeadas) y daily_challenges (reto/racha para todos), acepta evidencia v53, fix de idempotencia; migracion 0019 (p_since + show_in_ranking) APLICADA en prod; ranking de rutina (seq, 1 fila por ejercicio) habilitado en cliente y ranking OCULTO a free (_layout + Inicio). (b) Camara: vida de aguante ('hold', flexiones/plancha) evaluada en processPose ANTES de los gates con umbral congelado (livenessDownThresh) - mismo bug que el acta 015 tenia en 'hand'; reto del dia con cadencia estricta (strict=1) que corta la serie por pausa larga y ofrece REPETIR sin rankear; REP_CADENCE unificado a 6 s (12 s con la repe de vida). (c) Boton SALIR nativo en el header de Retos (canal propio retosActive/setRetosSalirHandler/salirRetos) que cierra la camara sin depender de dwellStep. (d) Pantalla intermedia ANTES DE EMPEZAR en Libre: stage setup->intro->camara, explica TODOS los ejercicios de la rutina con meta y guia y termina en VOLVER/CONTINUAR; se quito la barra de ayuda de arriba de Libre.
+Archivo fuente principal: apps/mobile + camera-verification.html
+Estado tests: apps/mobile 18 suites / 214 tests OK; typecheck OK; lint OK
+Publicacion gh-pages: https://anibalkozur.github.io/resiliencia/camera-verification.html (v=53 en apps/mobile/src/retos/verify.ts; gh-pages commits 6bab0f2 + f1aa0ca)
+Rama: main (commit aee932e)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261018-223024 (creado, apunta a aee932e); copia local en backups\resiliencia-20261018-223024
+Notas: Desarrollo directo en produccion (no paso por el banco). Acta 018 en docs/equipo/actas/2026-10-18_reto_cadencia_vida_aguante.md; registro en docs/BITACORA.md. Todo COMMITEADO Y PUSHEADO (4 commits: 8a6965c ranking Fase 4, 7aea329 camara, 034b61b boton SALIR, aee932e pantalla intermedia). Edge v3 ACTIVE y 0019 aplicadas; el PAT del Management API sigue SIN revocar. tmp.test sigue sin trackear. Probado por el PO en Expo Go: OK (vida de aguante en flexiones, REPETIR en el reto, boton SALIR de Retos, pantalla intermedia).
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-16 22:27:32
+Punto de estado actual: Punto 23 (desarrollo directo en produccion): selector de PERIODOS en la pestana Ranking (UI) + visibilidad de perfil (showInRanking); acta 016. La pestana Ranking suma una fila de 5 chips de periodo (Hoy / Semana / Mes / Ano / Historico; default Historico) en UNA sola fila (flex:1, gap 4), con la tarjeta a BORDE DE PANTALLA; al elegir un periodo distinto de Historico se muestra un estado vacio honesto ("Todavia no hay resultados en este periodo") porque el filtrado por periodo es Fase 4 / fase B (no simula). El nombre/apodo ya se mostraba en la lista; lo nuevo es el opt-out showInRanking (default true, dormido hasta la fase B). Se reparo apps/mobile/src/sync/rankingPeriods.ts (no compilaba: no cerraba el switch ni la funcion; faltaba case 'all'; se quito el BOM) y se agregaron las claves i18n progress.period_day|week|month|year|all + period_empty en es/en/pt. No cambia el HTML de camara (sigue v53).
+Archivo fuente principal: apps/mobile (el HTML de camara no cambia: sigue v53)
+Estado tests: apps/mobile 17 suites / 207 tests OK; typecheck OK; lint OK; prettier OK
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v53)
+Rama: main (commit c427f6a)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261016-222732 (creado, apunta a c427f6a); copia local en backups\resiliencia-20261016-222732
+Notas: Desarrollo directo en produccion (no paso por el banco). Acta 016 en docs/equipo/actas/2026-10-16_ranking_rutinas.md; registro en docs/BITACORA.md. Pendiente Fase B: migracion 0019 (crea sobrecargas de funciones; hay que recablear syncService con p_since; NO commiteada, queda como borrador local) y el fix del handshake de version de evidencia ({12,13} vs camara ?v=53) + validador server-side real antes de ENCENDER el ranking. El free sigue fuera de todo ranking (ADR). Probado por el PO en Expo Go: OK.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-14 23:41:02
+Punto de estado actual: Punto 22 (desarrollo directo en produccion): reorganizacion de pestanas, historial en Progreso, Perfil plegable dentro de Ajustes y selector de dias de entrenamiento (acta 013). Pestañas: Inicio · Retos · Libre · Progreso · Ranking · Ajustes (nueva pestana Ranking + icono PodiumIcon; Inicio suma VER RANKING). Progreso pasa a HISTORIAL DE EJERCICIOS (retos + sesiones libres, orden por fecha desc; logica en src/retos/history.ts). Perfil deja de ser pestana: su contenido es PerfilPanel.tsx, plegable dentro de Ajustes; se elimina app/(tabs)/perfil.tsx. En Ajustes, la preferencia de plan pasa de "dias por semana" (2-6) a un SELECTOR DE DIAS: fila de 7 chips Lun-Dom en una linea (adaptativos) con leyenda "Selecciona los dias en que quieres entrenar"; minimo 1. Modelo Prefs.daysPerWeek:number -> Prefs.trainingDays:number[] (0=dom..6=sab, default [1,3,5,6]) con migracion automatica (LEGACY_TRAINING_SLOTS) y validacion; buildWeek/buildNextTraining toman trainingDays. Dia de descanso: el CTA de Inicio no navega y avisa con mensaje adaptativo (buildNextTraining). i18n settings.days -> "DIAS DE ENTRENAMIENTO" + nueva settings.days_hint; se retira settings.saved. Miercoles en ES pasa de X a M. No cambia el HTML de camara (sigue v51).
+Archivo fuente principal: apps/mobile (el HTML de camara no cambia: sigue v51)
+Estado tests: apps/mobile 16 suites / 198 tests OK; typecheck OK; lint OK
+Publicacion gh-pages: sin cambios (camera-verification.html sigue v51)
+Rama: main (commit ef70bd5)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261014-234102 (creado, apunta a ef70bd5)
+Notas: Desarrollo directo en produccion (no paso por el banco). Registro en docs/equipo/actas/2026-10-14_reorg_pestanas_selector_dias.md (acta 013). Preferencia de plan es solo local (no se sincroniza). UserSport.daysPerWeek (deportes del Perfil) es otra cosa y no se toco. Ranking sigue con estado vacio honesto: las sesiones entran "pending" hasta que exista el validador server-side (no simula la verificacion). Probado por el PO en Expo Go: OK.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-13 22:16:15
+Punto de estado actual: Punto 21 (desarrollo directo en produccion): prueba de vida obligatoria para rankear (acta 012). En sesiones validadas (libre rankeado y reto diario) el resultado nunca se envia sin prueba de vida. Meta > 10 reps: vida durante la serie (temporizador aleatorio 4-13 s) pero nunca antes de terminar la repe 5; meta <= 10 reps: vida al final (no se interrumpe la serie corta); segundos (plancha/isometrica): durante. La repe con vida durante pasa a 12 s (CADENCE_MS + 6000) para dar la señal y completar la repe. Consigna: la vida al final usa la misma instruccion que la aleatoria ("Señal de vida. Levantá la mano por encima de la cabeza"; en aguante "Bajá y aguantá"), y tras dar la señal la voz anuncia "Serie completa" (una sola locucion final, sin duplicar si el turno "done" ya empieza con esa frase). Fallback en postComplete: si la meta esta cumplida y no hay vida, no envia; se envia al confirmarla (onLivenessPassed). Cierra el bypass de metas <= 5 y el reto diario que abria sin ranked=1. VERIFY_VERSION 51. Probado por PO: OK.
+Archivo fuente principal: camera-verification.html (raiz) + apps/mobile
+Estado tests: apps/mobile 15 suites / 181 tests OK; typecheck OK; lint OK; apps/console 39/39 OK
+Publicacion gh-pages: https://anibalkozur.github.io/resiliencia/camera-verification.html (v=51 en apps/mobile/src/retos/verify.ts; gh-pages commit 07f5f96)
+Rama: main (commit 1442353)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261013-221615 (creado, apunta al codigo del punto 21: 1442353); copia local del HTML: backups\camera-verification-v51-20261013-221615.html
+Notas: Desarrollo directo en produccion (no paso por el banco). Registro en docs/equipo/actas/2026-10-13_politica_prueba_de_vida.md (acta 012). Serie gh-pages v47-v51. Aun sin validador server-side: las sesiones validas entran "pending" (no simula la verificacion).
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-12 16:05:00
+Punto de estado actual: Punto 20 (desarrollo directo en produccion): rutina en modo libre. En el tab Libre se arma una rutina de 1+ ejercicios (editor en el setup: orden con flechas arriba/abajo, meta -/+ por ejercicio, quitar, agregar desde modal con ejercicios premium bloqueados). Con 1 ejercicio se conserva el flujo unico (participa del ranking); con 2+ corre la serie `seq=id:objetivo,...` sin ranking. Al terminar cada ejercicio aparecen 3 botones de gesto en fila (SALIR | SIGUIENTE | REPETIR) con anillo de carga 26px (trio); REPETIR repite el ejercicio recien hecho y SIGUIENTE carga el proximo con su cuenta regresiva ('Meta cumplida. Siguiente: X, meta N reps. Sostené tu mano sobre SIGUIENTE para empezar' + hint al apoyar la mano). El HTML paso cfg/targetVal/targetUnit/livenessEnabled a let por ejercicio (loadExercise), agrego #nextBtn/.action-row/.trio y postea exerciseId/target/seqIndex/seqLength en cada complete. Header de la app muestra 'Rutina · N'. VERIFY_VERSION 46. Probado por PO: OK.
+Archivo fuente principal: camera-verification.html (raiz) + apps/mobile
+Estado tests: apps/mobile 14 suites / 175 tests OK; typecheck OK; lint OK
+Publicacion gh-pages: https://anibalkozur.github.io/resiliencia/camera-verification.html (v=46 en apps/mobile/src/retos/verify.ts; gh-pages commits 1352ea0 + ddebf47)
+Rama: main (commit c9c2ca3)
+Directorio backup sugerido (Git): tag backup-resiliencia-20261012-160500 (creado, apunta al codigo del punto 20: c9c2ca3)
+Notas: Desarrollo directo en produccion (no paso por el banco). Registro OK en PORTAR_A_PRODUCCION.md punto 20. Portados: 1, 2, 6, 10, 11, 12; pendientes: 3, 4, 5, 7, 8, 9. Serie gh-pages v24-v46 (v29 fue solo RN, sin cambio de HTML). Nota: se perdio el boton para cambiar de camara (queda frontal por defecto).
+
+--------------------------------------------------------------------------------
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-27 22:38:53
+Punto de estado actual: Punto 36 (app resiliencia): ONBOARDING PERSONALIZADO Y DEPENDENCIAS EXPO SDK 58. (a) Se agregaron cuatro objetivos visibles: perder grasa, ganar musculo, crear habito y sentirme mejor/reducir estres; mantener queda como compatibilidad historica. (b) Se agrego el nivel de experiencia: nunca entrene, principiante, intermedio y avanzado. (c) El nivel se guarda localmente y en profiles.experience_level de Supabase; todavia no ajusta dificultad, repeticiones ni progresion. (d) Los dias de entrenamiento organizan localmente la semana de retos; la sincronizacion remota queda pendiente. (e) Se mejoraron las tarjetas de experiencia y los dias del onboarding muestran nombres completos en es/en/pt. (f) Expo se actualizo de 58.0.19 a 58.0.20 y se alinearon seis modulos compatibles. (g) La migracion 0023 se aplico de forma dirigida en Supabase y validate_workout quedo desplegada y activa.
+Estado de pruebas: apps/mobile typecheck OK; lint OK; 21 suites / 227 tests OK; exportacion Android OK; expo install --check OK.
+Publicacion GitHub: origin/main -> 5cc37bc (feat(mobile): completar onboarding personalizado).
+Tag de recuperacion: backup-resiliencia-20261027-223853.
+Backup local final: backups\resiliencia-20261027-223853.zip (git archive del commit documentado).
+Acta: docs\equipo\actas\2026-10-27_onboarding_personalizado_y_dependencias.md. Registro: docs\BITACORA.md.
+Pendiente siguiente: rangos de edad + experiencia + objetivo para dificultad, repeticiones y progresion; sincronizacion remota de dias de entrenamiento.
+Nota de alcance: tmp.test permanece fuera del commit; no se borraron perfiles ni backups.
+
+--------------------------------------------------------------------------------
+
+BACKUP APP RESILIENCIA
+Fecha/Hora (local): 2026-10-28 22:07:32
+Punto de estado actual: Ajuste visual final de la pantalla Premium. El botón superior vuelve a ser compacto y muestra únicamente la flecha fina ‹ con fondo verde/teal; se mantienen el contenido elevado y el distintivo ✦ PREMIUM ✦ ampliado.
+Estado de pruebas: apps/mobile typecheck OK; lint OK.
+Registro: docs/BITACORA.md; acta: docs/equipo/actas/2026-10-28_ajuste_boton_premium.md.
+Recuperación: se generará tag backup-resiliencia-20261028-220732 y snapshot git archive en backups/ al cerrar el commit.
+Nota: no se borraron backups ni se alteraron cambios ajenos.
+
+--------------------------------------------------------------------------------
+

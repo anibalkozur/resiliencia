@@ -2,7 +2,417 @@
 
 Registro de peticiones del cliente (PO) y cambios aplicados. Se actualiza a medida que se planifica y desarrolla cada fase.
 
+Las entradas fechadas son históricas. El estado vigente se encuentra en el snapshot
+superior de `docs/equipo/estado.md`, la última acta y el código; una entrada antigua
+no sustituye la evidencia actual de despliegue o pruebas remotas.
+
+### 2026-10-28 — Ajuste final del botón de retorno Premium
+
+Se refinó `apps/mobile/app/planes.tsx` según la revisión visual del PO: el control
+superior volvió a ser compacto, conserva el fondo verde/teal del botón inferior y
+usa únicamente la flecha fina `‹`, sin la leyenda `VOLVER A LA APP`. Se mantuvieron
+el contenido elevado de la pantalla y el distintivo ampliado `✦ PREMIUM ✦`.
+
+Validación: typecheck y lint móviles correctos. Se actualizó el backup local y se
+verificó su integridad por SHA256.
+
+### 2026-10-28 — Pantalla Premium: salida visible y copy de producción
+
+Se revisó el flujo desde el límite Free de Modo Libre hacia `/planes`. La
+restricción Free continúa funcionando con 6 bloques y hasta 2 apariciones por
+ejercicio. La pantalla Premium ahora ofrece botones visibles `VOLVER A LA APP`
+arriba y abajo, además de conservar la flecha del encabezado.
+
+El contenido se separó por entorno: la vista de prueba conserva las leyendas de
+preview/demo, mientras que con RevenueCat configurado se muestran textos de
+producción, trial real, renovación real y precios provenientes de Google Play.
+Si la tienda todavía no devuelve una oferta, no se muestra un precio hardcodeado
+como si fuera definitivo.
+
+Validación: typecheck, lint y 251 tests móviles verdes.
+
+### 2026-10-28 — Modo Libre: bloques repetibles con límite Free
+
+La revisión [PM]+[UX]+[BE]+[MED]+[QA] aprobó que Modo Libre permita repetir
+ejercicios como series explícitas. Se implementó un máximo Free de 6 bloques por
+rutina y 2 apariciones del mismo ejercicio. La pantalla muestra `x/6 bloques`,
+explica el límite y, al intentar agregar un séptimo bloque o una tercera aparición,
+conserva la rutina y ofrece `CONTINUAR CON MI RUTINA` o `VER PREMIUM`.
+
+Premium dispone de un límite ampliado de 18 bloques para evitar sesiones técnicas
+interminables; la comunicación habla de mayor libertad, no de “ilimitado”. Las
+repeticiones mantienen su posición individual en la secuencia, no participan en
+rankings Free y conservan los controles existentes de meta, cámara y sincronización.
+La interfaz incluye una tarjeta de conversión visible solo al alcanzar el límite,
+sin impedir editar o quitar bloques existentes.
+
+Validación: typecheck, lint, 251 tests móviles y exportación Android correctos.
+
+### 2026-10-28 — Ajuste p2 para adultos mayores principiantes
+
+La revisión [MED]+[QA]+[BE]+[SEC]+[UX]+[PM] confirmó que el motor funcionaba,
+pero la recomendación de 70 años principiante podía quedar alta para el primer
+contacto. Se versionó `p2-2026-10-28-01`: mantiene la experiencia como base,
+incrementa gradualmente el descanso desde los 70/80 años y aplica topes iniciales
+solo a `sentadillas`, `flexiones` y `abdominales` para `nunca_entrene` y
+`principiante`: 8, 3 y 5 respectivamente en 70–79 años.
+
+Los perfiles intermedios y avanzados no reciben esos topes; siguen usando la
+experiencia elegida con un ajuste etario leve. El usuario conserva la posibilidad
+de modificar la meta, mientras que las asignaciones oficiales futuras quedan
+versionadas y auditables. Se agregaron pruebas específicas y la misma regla se
+replicó en móvil y `validate_workout`.
+
+### 2026-10-28 — Fases 3 y 5: personalización por perfil y contrato autoritativo
+
+La ronda [DER]+[PM]+[MED]+[BE]+[SEC]+[MOB]+[UX]+[QA]+[SRE] aprobó e implementó
+el siguiente criterio: la experiencia elegida es la base dominante; edad, objetivo
+y días de entrenamiento solo ajustan levemente la meta y el descanso. El usuario
+puede cambiar el nivel y las metas desde la app, pero el servidor conserva el
+snapshot oficial de cada reto y la distinción entre recomendación, selección y
+valor efectivo/verificado.
+
+- `apps/mobile/src/retos/personalization.ts` centraliza la versión `p1-2026-10-28-01`,
+  bandas de edad, ajustes acotados, descansos y razones visibles para la recomendación.
+- Ajustes incorpora tarjetas profesionales para cambiar el nivel de experiencia;
+  Modo Libre usa la sugerencia personalizada al agregar ejercicios sin impedir que
+  el usuario modifique la meta.
+- `0032_personalization_contract.sql` agrega límites y descanso al catálogo, guarda
+  snapshots de recomendación/elección/efectivo y refuerza que solo usuarios Premium
+  puedan consultar rankings por RPC.
+- `validate_workout` replica el motor para retos nuevos, crea asignaciones inmutables
+  con `training_days`, y escribe el objetivo efectivo server-side. Las evidencias
+  siguen siendo declarativas del cliente; esta ronda no las convierte en atestación
+  criptográfica ni en prueba audiovisual independiente.
+
+Validación local: typecheck, lint, 250/250 tests móviles y pruebas focalizadas de
+retos/personalización verdes. La migración 0032 quedó aplicada y alineada en
+Supabase remoto; `validate_workout` quedó desplegada como versión 8. Falta la
+batería completa de Console, que quedó bloqueada por un error local de Vitest al
+crear su token, y una prueba real Premium/Free antes de considerar cerrado el
+gate funcional remoto.
+
+### 2026-10-28 — Fase 8: adaptador móvil de RevenueCat preparado
+
+La revisión [PM]+[BE]+[SEC]+[MOB]+[QA] incorporó `react-native-purchases@10.16.0`
+en `apps/mobile` y reemplazó el botón puramente demostrativo de `planes.tsx` por un
+adaptador seguro con compra, restauración y carga de ofertas. La app funciona en
+Expo Go en modo preview cuando no existe `EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY`; con
+la clave pública configurada, las operaciones reales requieren Development Build/AAB.
+
+La app no concede Premium por la respuesta local de RevenueCat: después de comprar o
+restaurar, el estado visible se vuelve a consultar desde `entitlements` de Supabase,
+que se actualiza mediante el webhook server-side ya desplegado. Se agregaron textos
+ES/EN/PT, botón de restauración, manejo de cancelación/error y prueba del modo preview.
+Validación: typecheck, lint, Expo Doctor **20/20**, **248/248 tests móviles** y
+**409/409 tests del monorepo**. El backup local quedó sincronizado y verificado con
+**115 archivos por SHA-256**.
+
+Queda pendiente de entorno externo: crear productos/base plans en Google Play y
+RevenueCat, cargar la clave pública en EAS, configurar los secrets del webhook y
+probar compra/renovación/cancelación/reembolso/restauración en sandbox. No se
+escribieron secretos ni se inició un cobro real.
+
+### 2026-10-28 — Infraestructura local de Fase 0: healthz y backup
+
+La revisión [BE]+[SRE]+[SEC]+[QA]+[PM] cerró el siguiente bloque local de la Fase 0:
+
+- Se agregó `supabase/functions/healthz/index.ts`, endpoint mínimo `GET/HEAD` sin
+  acceso a datos; admite `HEALTHZ_TOKEN` por `X-Healthz-Token` y conserva el JWT
+  anon para que Supabase Edge pueda validar la llamada.
+- `.github/workflows/supabase-keepalive.yml` quedó preparado para invocar
+  `/functions/v1/healthz` cada 30 minutos, con prueba manual disponible.
+- Se agregó `scripts/backup_supabase.ps1` para dump custom del schema `public`,
+  hash SHA-256, metadatos y verificación con `pg_restore`; su dry-run pasó sin
+  acceder a una base ni escribir dumps.
+- `release_preflight.ps1` exige los artefactos y verifica la configuración del
+  Keep-Alive; `remote_readiness.ps1` informa las variables externas faltantes.
+
+La función, el cron y el backup todavía no se declaran activos: faltan deploy de
+la Edge, secretos reales, bucket/retención y una restauración remota controlada.
+El backup local final quedó actualizado a 112 archivos verificados por SHA-256.
+No se instalaron servicios pagos ni se expusieron credenciales.
+
+La revisión de supply chain [SEC]+[QA]+[PM] probó primero en una restauración
+temporal y luego integró el upgrade de Console: Electron `34.5.8 → 45.1.0`,
+Electron-Vite `3.1 → 6`, Vite `6 → 8` y Vitest `3 → 5`. También actualizó el
+dominio a Jest `30.5`/ts-jest `29.4.15` y fijó `simple-git 4.0.1`,
+`@simple-git/argv-parser 2.0.1` y `shell-quote 1.11.0`, sin romper
+`node-llama-cpp`. El preflight completo continuó verde (408 tests), el build de
+Electron pasó y la auditoría quedó en 11 advisories no críticos fuera de
+móvil/Console, concentrados en banco/Expo CLI.
+
+La auditoría de continuidad ejecutó `scripts/remote_readiness.ps1` sin mutaciones.
+El resultado fue **NO LISTO**: faltan las CLIs `supabase`/`eas`, las variables y
+secretos de Supabase y RevenueCat, y la metadata legal todavía es borrador. No se
+simularon despliegues, compras sandbox, backups PostgreSQL ni publicación de AAB.
+
+### 2026-10-28 — Reconciliación remota de migraciones y Edge Functions
+
+Con revisión [BE]+[SRE]+[SEC]+[QA] y autorización del PO se confirmó el proyecto
+Supabase `resiliencia` enlazado. Las migraciones 0024–0031 pasaron primero por una
+transacción reversible y luego se aplicaron remotamente en orden. Después se reparó
+el historial CLI 0001–0031 y `supabase migration list --linked` confirmó paridad
+total entre local y remoto.
+
+Se desplegaron las funciones locales: `validate_workout` v7, `admin_console` v4,
+`delete_account` v2, `healthz` v1 y `revenuecat_webhook` v1. `healthz` respondió
+200 con la clave pública configurada en la app; las sondas sin autenticación de
+`validate_workout` y del webhook respondieron 401. El webhook quedó sin verificación
+JWT del gateway, pero conserva HMAC/Authorization propio.
+
+Quedan fuera de esta ejecución: secretos específicos de RevenueCat, backup y
+restauración PostgreSQL, pruebas sandbox, metadata legal final, AAB y Play Console.
+No se imprimieron valores secretos ni se escribieron datos de usuarios.
+
+La migración 0031 endureció los grants de `entitlements`: solo `authenticated`
+conserva `SELECT`; `anon` no tiene acceso y el cliente no tiene INSERT/UPDATE/
+DELETE. La consulta de metadatos remota confirmó el resultado.
+
+EAS confirmó el proyecto `@anibalkozurs-team/resiliencia` y dos builds Android
+Development terminados con SDK 58. No se generó un AAB de producción porque el
+build actual no contiene aún el estado sin commit y faltan RevenueCat, legal y
+Play Console.
+
+### 2026-10-28 — Cierre técnico local de la auditoría de fases
+
+La revisión consolidada del equipo ([PM], [DER], [BE], [SEC], [MOB], [UX], [MED],
+[CV], [QA], [SRE], [FIN], [LEG], [ASO] y [CSC]) incorporó los hallazgos de la
+última ronda y dejó el repositorio en un estado coherente para continuar con los
+gates externos:
+
+- `0030_rankings_require_premium.sql` cierra también en las RPC de ranking el
+  requisito Premium real; la app no consulta datos de ranking para Free y muestra
+  el paywall correspondiente.
+- `0029_protect_revenuecat_entitlement_provenance.sql` protege tanto compras
+  RevenueCat directas como transferidas (`revenuecat_transfer`) frente a grants o
+  revocaciones administrativas.
+- Banco y móvil ahora notifican explícitamente a la WebView cuando el sensor no
+  está disponible y repiten ese estado si la página carga después; la cadencia del
+  banco queda alineada con móvil.
+- Google OAuth espera el retorno de la app y consulta la sesión antes de mostrar
+  “cancelaste el inicio de sesión”; también se reforzaron feedback traducido,
+  accesibilidad del ranking y el estado del Copiloto.
+- El preflight local quedó en 24 suites/247 tests móviles, 9/77 de dominio,
+  4/39 del banco y 6/45 de Console: **408 tests**, con typecheck y lint verdes.
+
+Este cierre es local. No afirma que `0024`–`0030`, las Edge Functions o el HTML
+estén aplicados en Supabase/gh-pages, ni que exista billing real, AAB firmado,
+restore de backup o prueba E2E remota. `tmp.test` sigue siendo un archivo sin
+trackear preexistente y no se eliminó.
+
+### 2026-10-28 — Endurecimiento del preflight de release
+
+[ASO]+[SRE]+[QA] detectaron que los nombres EN/PT de la ficha de Play superaban
+el límite de 30 caracteres. Se corrigieron a `ResiliencIA: Home Training` y
+`ResiliencIA: Treino em Casa`, y se agregó a `scripts/release_preflight.ps1` la
+validación automática de nombres (≤30), descripciones cortas (≤80), paridad de
+`VERIFY_VERSION` entre móvil/Edge/checklist y `cli.appVersionSource=remote`.
+
+El preflight completo volvió a quedar verde: 24 suites/247 tests móviles, 9/77
+de dominio, 4/39 del banco y 6/45 de Console (408 tests), con typecheck y lint
+correctos. Estos controles siguen siendo locales y no sustituyen la revisión de
+la ficha dentro de Play Console.
+
+Se agregó `scripts/verify_backup.ps1`. La ejecución contra el backup final verificó
+104 archivos modificados/nuevos por SHA256, sin hacer una restauración destructiva.
+Esto prueba integridad del snapshot, pero no reemplaza una restauración autónoma
+completa en una máquina limpia.
+
+También se agregó `scripts/security_preflight.ps1`. El escaneo revisó 361 archivos
+de código, confirmó que no hay `.env` reales trackeados ni claves privadas
+incrustadas y quedó integrado al preflight de release. Las claves de servicio
+siguen siendo un requisito externo de Supabase Secrets.
+
+El preflight acepta el modo desarrollo, pero `-RequireProductionMetadata` falla
+intencionalmente mientras privacidad, términos y eliminación de cuenta sigan con
+campos de borrador. Esto deja el bloqueo legal como un gate ejecutable, no como una
+advertencia informal.
+
+El listado obligatorio del preflight también incluye las Edge Functions de
+`delete_account` y `admin_console`, evitando que una publicación omita el flujo de
+eliminación de cuenta o la superficie administrativa protegida.
+
+Se agregó `scripts/remote_readiness.ps1`, que se ejecutó sin mutar servicios ni
+mostrar valores sensibles. Confirmó como bloqueos externos la ausencia de Supabase
+CLI, EAS CLI, variables/secrets de Supabase y RevenueCat, y metadata legal pendiente.
+Su salida queda como diagnóstico reproducible antes de una futura ventana de deploy.
+
+También se ejecutó una restauración de overlay no destructiva desde `git archive` más
+los 104 archivos del backup. La recomposición fue correcta en
+`C:\Users\Anibal\OneDrive\Documentos\resiliencia-restore-check-20261028`; no se
+probó todavía una instalación limpia ni se borró la carpeta temporal.
+
+La instalación limpia inicialmente expuso que Jest cargaba el módulo nativo
+`ExpoCrypto` y fallaban 4 suites. Se agregó un mock exclusivo de Jest en
+`apps/mobile/src/__mocks__/expo-crypto.ts`, sin cambiar el uso de `expo-crypto` en
+la app real. Después de reinstalar offline, la restauración pasó typecheck, lint y
+las 408 pruebas completas.
+
+La misma restauración también completó `expo export --platform android`: Metro
+generó el bundle Android y `dist` sin errores. Esto valida el bundling, pero no
+equivale a un AAB firmado ni a una instalación en track interno.
+
+### 2026-10-28 — Revisión del contexto de suscripciones del Copiloto
+
+El equipo [BE]+[SEC]+[QA]+[FIN]+[PM] revisó el resumen que la Console entrega al
+Copiloto. Se corrigió `apps/console/src/renderer/src/lib/copilot/client.ts` para
+usar el mismo criterio fail-closed que la Console: una suscripción real con
+`expires_at = null` cuenta como activa, los registros ambiguos se clasifican como
+simulados y los grants administrativos (`source=admin`) se cuentan como accesos
+directos junto con los orígenes legacy compatibles. Las suscripciones vencidas
+solo se cuentan cuando la fecha es válida y ya pasó.
+
+La corrección evita que el Copiloto informe métricas contradictorias con la vista
+de entitlements y mantiene separadas las simulaciones, los grants de QA y las
+compras RevenueCat. Prettier y la suite de Console pasan; el preflight completo
+queda en 24 suites/247 tests móviles, 9/77 de dominio, 4/39 del banco y 6/45 de
+Console (408 tests). Esto sigue siendo validación local: no prueba Supabase remoto,
+RevenueCat, Play Console ni un AAB firmado.
+
+### 2026-10-28 — Alineación de la regla Free/Premium
+
+La revisión [PM]+[FIN]+[LEG]+[BE]+[SEC]+[QA] detectó una contradicción entre
+el código vigente y el ADR `2026-09-29_free-sin-ranking_premium-todo.md`: ese
+documento histórico todavía decía que Free podía usar el reto diario. La regla
+actual del PO es **Free = Modo Libre con flexiones, abdominales y sentadillas**;
+**reto diario, racha y rankings requieren Premium**.
+
+Se creó el ADR vigente
+`docs/equipo/adr/2026-10-28_free-modo-libre_premium-reto-diario.md`, se marcó el
+ADR anterior como superseded y se alinearon `PLAN_COMPLETO.md`, el prompt del
+Copiloto y sus ejemplos de conversación. Se agregó una aserción en la suite de
+Console. El preflight local queda en 24 suites/247 tests móviles, 9/77 de dominio,
+4/39 del banco y 6/45 de Console (408 tests).
+
 ## Historial
+
+### 2026-10-28 — Corrección de regla Free/Premium y cierre del paywall mock
+
+El equipo ([PM], [FIN], [LEG], [UX], [MOB], [QA], [BE] y [SEC]) revisó la
+frontera de cobros sin costo. La decisión vigente del PO queda fijada así:
+**Free conserva Modo Libre con flexiones, abdominales y sentadillas; el reto
+diario, su racha y los rankings requieren Premium**. La pantalla de planes lo
+declara como vista previa: los precios (`US$2,99` mensual y `US$19,99` anual),
+el trial anual de 7 días y los botones son informativos; no cobran ni activan
+entitlements.
+
+Se corrigió localmente la pantalla `apps/mobile/app/planes.tsx`: ambos planes
+son seleccionables, tienen acción de demo, estado visual, aviso de no cobro,
+salida segura y margen inferior para navegación. Se alinearon las traducciones
+es/en/pt y el documento maestro `docs/plan/PLAN_COMPLETO.md`. El CTA bloqueado
+de `Retos` ahora navega a `/planes` en vez de mostrar un aviso aislado.
+
+Se reforzó `validate_workout`: tanto una sesión marcada `source= reto_diario`
+como una completion diaria se rechazan con `premium_required` si el servidor no
+confirma entitlement activo, aunque el ejercicio asignado sea del pool free.
+Esto cierra el bypass específico de acceso Free al reto diario por cliente modificado;
+queda pendiente aplicar y probar
+la Edge y las migraciones en Supabase remoto.
+
+La precisión es importante: se cerró el bypass de acceso Free al reto diario, no la
+falsificación completa de conteo, liveness o evidencia audiovisual por una app
+modificada. El servidor valida coherencia y decide el estado, pero todavía no
+reanaliza de forma independiente los frames.
+
+La revisión DER+MED+CV también corrigió la escritura parcial racha/ranking: si
+`daily_challenges` queda verificado pero falla el guardado de `workout_sessions`,
+el siguiente reintento recupera la fila server-authoritative y repite el upsert
+idempotente de la sesión.
+
+En la misma ronda se agregó `usePremiumState` con carga y refresco al foco/actividad,
+se corrigió la Console para separar simulaciones, grants administrativos y compras
+RevenueCat, y se corrigió el estado de accesos sin vencimiento. La migración
+`0029_protect_revenuecat_entitlement_provenance.sql` evita que un grant administrativo
+sobrescriba o revoque una compra RevenueCat real. Todo queda pendiente de aplicación
+remota y prueba E2E.
+
+La comprobación `pnpm --filter mobile exec expo install --check` confirmó que las
+dependencias están alineadas con Expo SDK 58. `expo-doctor` no está instalado como
+comando del workspace; queda como gate de release pendiente, sin ocultar ese hecho.
+
+Se actualizó el backup local `C:\Users\Anibal\Dev\resiliencia-backup-20261028-fases-final`
+con 84 archivos modificados/nuevos. No se borraron backups previos ni se probó una
+restauración autónoma.
+
+### 2026-10-28 — Plan y ejecución por fases restantes
+
+El equipo completo ([PM], [DER], [BE], [SEC], [MOB], [UX], [MED], [CV], [QA], [SRE],
+[FIN], [LEG], [ASO] y [CSC]) revisó el estado global y acordó ejecutar las fases en
+orden. Se creó el acta `docs/equipo/actas/2026-10-28_plan_ejecucion_fases.md`.
+
+En esta sesión se implementó localmente el primer corte de Fase 1/2/3/6: contrato
+versionado de ejercicios y variantes, historial de intentos server-side, asignación
+sin sobrescritura, recomendación por experiencia/edad dentro de límites, sincronización
+de días de entrenamiento y rate limit diario preparado para la Edge. Typecheck, lint y
+pruebas críticas quedan documentados en el cierre de la sesión. También se cerró la
+omisión de liveness server-side y se alineó `mountain_climbers` a segundos en la página
+de cámara, dejándolo manual hasta validar su perfil. Typecheck/lint raíz y las suites
+mobile (235), domain (69) y banco (39) pasan. El historial remoto de migraciones sigue
+requiriendo reconciliación antes de aplicar `0024`/`0025` y desplegar la Edge/HTML v55.
+
+### 2026-10-28 — Fase 0: fichas versionadas del catálogo de ejercicios
+
+**Primer bloque implementado:** se incorporó una ficha de personalización para
+los nueve ejercicios actuales del catálogo móvil. Cada ficha incluye zona
+corporal, unidad, versión de reglas, variante, estado de verificación y
+recomendaciones por experiencia con mínimo, máximo, descanso y aumento máximo
+por sesión.
+
+**Estados aplicados:** flexiones, abdominales y sentadillas quedaron como
+variantes canónicas `verified`; cuatro ejercicios quedaron como `coached_only`
+y `mountain_climbers`/`fondos_silla` como `manual_only` por sus discrepancias de
+unidad/perfil. Todos pueden incorporarse al producto sin presentarlos todavía
+como verificados por cámara ni habilitarlos automáticamente para ranking.
+
+**Archivos:**
+
+- `apps/mobile/src/retos/types.ts`
+- `apps/mobile/src/retos/catalog.ts`
+- `apps/mobile/src/retos/__tests__/catalog.test.ts`
+
+**Validación:** typecheck móvil OK, lint móvil OK y tests específicos de
+catálogo/servicio OK (17/17). La suite móvil completa no se certificó en esta
+sesión porque quedó sin salida durante la ejecución y fue detenida para no
+dejar un proceso colgado.
+
+**Pendiente siguiente:** usar estas fichas en el motor de recomendación y
+persistir la configuración/override en el servidor. La metadata todavía no
+modifica por sí sola el reto diario existente.
+
+### 2026-10-27 — Veredicto del equipo sobre la Fase 0 y ejercicios aún no evaluados
+
+**Decisión del PO:** la evaluación de cámara no debe frenar la incorporación
+de ejercicios. Se avanzará con fichas, catálogo, animaciones, recomendaciones,
+Modo Libre y experiencia free/premium aunque algunas variantes todavía no
+tengan detector validado. La validación de cámara se resolverá posteriormente
+por ejercicio y variante.
+
+**Veredicto del equipo:** `[MED]`, `[CV]`, `[MOB]`, `[UX]`, `[BE]`, `[SEC]`,
+`[QA]`, `[SRE]`, `[PM]` y `[DER]` acuerdan separar contenido de verificación:
+
+- `verified`: variante probada por cámara y elegible para resultados
+  verificables, con validación del servidor;
+- `coached_only`: se puede mostrar, recomendar y registrar como actividad
+  personal, pero no se presenta como verificada ni entra automáticamente al
+  ranking;
+- `manual_only`: se registra como actividad manual sin verificación automática;
+- `unsupported`: queda fuera de la experiencia funcional hasta completar su
+  ficha.
+
+Esto permite sumar ejercicios no evaluados sin prometer una capacidad de cámara
+que todavía no existe. La evaluación posterior de encuadre, postura, umbrales,
+liveness, falsos positivos y ranking será un gate para cambiar cada variante a
+`verified`, no un gate para que exista en el producto.
+
+**Criterio agregado a la Fase 0:** toda ficha debe incluir unidad, rango
+recomendado, mínimo, máximo, retroceso, estado de verificación, instrucciones,
+señales de detención y tier. El cliente puede elegir una opción disponible,
+pero el servidor mantiene la autoridad sobre el estado verificable y el
+ranking.
+
+**Sin cambios de código en esta sesión.** Acta asociada:
+`docs/equipo/actas/2026-10-27_veredicto_fase0_catalogo_verificacion.md`.
 
 ### 2026-10-27 — Plan de personalización guiada con control del usuario
 
@@ -2442,3 +2852,133 @@ reemplazar la entrada desde Retos ni convertirse en un banner invasivo.
 
 **Estado:** registro actualizado; sin cambios de código en esta entrada. El ADR de flujo de
 pago continúa siendo la fuente de verdad arquitectónica.
+
+### 2026-10-28 — Plan y ejecución por fases restantes
+
+El equipo completo ([PM], [DER], [BE], [SEC], [MOB], [UX], [MED], [CV], [QA], [SRE],
+[FIN], [LEG], [ASO] y [CSC]) revisó el estado global y acordó ejecutar las fases en
+orden. Se creó el acta `docs/equipo/actas/2026-10-28_plan_ejecucion_fases.md`.
+
+En esta sesión se implementó localmente el primer corte de Fase 1/2/3/6: contrato
+versionado de ejercicios y variantes, historial de intentos server-side, asignación
+sin sobrescritura, recomendación por experiencia/edad dentro de límites, sincronización
+de días de entrenamiento y rate limit diario preparado para la Edge. Typecheck, lint y
+pruebas críticas quedan documentados en el cierre de la sesión. El historial remoto de
+migraciones sigue requiriendo reconciliación antes de aplicar `0024`/`0025`.
+
+#### Continuación — cierre local de fases y feedback (2026-10-28)
+
+Con revisión de [BE], [SEC], [MOB], [UX], [MED], [CV], [QA], [SRE] y [PM] se cerró
+el corte local ejecutable:
+
+- `daily_challenge_assignments` se lee como snapshot oficial sin escritura del cliente;
+  si no existe, se conserva el fallback offline y un reto ya completado no se reemplaza
+  durante la consulta.
+- Inicio y Retos calculan la semana con experiencia y edad; los `training_days` del
+  perfil remoto se recuperan con fallback compatible con esquemas anteriores.
+- `0026_session_feedback.sql` y el módulo local de feedback guardan dificultad y
+  molestia offline, permiten corregir la respuesta y no alimentan rankings. El motor
+  solo recomienda; nunca cambia la meta sin confirmación.
+- La Edge exige contrato de regla/variante/perfil, verifica `finishedAt-startedAt`,
+  deduplica completaciones por operación y fecha, limita la duración declarada y
+  falla cerrado ante errores de lectura previos o indisponibilidad de `goal_history`;
+  las fechas sin snapshot no toman el objetivo actual como sustituto.
+  `0025` incluye el permiso explícito para que `service_role` consuma el rate limit.
+
+Validación: monorepo `typecheck` y `lint` correctos; 24 suites / 240 tests móviles,
+7 suites / 69 tests de dominio y 4 suites / 39 tests del banco. `0024`–`0026`, Edge
+y HTML siguen sin desplegarse desde esta sesión. La señal de vida continúa siendo
+declarada por el cliente y requiere Play Integrity/atestación o validación audiovisual
+real antes de atribuir confianza fuerte a rankings públicos.
+
+La comprobación remota de solo lectura no pudo ejecutarse desde este entorno: no hay
+`supabase`/`deno` instalados y la consulta REST tampoco estuvo disponible. No se
+aplicaron migraciones, commits, pushes ni despliegues externos.
+
+Se creó un respaldo local del corte actual, incluyendo los archivos modificados y
+nuevos, en `C:\Users\Anibal\Dev\resiliencia-backup-20261028-fases` (36 archivos).
+
+#### Continuación — contrato local de RevenueCat (2026-10-28)
+
+El equipo [BE]+[SEC]+[QA]+[SRE]+[FIN]+[PM] revisó y dejó preparado el backend local de
+Fase 8. Se agregaron `supabase/migrations/0027_revenuecat_webhook_entitlements.sql`,
+`supabase/migrations/0028_revenuecat_transfer_events.sql` y
+`supabase/functions/revenuecat_webhook/index.ts`.
+
+La migración hace obligatorio el identificador único `rc_event_id`, protege la identidad
+de la suscripción por `(store, original_transaction_id)`, conserva `last_event_at` para
+ignorar eventos atrasados y centraliza el cambio de `purchases`, `subscriptions` y
+`entitlements` en una RPC exclusiva de `service_role`. La Edge valida firma HMAC sobre
+el cuerpo crudo si existe `REVENUECAT_WEBHOOK_HMAC_SECRET`; en caso contrario exige el
+secreto `REVENUECAT_WEBHOOK_AUTH`. También valida `REVENUECAT_APP_ID`, environment,
+productos cerrados, store y UUIDs de usuarios de Supabase.
+
+El contrato trata cancelación como acceso hasta vencimiento, billing issue/pausa como
+estado no revocatorio inmediato y expiración/reembolso como revocación. Duplicados son
+idempotentes y los eventos antiguos no degradan el estado vigente. `0028` procesa las
+transferencias con `transferred_from/to`: audita el evento, revoca el acceso productivo
+de los orígenes y no inventa un período para el destino; este recibe Premium solo cuando
+entra una compra o renovación validada. Las pruebas y eventos no soportados no otorgan
+Premium.
+
+Estado: **implementado localmente, no desplegado**. Falta integrar el SDK nativo de
+compras (requiere Development Build, no Expo Go), configurar productos en Google Play y
+RevenueCat, cargar secrets, desplegar la función con `--no-verify-jwt`, aplicar `0027` y `0028`
+remotamente y ejecutar la matriz E2E de sandbox. No se hicieron commits, pushes ni
+mutaciones externas en esta sesión.
+
+#### Cierre local de contratos de Fases 7, 9 y 10 (2026-10-28)
+
+El equipo [PM]+[BE] dejó el contrato B2B y un mock aislado en `packages/domain` para
+probar invitaciones opacas, expiración, roles y aislamiento sin activar tablas remotas.
+[IA]+[SEC]+[MED] reforzaron el coach determinista con alerta médica prioritaria,
+bloqueo de dietas/suplementos/diagnósticos y contexto limitado del reto actual. [ASO],
+[LEG] y [SRE] dejaron el preflight de Play, Data Safety, matriz de dispositivos,
+aceptación de release y borradores internos de privacidad, términos y retención.
+
+Validación adicional: dominio 8 suites / 73 tests, móvil 24 suites / 244 tests, typecheck
+móvil/dominio y lint móvil correctos. Estos cierres son locales. Fase 7 real, coach con
+modelo, documentos legales finales, cobro, migraciones/Edge remotas y publicación siguen
+requiriendo decisiones, cuentas, secrets o pruebas externas.
+
+Se amplió Fase 10 con inventario/evidencia Data Safety, registro de subprocesadores,
+runbook de eliminación, E2E, rollback, backup/restore, configuración, incidentes, ASO,
+notas de versión y un borrador de URL externa de eliminación. `scripts/release_preflight.ps1
+-SkipTests` ejecutó typecheck y lint correctamente; el mensaje final deja explícito que no
+verifica Supabase, Play Console, RevenueCat ni el AAB.
+
+#### Segunda revisión de fases — 2026-10-28
+
+La revisión conjunta de [BE]+[SEC]+[MOB]+[MED]+[CV]+[QA]+[SRE]+[FIN]+[LEG]+[ASO]+[PM]
+cerró los riesgos locales del primer corte. El webhook ahora procesa `REFUND_REVERSED`,
+mantiene la identidad de `PRODUCT_CHANGE` por transacción, exige timestamp, usa allowlist
+exacta de productos y procesa `TRANSFER` con revocación segura del origen. Sandbox y
+simulación quedan separados de los entitlements productivos; el cliente filtra filas de
+simulación y el helper server-side también.
+
+Inicio intenta usar la asignación oficial antes del fallback offline y el coach recibe
+estado, valor, dificultad, molestia y condición de ranking. Las alertas de salud tienen
+intención propia y no se confunden con consejos generales. Se agregaron pruebas puras del
+contrato de RevenueCat y casos de falsa alerta preventiva.
+
+Resultado local reproducible: `typecheck` y `lint` correctos; móvil 247 tests, dominio 77,
+banco 39 y Console 39. El preflight completo terminó correctamente y recuerda que no
+verifica Supabase remoto, Play Console, RevenueCat ni el AAB. No se hicieron commits,
+pushes, migraciones remotas ni despliegues externos.
+
+El backup `C:\Users\Anibal\Dev\resiliencia-backup-20261028-fases` quedó actualizado con
+76 archivos modificados/nuevos. Es un snapshot parcial del trabajo, no un clon autónomo
+ni una restauración probada; el manifiesto de producción fue corregido para decir
+“migraciones requeridas” en lugar de afirmar que ya están aplicadas.
+
+#### Fase 8 — transferencias RevenueCat — 2026-10-28
+
+[BE]+[SEC]+[QA]+[SRE]+[PM] revisaron e implementaron `0028_revenuecat_transfer_events.sql`.
+La Edge valida `transferred_from`/`transferred_to` como UUIDs existentes, rechaza
+solapamientos, registra idempotentemente el evento y la RPC revoca el acceso real del
+origen sin permitir que una simulación toque producción. El destino no recibe un período
+inventado: queda a la espera de una compra o renovación validada.
+
+El contrato normalizador y sus pruebas quedaron verdes. Falta aplicar `0028`, desplegar
+la Edge y ejecutar la prueba remota de transferencia; hasta entonces Fase 8 sigue siendo
+local/parcial.
